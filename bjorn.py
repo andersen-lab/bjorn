@@ -16,6 +16,7 @@ from datetime import datetime as dt
 from bjorn_support import concat_fasta, align_fasta, compute_tree, map_gene_to_pos
 from mutations import identify_replacements, identify_deletions, identify_insertions
 from onion_trees import load_tree, visualize_tree, get_indel2color, get_sample2color
+import data as bd
 
 
 ## FUNCTION DEFINTIONS
@@ -404,31 +405,31 @@ if __name__=="__main__":
         # save deletion results to file
         deletions.to_csv(out_dir/'deletions.csv', index=False)
         # plot Phylogenetic tree with top consensus deletions annotated
-        deletions = deletions.nlargest(len(colors), 'num_samples')
-        del2color = get_indel2color(deletions, colors)
-        sample_colors = get_sample2color(deletions, colors)
-        fig2 = visualize_tree(tree, sample_colors,
-                   indels=deletions, colors=colors);
-        fig2.savefig(tree_dir/'deletion_cns_tree.pdf', dpi=300)
-        fig3 = visualize_tree(tree, sample_colors,
-                          indels=deletions, colors=colors,
-                          isnv_info=True);
-        fig3.savefig(tree_dir/'deletion_isnv_tree.pdf', dpi=300)
+        # deletions = deletions.nlargest(len(colors), 'num_samples')
+        # del2color = get_indel2color(deletions, colors)
+        # sample_colors = get_sample2color(deletions, colors)
+        # fig2 = visualize_tree(tree, sample_colors,
+        #            indels=deletions, colors=colors);
+        # fig2.savefig(tree_dir/'deletion_cns_tree.pdf', dpi=300)
+        # fig3 = visualize_tree(tree, sample_colors,
+        #                   indels=deletions, colors=colors,
+        #                   isnv_info=True);
+        # fig3.savefig(tree_dir/'deletion_isnv_tree.pdf', dpi=300)
         # identify insertions
         insertions = identify_insertions(msa_fp, meta_fp, patient_zero, min_ins_len=1)
         # save deletion results to file
         insertions.to_csv(out_dir/'insertions.csv', index=False)
         # plot Phylogenetic tree with top consensus deletions annotated
         insertions = insertions.nlargest(len(colors), 'num_samples')
-        del2color = get_indel2color(insertions, colors)
-        sample_colors = get_sample2color(insertions, colors)
-        fig4 = visualize_tree(tree, sample_colors,
-                   indels=insertions, colors=colors);
-        fig4.savefig(tree_dir/'insertion_cns_tree.pdf', dpi=300)
-        fig5 = visualize_tree(tree, sample_colors,
-                          indels=insertions, colors=colors,
-                          isnv_info=True);
-        fig5.savefig(tree_dir/'insertion_isnv_tree.pdf', dpi=300)
+        # del2color = get_indel2color(insertions, colors)
+        # sample_colors = get_sample2color(insertions, colors)
+        # fig4 = visualize_tree(tree, sample_colors,
+        #            indels=insertions, colors=colors);
+        # fig4.savefig(tree_dir/'insertion_cns_tree.pdf', dpi=300)
+        # fig5 = visualize_tree(tree, sample_colors,
+        #                   indels=insertions, colors=colors,
+        #                   isnv_info=True);
+        # fig5.savefig(tree_dir/'insertion_isnv_tree.pdf', dpi=300)
     if not Path.isdir(out_dir):
             Path.mkdir(out_dir);
     # Data logging

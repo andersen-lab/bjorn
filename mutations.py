@@ -7,13 +7,13 @@ import pandas as pd
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 from bjorn_support import map_gene_to_pos
-from data import GENE2POS
+import data as bd
 
 
 def identify_replacements(input_fasta, 
                           meta_fp,
                           patient_zero: str='NC_045512.2', 
-                          gene2pos: dict=GENE2POS,
+                          gene2pos: dict=bd.GENE2POS,
                           location: str=None,
                           data_src: str='alab'):
     print(f"Creating a dataframe...")
@@ -216,7 +216,7 @@ def identify_deletions(input_fasta: str,
                        meta_fp: str,
                        patient_zero: str='NC_045512.2',
                        location: str=None,
-                       gene2pos: dict=GENE2POS,
+                       gene2pos: dict=bd.GENE2POS,
                        min_del_len: int=2,
                        start_pos: int=265, 
                        end_pos: int=29674,
@@ -226,13 +226,13 @@ def identify_deletions(input_fasta: str,
     patient_zero: name of the reference sequence in the alignment
     min_del_len: minimum length of deletions to be identified"""
     seqsdf, ref_seq = identify_deletions_per_sample(input_fasta, 
-                                           meta_fp,  
-                                           patient_zero,
-                                           gene2pos,
-                                           min_del_len,
-                                           start_pos,
-                                           end_pos,
-                                           data_src)
+                                           meta_fp, 
+                                           gene2pos, 
+                                           patient_zero=patient_zero,
+                                           min_del_len=min_del_len,
+                                           start_pos=start_pos,
+                                           end_pos=end_pos,
+                                           data_src=data_src)
     if location:
         seqsdf = seqsdf.loc[seqsdf['location'].str.contains(location)]
     # group sample by the deletion they share
@@ -411,9 +411,9 @@ def assign_deletion(x):
 
 def identify_insertions(input_filepath: str,
                         meta_fp: str,
-                        patient_zero: str,
-                        gene2pos: dict=GENE2POS,
-                        min_ins_len: int=2,
+                        patient_zero: str='NC_045512.2',
+                        gene2pos: dict=bd.GENE2POS,
+                        min_ins_len: int=1,
                         start_pos: int=265, 
                         end_pos: int=29674) -> pd.DataFrame:
     """Identify insertions found in the aligned sequences. 
@@ -571,10 +571,13 @@ def find_insertions(x, insert_positions: list):
 
 def get_seq(all_seqs: Align.MultipleSeqAlignment, sample_name: str) -> str:
     """Fetches the aligned sequence of a specific sample name"""
+    seq = ''
     for rec in all_seqs:
         if sample_name in rec.id:
             seq = rec.seq
             break
+    if len(str(seq))==0:
+        print('WARNING: reference sequence not acquired. Something is off.')
     return str(seq)
 
 

@@ -27,7 +27,8 @@
       });
     </script>
   </head>
-  <body>
+ <body>
+      
     <nav class="navbar navbar-dark bg-dark">
       <div class="container-fluid">
 	<span class="navbar-brand mb-0 h1">SITREP: {{strain}} variant in USA</span>
@@ -38,7 +39,9 @@
       <!-- *** Section 1 - General Info *** --->
       <div class="row" id="section1">
 	<hr>
-
+    <div class="col-6">
+          Enabled by data from  <a href="https://www.gisaid.org">GISAID</a>.
+	</div>
   <div class="alert alert-light" role="alert">
       This post is intended to act as a brief Situation Report (SITREP) about the {{strain}} variant, 
       which refers to SARS-CoV-2 sequences containing {{mutations}} 
@@ -140,6 +143,7 @@
             <figcaption class="figure-caption">Figure 4.1: spatial (geographical) prevalence of the strain 
               across the world.
             </figcaption>
+            </figure>
 	    </div>
         <div class="col-md-6">
           <figure class="figure">
@@ -147,6 +151,7 @@
             <figcaption class="figure-caption">Figure 4.2: the relative temporal (over time) prevalence of the strain across the globe, 
               represented as a fraction of overall cumulative number of samples (excluding VoC B117).
             </figcaption>
+              </figure>
 	      </div>
     </div>
 
@@ -166,6 +171,7 @@
                 <figcaption class="figure-caption">Figure S.1 shows the temporal (over time) prevalence of the strain 
                   in California. This is represented as cumulative number of {{strain}} samples over time.
                 </figcaption>
+                  </figure>
           </div>
           <div class="row">
             <figure class="figure">
@@ -173,6 +179,7 @@
               <figcaption class="figure-caption">Figure S.2: the temporal (over time) prevalence of the strain 
                 in USA. This is represented as cumulative number of {{strain}} samples over time.
               </figcaption>
+                </figure>
           </div>
         <div class="row">
           <figure class="figure">
@@ -180,7 +187,36 @@
             <figcaption class="figure-caption">Figure S.3: the temporal (over time) prevalence of the strain 
               on Earth. This is represented as cumulative number of {{strain}} samples over time.
             </figcaption>
+              </figure>
       </div>
     </div>
+     
+     <div class="row" id="section6">
+      <div class="col-6">
+              <h3>Acknowledgements</h3>
+             <p> We would like to thank the GISAID Initiative and are grateful to all of the data contributors, i.e. the Authors, the Originating laboratories responsible for obtaining the specimens, and the Submitting laboratories for generating the genetic sequence and metadata and sharing via the GISAID Initiative, on which this research is based.</p>
+          
+          
+          <p>Elbe, S., and Buckland-Merrett, G. (2017) Data, disease and diplomacy: GISAID's innovative contribution to global health. Global Challenges, 1:33-46.<br>
+              DOI: 10.1002/gch2.1018 PMCID: 31565258</p>
+          
+<p>Note: When using results from these analyses in your manuscript, ensure that you also acknowledge the Contributors of data, i.e. "We gratefully acknowledge all the Authors, the Originating laboratories responsible for obtaining the specimens, and the Submitting laboratories for generating the genetic sequence and metadata and sharing via the GISAID Initiative, on which this research is based."</p>
+          
+<p>Also, cite the following reference: 
+    
+    Shu, Y., McCauley, J. (2017) GISAID: From vision to reality. EuroSurveillance, 22(13)<br>
+    DOI: 10.2807/1560-7917.ES.2017.22.13.30494 PMCID: PMC5388101</p>
+      </div>
+     </div>
+     </div>
+     
+          <footer class="bg-light text-center text-lg-start">
+        <!-- Copyright -->
+      <div class="text-center p-3" style="background-color: rgba(0, 0, 0, 0.2)">
+            Data provided on this page is subject to GISAID's 
+          <a class="text-dark" href="https://www.gisaid.org/daa/">Terms and Conditions</a>
+      </div>
+  <!-- Copyright -->
+    </footer>
   </body>
 </html>

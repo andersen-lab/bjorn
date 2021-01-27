@@ -70,6 +70,7 @@ def world_time_relative(data, feature, values, res, strain='B117', vocs=['B.1.1.
     b117_world_time.loc[:, 'countries'] = b117_world_time['country_counts'].apply(lambda x: list(x[0]))
     b117_world_time.loc[:, 'country_counts'] = b117_world_time['country_counts'].apply(lambda x: list(x[1]))
     b117_world_time = pd.merge(b117_world_time, total_samples, on='date', how='right')
+    b117_world_time.loc[:, ['countries', 'divisions', 'locations']].fillna('', inplace=True)
     b117_world_time.loc[:, ['num_samples', 'total_samples']] = b117_world_time[['num_samples', 'total_samples']].fillna(0)
     first_detected = b117_world_time.loc[b117_world_time['num_samples']>0]['date'].min()
     first_countries = b117_world_time.loc[b117_world_time['date']==first_detected, 'countries'].values[0]
@@ -197,6 +198,7 @@ def us_time_relative(data, feature, values, res, strain='B117', country='USA', v
     b117_us_time.loc[:, 'states'] = b117_us_time['state_counts'].apply(lambda x: list(x[0]))
     b117_us_time.loc[:, 'state_counts'] = b117_us_time['state_counts'].apply(lambda x: list(x[1]))
     b117_us_time = pd.merge(b117_us_time, total_samples, on='date', how='right')
+    b117_us_time.loc[:, 'states'].fillna('', inplace=True)
     b117_us_time.loc[:, ['num_samples', 'total_samples']] = b117_us_time[['num_samples', 'total_samples']].fillna(0)
 
     sdrop_us_time = (biased.groupby('date')
@@ -210,6 +212,7 @@ def us_time_relative(data, feature, values, res, strain='B117', country='USA', v
     sdrop_us_time.loc[:, 'states'] = sdrop_us_time['state_counts'].apply(lambda x: list(x[0]))
     sdrop_us_time.loc[:, 'state_counts'] = sdrop_us_time['state_counts'].apply(lambda x: list(x[1]))
     sdrop_us_time = pd.merge(sdrop_us_time, total_samples, on='date', how='right')
+    sdrop_us_time.loc[:, 'states'].fillna('', inplace=True)
     sdrop_us_time.loc[:, ['num_samples', 'total_samples']] = sdrop_us_time[['num_samples', 'total_samples']].fillna(0)
     
     fig = go.Figure()
@@ -288,7 +291,7 @@ def us_time(data, feature, values, res, strain='B117', country='USA'):
         results = (res[(res['is_vui']==True)
                         & (res['country']=='United States of America')]
                         .drop_duplicates(subset=['date', 'strain']))
-    results['purpose_of_sequencing'] = '?'
+    results['purpose_of_sequencing'] = 'S'
     random = results[results['purpose_of_sequencing']=='?']
     biased = results[results['purpose_of_sequencing']!='?']
     b117_us_time = (random.groupby('date')
@@ -416,6 +419,7 @@ def ca_time_relative(data, feature, values, res,
 #     b117_ca_time.loc[:, 'date'] = pd.to_datetime(b117_ca_time['date'], 
 #                                              errors='coerce')
     b117_ca_time = pd.merge(b117_ca_time, total_samples, on='date', how='right')
+    b117_ca_time.loc[:, 'counties'].fillna('', inplace=True)
     b117_ca_time.loc[:, ['num_samples', 'total_samples']] = b117_ca_time[['num_samples', 'total_samples']].fillna(0)
     sdrop_ca_time = (biased.groupby('date')
                            .agg(
@@ -428,6 +432,7 @@ def ca_time_relative(data, feature, values, res,
     sdrop_ca_time.loc[:, 'county_counts'] = sdrop_ca_time['county_counts'].apply(lambda x: list(x[1]))
 #     sdrop_ca_time.loc[:, 'date'] = pd.to_datetime(sdrop_ca_time['date'], errors='coerce')
     sdrop_ca_time = pd.merge(sdrop_ca_time, total_samples, on='date', how='right')
+    sdrop_ca_time.loc[:, 'counties'].fillna('', inplace=True)
     sdrop_ca_time.loc[:, ['num_samples', 'total_samples']].fillna(0, inplace=True)
     fig = go.Figure()
     if b117_ca_time[b117_ca_time['num_samples']>0].shape[0] > 0:
@@ -507,7 +512,7 @@ def ca_time(data, feature, values, res, strain='B117', state='California'):
         # results['is_vui'] = results['mutations'].apply(is_vui, args=(set(values),))
         results = res[(res['is_vui']==True)
                       &(res['division']==state)].drop_duplicates(subset=['date', 'strain'])
-    results['purpose_of_sequencing'] = '?'
+    results['purpose_of_sequencing'] = 'S'
     random = results[results['purpose_of_sequencing']=='?']
     biased = results[results['purpose_of_sequencing']!='?']
     b117_ca_time = (random.groupby('date')
@@ -1100,7 +1105,7 @@ def mutation_diversity(data, mutation, strain='S:L452R'):
 #     f"A: Nucleotide mutations that led to {strain}. Reference codon: {ref_codon}. Positions: {ref_pos}"
     title2 = 'B'
 #     f"B: Distribution of {strain} across lineages"
-    fig = make_subplots(rows=2, cols=1, row_heights=[0.1, 0.9], 
+    fig = make_subplots(rows=2, cols=1, row_heights=[0.2, 0.8], 
                         subplot_titles=(title1, title2), vertical_spacing=0.05)
     codon_counts = (data.loc[data['mutation']==mutation, 'alt_codon']
                       .value_counts()

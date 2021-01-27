@@ -114,13 +114,14 @@ def generate_voc_data(feature, values, input_params):
     gisaid_data['tmp'] = gisaid_data['date'].str.split('-')
     gisaid_data = gisaid_data[gisaid_data['tmp'].str.len()>=3]
     gisaid_data['date'] = pd.to_datetime(gisaid_data['date'], errors='coerce')
-    # res['tmp'] = res['date'].str.split('-')
-    # res = res[res['tmp'].str.len()>=3]
-    # res['date'] = pd.to_datetime(res['date'], errors='coerce')
-    gisaid_data = gisaid_data[~((gisaid_data['pangolin_lineage']=='B.1.1.7')
-                            &(gisaid_data['date'].dt.month==1)) & 
-                          (gisaid_data['date'].dt.year>=2020) &
-                          ~(gisaid_data['date']=='2020-01-01 00:00:00')]
+    if res:
+        res['tmp'] = res['date'].str.split('-')
+        res = res[res['tmp'].str.len()>=3]
+        res['date'] = pd.to_datetime(res['date'], errors='coerce')
+#     gisaid_data = gisaid_data[~((gisaid_data['pangolin_lineage']=='B.1.1.7')
+#                             &(gisaid_data['date'].dt.month==1)) & 
+#                           (gisaid_data['date'].dt.year>=2020) &
+#                           ~(gisaid_data['date']=='2020-01-01 00:00:00')]
     results['world_time'] = bv.world_time(gisaid_data, feature, values, res, strain=results['strain'])
     results['us_time'] = bv.us_time(gisaid_data, feature, values, res, strain=results['strain'])
     results['ca_time'] = bv.ca_time(gisaid_data, feature, values, res, strain=results['strain'])
