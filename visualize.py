@@ -48,9 +48,9 @@ def world_time_relative(data, feature, values, res, strain='B117', vocs=['B.1.1.
                         .agg(total_samples=('strain', 'nunique')))
     else:
         res = res.copy()
-        res.loc[:, 'tmp'] = res['date'].str.split('-')
-        res = res[res['tmp'].str.len()>=3]
-        res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
+        # res.loc[:, 'tmp'] = res['date'].str.split('-')
+        # res = res[res['tmp'].str.len()>=3]
+        # res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
         res.loc[:, 'weekday'] = res['date'].dt.weekday
         res.loc[:, 'date'] = res['date'] - res['weekday'] * dt.timedelta(days=1)
         total_samples = (res[(~res['pangolin_lineage'].isin(vocs))]
@@ -103,7 +103,7 @@ def world_time_relative(data, feature, values, res, strain='B117', vocs=['B.1.1.
     return fig
 
 
-def world_time(data, feature, values, res, strain='B117'):
+def world_time(data, feature, values, res, strain='B117', sampling_type='random'):
     if len(values)==1:
         results = (data.loc[(data[feature]==values[0])]
                             .drop_duplicates(subset=['date', 'strain']))
@@ -171,9 +171,9 @@ def us_time_relative(data, feature, values, res, strain='B117', country='USA', v
         #                .agg(mutations=('mutation', 'unique')).reset_index())
         # results['is_vui'] = results['mutations'].apply(is_vui, args=(set(values),))
         res = res.copy()
-        res.loc[:, 'tmp'] = res['date'].str.split('-')
-        res = res[res['tmp'].str.len()>=3]
-        res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
+        # res.loc[:, 'tmp'] = res['date'].str.split('-')
+        # res = res[res['tmp'].str.len()>=3]
+        # res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
         res.loc[:, 'weekday'] = res['date'].dt.weekday
         res.loc[:, 'date'] = res['date'] - res['weekday'] * dt.timedelta(days=1)
         total_samples = (res[(~res['pangolin_lineage'].isin(vocs))
@@ -278,7 +278,7 @@ def us_time_relative(data, feature, values, res, strain='B117', country='USA', v
     return fig
 
 
-def us_time(data, feature, values, res, strain='B117', country='USA'):
+def us_time(data, feature, values, res, strain='B117', country='USA', sampling_type='random'):
     if len(values)==1:
         results = (data.loc[(data[feature]==values[0]) & 
                              (data['country']=='United States of America')]
@@ -291,7 +291,10 @@ def us_time(data, feature, values, res, strain='B117', country='USA'):
         results = (res[(res['is_vui']==True)
                         & (res['country']=='United States of America')]
                         .drop_duplicates(subset=['date', 'strain']))
-    results['purpose_of_sequencing'] = 'S'
+    if sampling_type!='random':
+        results['purpose_of_sequencing'] = 'S'
+    else:
+        results['purpose_of_sequencing'] = '?'
     random = results[results['purpose_of_sequencing']=='?']
     biased = results[results['purpose_of_sequencing']!='?']
     b117_us_time = (random.groupby('date')
@@ -394,9 +397,9 @@ def ca_time_relative(data, feature, values, res,
                         .agg(total_samples=('strain', 'nunique')))
     else:
         res = res.copy()
-        res.loc[:, 'tmp'] = res['date'].str.split('-')
-        res = res[res['tmp'].str.len()>=3]
-        res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
+        # res.loc[:, 'tmp'] = res['date'].str.split('-')
+        # res = res[res['tmp'].str.len()>=3]
+        # res.loc[:, 'date'] = pd.to_datetime(res['date'], errors='coerce')
         res.loc[:, 'weekday'] = res['date'].dt.weekday
         res.loc[:, 'date'] = res['date'] - res['weekday'] * dt.timedelta(days=1)
         total_samples = (res[(~res['pangolin_lineage'].isin(vocs))
@@ -500,7 +503,7 @@ def ca_time_relative(data, feature, values, res,
     return fig
 
 
-def ca_time(data, feature, values, res, strain='B117', state='California'):
+def ca_time(data, feature, values, res, strain='B117', state='California', sampling_type='random'):
     if len(values)==1:
         results = (data.loc[(data[feature]==values[0]) & 
                                    (data['division']==state)]
@@ -512,7 +515,10 @@ def ca_time(data, feature, values, res, strain='B117', state='California'):
         # results['is_vui'] = results['mutations'].apply(is_vui, args=(set(values),))
         results = res[(res['is_vui']==True)
                       &(res['division']==state)].drop_duplicates(subset=['date', 'strain'])
-    results['purpose_of_sequencing'] = 'S'
+    if sampling_type!='random':
+        results['purpose_of_sequencing'] = 'S'
+    else:
+        results['purpose_of_sequencing'] = '?'
     random = results[results['purpose_of_sequencing']=='?']
     biased = results[results['purpose_of_sequencing']!='?']
     b117_ca_time = (random.groupby('date')
@@ -655,7 +661,16 @@ def strain_nt_distance(data, feature, values, strain='B117', sample_sz=250, vocs
             arrowhead=1, yshift=10, arrowsize=2, ay=-80)
     fig.update_layout(yaxis_title='Genetic Distance (root-to-tip)',
                       xaxis_title='Collection Date',
-                      template='plotly_white', autosize=True)#, height=850,
+                      template='plotly_white', autosize=True,
+                      margin={"l":1},
+                      legend=dict(
+                                    yanchor="top",
+                                    y=0.99,
+                                    xanchor="left",
+                                    x=0.01
+                                )
+                                )#, height=850,
+    fig.update_yaxes(side = 'right')
     return fig
 
 
@@ -1137,12 +1152,15 @@ def mutation_diversity(data, mutation, strain='S:L452R'):
     fig.update_yaxes(title_text="Lineage (pangolin)", row=2, col=1)
     fig.update_xaxes(title_text="Number of Sequences", row=2, col=1)
     fig.update_layout(title=f"Reference codon: {ref_codon}, Position: {ref_pos}", 
-                      template='plotly_white', width=500, showlegend=False,
-                     margin={"r":0})
+                      template='plotly_white', 
+                    #   autosize=True, 
+                      width=500, 
+                      showlegend=False,
+                     margin={"r":3})
     return fig
 
 
-def mutation_diversity_multi(data, mutations, strain='CAVUI1'):
+def mutation_diversity_multi(data, mutations, res, strain='CAVUI1'):
     ref_codons, ref_positions = {}, {}
     # for each mutation type e.g. S:N501Y
     for m in mutations:
@@ -1194,7 +1212,10 @@ def mutation_diversity_multi(data, mutations, strain='CAVUI1'):
     fig.update_yaxes(title_text="Lineage (pangolin)", row=2, col=1)
     fig.update_xaxes(title_text="Number of Sequences", row=2, col=1)
     fig.update_layout(template='plotly_white', showlegend=False, 
-                      width=500, margin={"r":0})
+                    #   autosize=True,
+                      width=500,
+                      margin={"r":3}
+                     )
     for i in range(len(mutations)):
         fig.update_xaxes(showticklabels=False, row=1, col=i+1)
     for i in fig['layout']['annotations']:

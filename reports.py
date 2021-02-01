@@ -72,13 +72,15 @@ def generate_voc_html(feature: str, values: list, results: dict, template_name: 
                                   first_detected=results['first_detected'],
                                   sampling_img=sampling_img,
                                   mutation_diversity=mutation_diversity)
+    print(f"Results for {values} embedded in HTML report")
     return html_output
 
 
 def generate_voc_data(feature, values, input_params):
     results = pd.DataFrame()
-    res = None
+    res = pd.DataFrame()
     if feature == 'mutation':
+        print(f"Loading variant data...")
         gisaid_data = pd.read_csv(input_params['gisaid_data_fp'], compression='gzip')
         if len(values) > 1:
             res = (gisaid_data.groupby(['date', 'country', 'division', 
@@ -87,9 +89,14 @@ def generate_voc_data(feature, values, input_params):
                        .agg(mutations=('mutation', 'unique')).reset_index())
             res['is_vui'] = res['mutations'].apply(bv.is_vui, args=(set(values),))
     else:
+        print(f"Loading metadata...")
         gisaid_data = pd.read_csv(input_params['gisaid_meta_fp'], sep='\t', compression='gzip')
         gisaid_data.loc[gisaid_data['location'].isna(), 'location'] = 'unk'
+    
     gisaid_data.loc[gisaid_data['country']=='USA', 'country'] = 'United States of America'
+    print(f"Collecting input parameters...")
+    date = input_params['date']
+    sampling_type = input_params['sampling_type']
     sampling_img_fp = input_params['sampling_img_fp']
     msa_fp = input_params['msa_fp']
     tree_fp = input_params['tree_fp']
@@ -101,12 +108,15 @@ def generate_voc_data(feature, values, input_params):
     states_fp = input_params['states_fp']
     counties_fp = input_params['counties_fp']
     patient_zero = input_params['patient_zero']
+    print(f"Fetching strain data...")
     strain_data = get_strain_data(gisaid_data, feature, values)
     # TEXT results
+    print(f"Generating text-based results")
     results = get_text_results(strain_data, feature, values)
     results['strain'] = input_params['strain']
     results['date'] = input_params['date']
     results['sampling_fig'] = bv.load_img(sampling_img_fp)
+    print(f"Generating geo-based results")
     results['state_map'], _, _ = bv.map_by_state(gisaid_data, feature, values, states_fp, res, strain=results['strain'])
     results['world_map'], _, _ = bv.map_by_country(gisaid_data, feature, values, countries_fp, res, strain=results['strain'])
     results['county_map'], _, _ = bv.map_by_county(gisaid_data, feature, values, counties_fp, states_fp, strain=results['strain'])
@@ -114,21 +124,25 @@ def generate_voc_data(feature, values, input_params):
     gisaid_data['tmp'] = gisaid_data['date'].str.split('-')
     gisaid_data = gisaid_data[gisaid_data['tmp'].str.len()>=3]
     gisaid_data['date'] = pd.to_datetime(gisaid_data['date'], errors='coerce')
-    if res:
-        res['tmp'] = res['date'].str.split('-')
+    gisaid_data = gisaid_data[gisaid_data['date']<date]
+    if res.shape[0]!=0:
+        res['tmp'] = res['date'].astype(str).str.split('-')
         res = res[res['tmp'].str.len()>=3]
         res['date'] = pd.to_datetime(res['date'], errors='coerce')
+        res = res[res['date']<date]
 #     gisaid_data = gisaid_data[~((gisaid_data['pangolin_lineage']=='B.1.1.7')
 #                             &(gisaid_data['date'].dt.month==1)) & 
 #                           (gisaid_data['date'].dt.year>=2020) &
 #                           ~(gisaid_data['date']=='2020-01-01 00:00:00')]
-    results['world_time'] = bv.world_time(gisaid_data, feature, values, res, strain=results['strain'])
-    results['us_time'] = bv.us_time(gisaid_data, feature, values, res, strain=results['strain'])
-    results['ca_time'] = bv.ca_time(gisaid_data, feature, values, res, strain=results['strain'])
+    print(f"Generating time-based results...")
+    results['world_time'] = bv.world_time(gisaid_data, feature, values, res, strain=results['strain'], sampling_type=sampling_type)
+    results['us_time'] = bv.us_time(gisaid_data, feature, values, res, strain=results['strain'], sampling_type=sampling_type)
+    results['ca_time'] = bv.ca_time(gisaid_data, feature, values, res, strain=results['strain'], sampling_type=sampling_type)
     results['world_rtime'] = bv.world_time_relative(gisaid_data, feature, values, res, strain=results['strain'])
     results['us_rtime'] = bv.us_time_relative(gisaid_data, feature, values, res, strain=results['strain'])
     results['ca_rtime'] = bv.ca_time_relative(gisaid_data, feature, values, res, strain=results['strain']) 
     # results['genetic_distance_plot'] = bv.genetic_distance(tree_fp, meta_fp, patient_zero)
+    print(f"Generating genomic results...")
     if 'B.1.1.7' in values:
         results['strain_distance_plot'], _ = bv.b117_genetic_distance(gisaid_data, msa_fp, b117_meta, 
                                                                     patient_zero=patient_zero, sample_sz=sample_sz)
@@ -137,9 +151,10 @@ def generate_voc_data(feature, values, input_params):
     if feature=='mutation' and len(values)==1:
         results['mutation_diversity'] = bv.mutation_diversity(gisaid_data, values[0], strain=results['strain'])
     elif feature=='mutation':
-        results['mutation_diversity'] = bv.mutation_diversity_multi(gisaid_data, values, strain=results['strain'])
+        results['mutation_diversity'] = bv.mutation_diversity_multi(gisaid_data, values, res, strain=results['strain'])
     # results['aa_distance_plot'] = bv.aa_distance(subs_fp, meta_fp)
     # results['s_aa_distance_plot'] = bv.s_aa_distance(subs_fp, meta_fp)
+    print(f"Results generated on {values}...")
     return results
 
 
@@ -184,3 +199,5 @@ def get_strain_data(data, feature, values):
 def save_html(html_output: str, filename: str):
     with open(filename, 'w') as f:
         f.write(html_output)
+    print(f"Results saved in {filename}")
+    return 0
