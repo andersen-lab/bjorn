@@ -45,6 +45,7 @@ t0 = time.time()
 sam_filepath = bs.run_minimap2(fasta_filepath, sam_filepath, ref_fasta, num_cpus=num_cpus)
 minimap_time = time.time() - t0
 print(f"SAM data generated from consensus sequences and saved at {sam_filepath}")
+print(f"Generating alignment from SAM data...")
 t0 = time.time()
 alignment_filepath = bs.run_datafunk(sam_filepath, ref_fasta, alignment_filepath)
 datafunk_time = time.time() - t0
