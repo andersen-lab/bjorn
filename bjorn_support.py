@@ -97,6 +97,53 @@ def get_variant_data(variant_filepaths: dict):
     return df
 
 
+def load_fasta(fasta_filepath, is_gzip=False, is_aligned=False):
+    if is_gzip:
+        with gzip.open(fasta_filepath, "rt") as handle:
+            if is_aligned:
+                cns = AlignIO.read(handle, 'fasta')
+            else:
+                cns = SeqIO.parse(handle, 'fasta')
+    else:
+        if is_aligned:
+            cns = AlignIO.read(fasta_filepath, 'fasta')
+        else:
+            cns = SeqIO.parse(fasta_filepath, 'fasta')
+    return cns
+
+
+def run_datafunk(in_filepath, ref_path, out_filepath):
+    df_cmd = f"datafunk sam_2_fasta -s {in_filepath} -r {ref_path} -o {out_filepath} --pad --log-inserts"
+    run_command(df_cmd)
+    return out_filepath
+
+
+def run_minimap2(in_filepath, out_filepath, ref_path, num_cpus=25):
+    map_cmd = f"minimap2 -a -x asm5 -t {num_cpus} {ref_path} {in_filepath} -o {out_filepath}"
+    run_command(map_cmd)
+    return out_filepath
+
+
+def concat_fasta_2(in_filepaths: list, out_filepath):
+    """Concatenate fasta sequences into single fasta file.
+    Takes a list of fasta filepaths and an output filename for saving"""
+    cat_cmd = f"cat {' '.join(in_filepaths)} > {out_filepath}"
+    run_command(cat_cmd)
+    return out_filepath
+
+
+def sample_fasta(fasta_filepath, out_filepath, sample_size=100):
+    "Sample the first n sequences from the input fasta file"
+    sampled_seqs = []
+    seqs = load_fasta(fasta_filepath)
+    for i, rec in enumerate(seqs):
+        if i < sample_size:
+            sampled_seqs.append(rec)
+        else:
+            SeqIO.write(sampled_seqs, out_filepath, 'fasta');
+            return out_filepath
+
+
 def concat_fasta(in_dir, out_dir):
     """Concatenate fasta sequences into single fasta file"""
     cat_cmd = f"cat {in_dir}/*.fa* > {out_dir}.fa"

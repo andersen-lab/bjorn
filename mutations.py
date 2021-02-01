@@ -1,9 +1,11 @@
 import os
+import gc
 import math
 import re
 import gzip
 import numpy as np
 import pandas as pd
+
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 from bjorn_support import map_gene_to_pos
@@ -79,22 +81,23 @@ def process_samples(x):
     return x
 
 
-def identify_replacements_per_sample(input_fasta, 
+def identify_replacements_per_sample(cns, 
                                      meta_fp,
                                      gene2pos,
                                      data_src,
                                      patient_zero: str='NC_045512.2',
-                                     is_gzip: bool=False,
+                                     ref_path: str='/home/al/data/hcov19/NC045512.fasta',
                                      test: bool=False):
-    print(f"Loading Alignment file at: {input_fasta}")
-    if is_gzip:
-        with gzip.open(input_fasta, "rt") as handle:
-            cns = AlignIO.read(handle, 'fasta')
-    else:
-        cns = AlignIO.read(input_fasta, 'fasta')
+    # print(f"Loading Alignment file at: {input_fasta}")
+    # if is_gzip:
+    #     with gzip.open(input_fasta, "rt") as handle:
+    #         cns = AlignIO.read(handle, 'fasta')
+    # else:
+    #     cns = AlignIO.read(input_fasta, 'fasta')
     print(f"Initial cleaning...")
     seqs, ref_seq = process_cns_seqs(cns, patient_zero,
-                                     start_pos=0, end_pos=30000)
+                                     start_pos=0, end_pos=29674)
+#     ref_seq = get_seq_from_fasta(ref_path)
     seqsdf = (pd.DataFrame(index=seqs.keys(), 
                            data=seqs.values(), 
                            columns=['sequence'])
@@ -106,6 +109,12 @@ def identify_replacements_per_sample(input_fasta,
     # for each sample, identify list of substitutions (position:alt)
     seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
                                                       args=(ref_seq,))
+    # sequences with one or more deletions
+    seqsdf = seqsdf.loc[seqsdf['replacements'].str.len() > 0]
+    seqs = dict(zip(seqsdf['idx'], seqsdf['sequence']))
+    # drop the actual sequences to save mem
+    seqsdf.drop(columns=['sequence'], inplace=True)
+    gc.collect();
     # wide-to-long data manipulation
     seqsdf = seqsdf.explode('replacements')
     # initialize position column
@@ -123,15 +132,18 @@ def identify_replacements_per_sample(input_fasta,
     seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
     print(f"Computing codon numbers...")
     # compute codon number of each substitution
-    seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
+    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos[x]['start'])
+    seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
+    # seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
     print(f"Fetching reference codon...")
     # fetch the reference codon for each substitution
-    seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
+    seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
+    seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
+    # seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
     print(f"Fetching alternative codon...")
     # fetch the alternative codon for each substitution
-    seqsdf['alt_codon'] = seqsdf.apply(get_alt_codon, args=(gene2pos,), axis=1)
-    # drop the actual sequences to save mem
-    seqsdf.drop(columns=['sequence'], inplace=True)
+    seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
+    # seqsdf['alt_codon'] = seqsdf.apply(get_alt_codon_old, args=(seqs, gene2pos,), axis=1)
     print(f"Mapping amino acids...")
     # fetch the reference and alternative amino acids
     seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
@@ -184,10 +196,16 @@ def get_ref_codon(x, ref_seq, gene2pos: dict):
     return ref_seq[codon_start: codon_start+3].upper()
 
 
-def get_alt_codon(x, gene2pos: dict):
+def get_alt_codon(x, seqs: dict):
+    seq = seqs[x['idx']]
+    codon_start = x['codon_start']
+    return seq[codon_start:codon_start+3].upper()
+
+
+def get_alt_codon_old(x, seqs: dict, gene2pos: dict):
     ref_pos = gene2pos[x['gene']]['start']
     codon_start = ref_pos + ((x['codon_num'] - 1) * 3)
-    return x['sequence'][codon_start: codon_start+3].upper()
+    return seqs[x['idx']][codon_start: codon_start+3].upper()
 
 
 def get_aa(codon: str):
@@ -304,22 +322,22 @@ def identify_deletions(input_fasta: str,
     return del_seqs#[cols]
 
 
-def identify_deletions_per_sample(input_fasta, meta_fp, 
+def identify_deletions_per_sample(cns, 
+                                  meta_fp, 
                                   gene2pos, 
                                   data_src,
                                   min_del_len=1, 
                                   start_pos=265,
                                   end_pos=29674,
                                   patient_zero: str='NC_045512.2',
-                                  is_gzip: bool=False,
                                   test=False):
     # read MSA file
-    print(f"Loading Alignment file at: {input_fasta}")
-    if is_gzip:
-        with gzip.open(input_fasta, "rt") as handle:
-            cns = AlignIO.read(handle, 'fasta')
-    else:
-        cns = AlignIO.read(input_fasta, 'fasta')
+    # print(f"Loading Alignment file at: {input_fasta}")
+    # if is_gzip:
+    #     with gzip.open(input_fasta, "rt") as handle:
+    #         cns = AlignIO.read(handle, 'fasta')
+    # else:
+    #     cns = AlignIO.read(input_fasta, 'fasta')
     # prcess MSA to remove insertions and fix position coordinate systems
     seqs, ref_seq = process_cns_seqs(cns, patient_zero, start_pos, end_pos)
     print(f"Initial cleaning...")
@@ -579,6 +597,11 @@ def get_seq(all_seqs: Align.MultipleSeqAlignment, sample_name: str) -> str:
     if len(str(seq))==0:
         print('WARNING: reference sequence not acquired. Something is off.')
     return str(seq)
+
+
+def get_seq_from_fasta(fasta_filepath):
+    seq = SeqIO.read(fasta_filepath, 'fasta')
+    return str(seq.seq)
 
 
 def identify_insertion_positions(ref_seq: str) -> list:
