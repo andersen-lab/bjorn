@@ -1,11 +1,11 @@
 {
-    "out_dir": "/valhalla/gisaid",
+    "out_dir": "/Users/al/Documents/scripps/analysis/gisaid",
     "date": "2021-01-30",
-    "gisaid_fasta": "/valhalla/gisaid/sequences_2021-01-29_07-55.fasta",
-    "gisaid_meta": "/valhalla/gisaid/metadata_2021-01-30_10-36.tsv.gz",
-    "ref_fasta": "/home/al/data/hcov19/NC045512.fasta",
-    "num_cpus": "25",
+    "gisaid_fasta": "/Users/al/Documents/scripps/analysis/gisaid/sequences_2021-01-29_07-55.fasta",
+    "gisaid_meta": "/Users/al/Documents/scripps/analysis/gisaid/metadata_2021-01-30_10-36.tsv.gz",
+    "ref_fasta": "/Users/al/Documents/scripps/data/hcov19/NC045512.fasta",
+    "num_cpus": "8",
     "is_gzip": false,
-    "is_test": false,
-    "test_fasta": "/valhalla/gisaid/test.fasta"
+    "is_test": true,
+    "test_fasta": "/Users/al/Documents/scripps/analysis/gisaid/test.fasta"
 }
