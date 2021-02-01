@@ -35,7 +35,11 @@ is_test = config['is_test']
 test_fasta = out_dir/'test.fasta'
 test_size = 100
 
-
+if is_gzip:
+    cmd = f"gunzip {gisaid_fasta}"
+    bs.run_command(cmd)
+    if '.gz' in gisaid_fasta:
+        gisaid_fasta = gisaid_fasta[:-3]
 if is_test:
     gisaid_fasta = bs.sample_fasta(gisaid_fasta, test_fasta, sample_size=test_size)
 print(f"STEP 1: Aligning sequences...")
@@ -52,6 +56,10 @@ datafunk_time = time.time() - t0
 print(f"Alignment generated and saved at {alignment_filepath} \n")
 print(f"STEP 2: Counting variants...")
 print(f"Loading alignment file at {alignment_filepath}")
+if is_gzip:
+    cmd = f"gzip {alignment_filepath}"
+    bs.run_command(cmd)
+    alignment_filepath += '.gz'
 t0 = time.time()
 msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=is_gzip)
 msa_load_time = time.time() - t0

@@ -2,11 +2,15 @@ This is the code repository for `bjorn` - a suite of tools that can be used to g
 
 ## Installation
 * Install Anaconda: [instructions can be found here](https://docs.anaconda.com/anaconda/install/)
-* Install datafunk: [instructions can be found here](https://github.com/cov-ert/datafunk)
 * Create the `bjorn` environment
 ```bash
 conda env create -f envs/macos.yml -n bjorn
 ```
+* Activate environment
+```bash
+conda activate bjorn
+```
+* Install datafunk: [instructions (ensure environment is activated during installation)](https://github.com/cov-ert/datafunk)
 
 ## Usage
 * Activate `bjorn` environment
