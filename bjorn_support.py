@@ -274,3 +274,13 @@ def create_gff2gene_mapping(variant_data: pd.DataFrame, gff_filepath: str) -> di
         if gff:
             gff2gene[gff] = db[gff]['gene'][0]
     return gff2gene
+
+
+def compute_acc_nt_pos(x, gene2pos):
+    s = gene2pos.get(x['gene'], 0)
+    return s + x['pos']
+
+
+def compute_acc_aa_pos(x, gene2pos):
+    s = gene2pos.get(x['gene'], 0)
+    return s + x['codon_num']
