@@ -530,6 +530,8 @@ def identify_insertions_per_sample(cns,
         seqsdf['ins_positions'] = seqsdf['sequence'].apply(find_insertions, args=(insert_positions,))
         # keep sequences with one or more insertions
         seqsdf = seqsdf.loc[seqsdf['ins_positions'].str.len() > 0]
+        # drop sequences to save mem 
+        seqsdf.drop(columns=['sequence'], inplace=True)
         seqsdf = seqsdf.explode('ins_positions')
         # compute length of each insertion
         seqsdf['ins_len'] = seqsdf['ins_positions'].apply(len)
