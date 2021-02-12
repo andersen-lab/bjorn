@@ -514,17 +514,21 @@ def identify_insertions_per_sample(cns,
                                    patient_zero: str='NC_045512.2',
                                    test=False):
         # load into dataframe
-        ref_seq = get_seq(consensus_data, patient_zero)[start_pos:end_pos]
+        ref_seq = get_seq(cns, patient_zero)[start_pos:end_pos]
         insert_positions = identify_insertion_positions(ref_seq)
         if insert_positions:
-            seqs = get_seqs(consensus_data)
+            seqs = get_seqs(cns)
+        else:
+            return None
         seqsdf = (pd.DataFrame(index=seqs.keys(), 
                                data=seqs.values(), 
                                columns=['sequence'])
                     .reset_index()
                     .rename(columns={'index': 'idx'}))
         seqsdf['seq_len'] = seqsdf['sequence'].str.len()
-        # keep seqsdfsequences with one or more insertions
+        # identify contiguous insertions 
+        seqsdf['ins_positions'] = seqsdf['sequence'].apply(find_insertions, args=(insert_positions,))
+        # keep sequences with one or more insertions
         seqsdf = seqsdf.loc[seqsdf['ins_positions'].str.len() > 0]
         seqsdf = seqsdf.explode('ins_positions')
         # compute length of each insertion
@@ -533,7 +537,6 @@ def identify_insertions_per_sample(cns,
         seqsdf = seqsdf[seqsdf['ins_len'] >= min_ins_len]
         # fetch coordinates of each insertion
         seqsdf['relative_coords'] = seqsdf['ins_positions'].apply(get_indel_coords)
-        seqsdf['ins_positions'] = seqsdf['sequence'].apply(find_insertions, args=(insert_positions,))
         seqsdf['absolute_coords'] = seqsdf['relative_coords'].apply(adjust_coords, args=(start_pos,))
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         # approximate the gene where each insertion was identified
@@ -565,7 +568,7 @@ def identify_insertions_per_sample(cns,
                         & (seqsdf['collection_date']!='1900-01-00')]
             seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
             seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
-        return seqsdf
+        return seqsdf, ref_seq
 
 
 def pad_aligned_sequences(in_fp, out_fp):
