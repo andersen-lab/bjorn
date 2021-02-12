@@ -169,7 +169,7 @@ def align_fasta(fasta_filepath, out_filepath, num_cpus=8):
     """Generate Multiple Sequence Alignment of concatenated sequences in input fasta file using mafft.
     TODO: ALLOW USER TO INPUT CUSTOM COMMAND"""
     msa_cmd = f"mafft --auto --thread {num_cpus} {fasta_filepath} > {out_filepath}"
-    subprocess.check_call(msa_cmd, shell=True)
+    run_command(msa_cmd)
     return out_filepath
 
 
