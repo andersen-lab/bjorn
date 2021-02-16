@@ -1,6 +1,7 @@
 import sys
 import glob
 import subprocess
+from collections import defaultdict
 import gzip
 from path import Path
 import numpy as np
@@ -57,22 +58,32 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
     """Take list of sample IDs, the general area where your files are located, and their format.
        Returns a dictionary with sample IDs as keys and the filepaths as values.
     """
-    file_paths = {}
+    file_paths = defaultdict(list)
     if sample_ids:
         for s_id in sample_ids:
-            f = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*{s_id}*.{data_fmt}")
+            if data_type and tech:
+                f = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*{s_id}*.{data_fmt}")
+            elif data_type:
+                f = glob.glob(f"{analysis_path}/*{data_type}*/*{s_id}*.{data_fmt}")
+            else:
+                f = glob.glob(f"{analysis_path}/*{s_id}*.{data_fmt}")
             try:
-                file_paths[s_id] = f[0]
+                file_paths[s_id].append(f[0])
             except:
                 continue
     else:
-        fs = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*.{data_fmt}")
+        if data_type and tech:
+            fs = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*.{data_fmt}")
+        elif data_type:
+            fs = glob.glob(f"{analysis_path}/*{data_type}*/*.{data_fmt}")
+        else:
+            fs = glob.glob(f"{analysis_path}/*.{data_fmt}")
         for f in fs:
             try:
-                sample_id = f.split('/')[-1].split('_')[0].split('-')[1]
+                sample_id = f.split('/')[-1].split('_')[0]
             except:
                 continue
-            file_paths[sample_id] = f
+            file_paths[sample_id].append(f)
     return file_paths
 
 

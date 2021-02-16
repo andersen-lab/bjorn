@@ -390,6 +390,7 @@ def identify_deletions_per_sample(cns,
     seqsdf['next_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[1])+1:int(x.split(':')[1])+6])
     print("Naming deletions")
     seqsdf['mutation'] = seqsdf[['gene', 'codon_num', 'del_len']].apply(assign_deletion, axis=1)
+    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos[x]['start'])
     print(f"Fuse with metadata...")
     # load and join metadata
     if meta_fp:
@@ -699,3 +700,23 @@ def cross_join(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
 
 def is_deletion_common(x):
     return x['del_positions_x']==x['del_positions_y']
+
+
+def assign_deletion_codon_coords(x):
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3))
+    deletion = x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3)) + '/' + str(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1)
+    return deletion
+
+
+def assign_deletion(x):
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return x['gene'] + ':DEL' + str(x['codon_num'])
+    deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + (x['del_len']//3) - 1)
+    return deletion
+
+
+def is_frameshift(x):
+    if x % 3 == 0:
+        return False
+    return True

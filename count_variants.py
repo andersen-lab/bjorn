@@ -56,11 +56,10 @@ datafunk_time = time.time() - t0
 print(f"Alignment generated and saved at {alignment_filepath} \n")
 print(f"STEP 2: Counting variants...")
 print(f"Loading alignment file at {alignment_filepath}")
-if is_gzip:
-    cmd = f"gzip {alignment_filepath}"
-    bs.run_command(cmd)
-    alignment_filepath += '.gz'
 t0 = time.time()
+cmd = f"gzip {alignment_filepath}"
+bs.run_command(cmd)
+alignment_filepath += '.gz'
 msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=is_gzip)
 msa_load_time = time.time() - t0
 print(f"Identifying substitution-based mutations...")
@@ -87,14 +86,12 @@ print(f"Deletions saved in {dels_fp}")
 total_time = minimap_time + datafunk_time + msa_load_time + subs_time + dels_time
 # Data logging
 with open(out_dir/'log.txt', 'w') as f:
-    f.write(f"Total Execution Time: {(total_time / 60):.2f} minutes\n")
     f.write(f"minimap2 Execution Time: {(minimap_time / 60):.2f} minutes\n")
     f.write(f"datafunk Execution Time: {(datafunk_time / 60):.2f} minutes\n")
     f.write(f"Alignment loading Execution Time: {(msa_load_time / 60):.2f} minutes\n")
     f.write(f"Counting Substitutions Execution Time: {(subs_time / 60):.2f} minutes\n")
     f.write(f"Counting Deletions Execution Time: {(dels_time / 60):.2f} minutes\n")
-    f.write(f"Alignment loading Execution Time: {(msa_load_time / 60):.2f} minutes\n")
-    
+    f.write(f"Total Execution Time: {(total_time / 60):.2f} minutes\n")
 print(f"""END:\tprocess complete. 
         \n\tlogging information saved at {out_dir/'log.txt'}
         \n\tcontact gkarthik@scripps.edu for any issues ;) """)
