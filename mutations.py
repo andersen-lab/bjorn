@@ -174,6 +174,10 @@ def identify_replacements_per_sample(cns,
             seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
             seqsdf = seqsdf[seqsdf['host']=='Human']
             seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+        elif data_src=='gisaid_feed':
+            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
+            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
         else:
             raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     return seqsdf, ref_seq
@@ -412,6 +416,10 @@ def identify_deletions_per_sample(cns,
             # seqsdf['month'] = seqsdf['date'].dt.month
             seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
             seqsdf = seqsdf[seqsdf['host']=='Human']
+            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+        elif data_src=='gisaid_feed':
+            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
             seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
         else:
             raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
