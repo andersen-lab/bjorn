@@ -1,8 +1,12 @@
-# JSON 2 FASTA
+import gc
 import re
 import json
-import gzip
-from Bio import SeqIO
+import fiona
+import pandas as pd
+import geopandas as gpd
+import bjorn_support as bs
+import visualize as bv
+import data as bd
 
 
 with open('config.json', 'r') as f:
@@ -10,13 +14,15 @@ with open('config.json', 'r') as f:
 
 in_fp = config['gisaid_feed']
 out_fp = config['gisaid_fasta']
-regex = re.compile('[^a-zA-Z]')
-print(f"Loading JSON...")
+metacols = ['covv_virus_name', 'covsurver_prot_mutations', 'covv_location',
+             'covv_lineage', 'covv_collection_date', 'covv_accession_id',
+             'pangolin_lineages_version', 'covv_clade', 'covv_subm_date']
 data = [json.loads(line) for line in open(in_fp, 'r')]
+print(f"Total number of sequences: {len(data)}")
 print(f"Converting to dict...")
+regex = re.compile('[^a-zA-Z]')
 seqs_dict = {sample['covv_virus_name'].replace('hCoV-19/', '').replace(' ', ''): 
              regex.sub('', sample['sequence'].replace('\n', '')) for sample in data}
 print(f"Converting to FASTA...")
-with open(out_fp, 'w') as f:
-    f.write(''.join(f'>{idx}\n{seq}\n' for idx, seq in seqs_dict.items()))
+bs.dict2fasta(seqs_dict, out_fp)
 print(f"FASTA output generated and saved in {out_fp}")
