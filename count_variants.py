@@ -29,6 +29,7 @@ subs_fp = out_dir/f'subs_long_{date}.csv.gz'
 dels_fp = out_dir/f'dels_long_{date}.csv.gz'
 
 # extra configs
+data_src = config['data_source']
 num_cpus = int(config['num_cpus'])
 is_gzip = config['is_gzip']
 is_test = config['is_test']
@@ -68,7 +69,7 @@ t0 = time.time()
 subs, _ = bm.identify_replacements_per_sample(msa_data, 
                                               gisaid_meta,  
                                               bd.GENE2POS, 
-                                              data_src='gisaid',
+                                              data_src=data_src,
                                               test=is_test)
 subs_time = time.time() - t0
 subs.to_csv(subs_fp, index=False, compression='gzip')
@@ -77,7 +78,7 @@ t0 = time.time()
 dels, _ = bm.identify_deletions_per_sample(msa_data, 
                                            gisaid_meta,  
                                            bd.GENE2POS, 
-                                           data_src='gisaid', 
+                                           data_src=data_src, 
                                            min_del_len=1,
                                            test=is_test)
 dels_time = time.time() - t0
