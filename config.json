@@ -1,12 +1,13 @@
 {
     "out_dir": "/valhalla/gisaid",
-    "date": "2021-02-16",
-    "gisaid_fasta": "/valhalla/gisaid/sequences_2021-02-15_08-02.fasta.gz",
-    "gisaid_meta": "/valhalla/gisaid/metadata_2021-02-15_10-17.tsv.gz",
+    "date": "2021-02-17",
+    "gisaid_fasta": "/valhalla/gisaid/raw_sequences_2021-02-17.fasta",
+    "gisaid_meta": "/valhalla/gisaid/meta_2021-02-17.tsv.gz",
     "gisaid_feed": "/valhalla/gisaid/provision.json",
     "ref_fasta": "/home/al/data/hcov19/NC045512.fasta",
     "num_cpus": "25",
-    "is_gzip": true,
+    "is_gzip": false,
     "is_test": false,
-    "test_fasta": "/valhalla/gisaid/test.fasta"
+    "test_fasta": "/valhalla/gisaid/test.fasta",
+    "data_source": "gisaid_feed"
 }
