@@ -9,6 +9,15 @@ import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
+def dict2fasta(seqs: dict, fasta_fp: str, wrap=80):
+    with open(fasta_fp, 'w') as f:
+        for gid, gseq in seqs.items():
+            f.write('>{}\n'.format(gid))
+            for i in range(0, len(gseq), wrap):
+                f.write('{}\n'.format(gseq[i:i + wrap])) 
+    return 0
+
+
 def integrate_gisaid_meta(old_meta_fp, xtra_fp, msa_fp, rename_cols, drop_cols):
     xtra = pd.read_csv(xtra_fp, sep='\t')
     xtra.rename(columns=rename_cols, inplace=True)
