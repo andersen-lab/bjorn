@@ -60,6 +60,7 @@ t0 = time.time()
 cmd = f"gzip {alignment_filepath}"
 bs.run_command(cmd)
 alignment_filepath += '.gz'
+alignment_filepath = '/valhalla/gisaid/sequences_2021-02-16-2_aligned.fasta.gz'
 msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=is_gzip)
 msa_load_time = time.time() - t0
 print(f"Identifying substitution-based mutations...")

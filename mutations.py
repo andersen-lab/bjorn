@@ -709,7 +709,7 @@ def assign_deletion_codon_coords(x):
     return deletion
 
 
-def assign_deletion(x):
+def assign_deletion_v2(x):
     if (x['pos_in_codon'] + x['del_len']) <= 3:
         return x['gene'] + ':DEL' + str(x['codon_num'])
     deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + (x['del_len']//3) - 1)
