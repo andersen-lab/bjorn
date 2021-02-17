@@ -285,15 +285,15 @@ def map_gene_to_pos(x):
     return 'nan'
 
 
-def create_gff2gene_mapping(variant_data: pd.DataFrame, gff_filepath: str) -> dict:
-    fn = gffutils.example_filename(gff_filepath)
-    db = gffutils.create_db(fn, dbfn='test.db', merge_strategy='merge', force=True)
-    all_gffs = variant_data['GFF_FEATURE'].dropna().unique()
-    gff2gene = {}
-    for gff in all_gffs:
-        if gff:
-            gff2gene[gff] = db[gff]['gene'][0]
-    return gff2gene
+# def create_gff2gene_mapping(variant_data: pd.DataFrame, gff_filepath: str) -> dict:
+#     fn = gffutils.example_filename(gff_filepath)
+#     db = gffutils.create_db(fn, dbfn='test.db', merge_strategy='merge', force=True)
+#     all_gffs = variant_data['GFF_FEATURE'].dropna().unique()
+#     gff2gene = {}
+#     for gff in all_gffs:
+#         if gff:
+#             gff2gene[gff] = db[gff]['gene'][0]
+#     return gff2gene
 
 
 def compute_acc_nt_pos(x, gene2pos):

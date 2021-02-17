@@ -44,25 +44,28 @@ if is_gzip:
 if is_test:
     gisaid_fasta = bs.sample_fasta(gisaid_fasta, test_fasta, sample_size=test_size)
 print(f"STEP 1: Aligning sequences...")
-fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
-print(f"Reference sequence added to input sequences and saved at {fasta_filepath}")
+if not Path.isfile(fasta_filepath):
+    fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
+    print(f"Reference sequence added to input sequences and saved at {fasta_filepath}")
 t0 = time.time()
-sam_filepath = bs.run_minimap2(fasta_filepath, sam_filepath, ref_fasta, num_cpus=num_cpus)
+if not Path.isfile(sam_filepath):
+    t0 = time.time()
+    sam_filepath = bs.run_minimap2(fasta_filepath, sam_filepath, ref_fasta, num_cpus=num_cpus)
+    print(f"SAM data generated from consensus sequences and saved at {sam_filepath}")
 minimap_time = time.time() - t0
-print(f"SAM data generated from consensus sequences and saved at {sam_filepath}")
 print(f"Generating alignment from SAM data...")
 t0 = time.time()
-alignment_filepath = bs.run_datafunk(sam_filepath, ref_fasta, alignment_filepath)
+if not Path.isfile(alignment_filepath+'.gz'):
+    alignment_filepath = bs.run_datafunk(sam_filepath, ref_fasta, alignment_filepath)
+    print(f"Alignment generated and saved at {alignment_filepath} \n")
 datafunk_time = time.time() - t0
-print(f"Alignment generated and saved at {alignment_filepath} \n")
 print(f"STEP 2: Counting variants...")
 print(f"Loading alignment file at {alignment_filepath}")
 t0 = time.time()
-cmd = f"gzip {alignment_filepath}"
-bs.run_command(cmd)
+# cmd = f"gzip {alignment_filepath}"
+# bs.run_command(cmd)
 alignment_filepath += '.gz'
-alignment_filepath = '/valhalla/gisaid/sequences_2021-02-16-2_aligned.fasta.gz'
-msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=is_gzip)
+msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=True)
 msa_load_time = time.time() - t0
 print(f"Identifying substitution-based mutations...")
 t0 = time.time()
