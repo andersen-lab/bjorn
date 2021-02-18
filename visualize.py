@@ -1140,6 +1140,7 @@ def mutation_diversity(data, mutation, strain='S:L452R'):
                   .reset_index()
                   .rename(columns={'index': 'lineage', 'pangolin_lineage': 'num_samples'}))
     lineage_counts['pct_samples'] = lineage_counts['num_samples'] / lineage_counts['num_samples'].sum()
+    lineage_counts = lineage_counts[lineage_counts['pct_samples']>0.05]
     fig.add_trace(go.Bar(
             y=lineage_counts['lineage'], x=lineage_counts['num_samples'], orientation='h',
             text=lineage_counts['pct_samples'],
@@ -1363,9 +1364,12 @@ def process_counties(us: pd.DataFrame, corrections: dict, state2abbrev: dict):
     return us
 
 
-def check_state(x):
+def check_state(x, gaps=False):
     if x[-2:].isupper():
-        x = x[:-3]
+        if gaps:
+            x = x[:-3]
+        else:
+            x = x[:-2]
     return x
 
 

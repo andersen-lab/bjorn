@@ -99,11 +99,11 @@ def generate_voc_data(feature, values, input_params):
     sampling_type = input_params['sampling_type']
     sampling_img_fp = input_params['sampling_img_fp']
     msa_fp = input_params['msa_fp']
-    tree_fp = input_params['tree_fp']
+    # tree_fp = input_params['tree_fp']
     b117_meta = input_params['b117_meta']
     sample_sz = input_params['sample_sz']
-    subs_fp = input_params['subs_fp']
-    meta_fp = input_params['meta_fp']
+    # subs_fp = input_params['subs_fp']
+    # meta_fp = input_params['meta_fp']
     countries_fp = input_params['countries_fp']
     states_fp = input_params['states_fp']
     counties_fp = input_params['counties_fp']
@@ -124,12 +124,12 @@ def generate_voc_data(feature, values, input_params):
     gisaid_data['tmp'] = gisaid_data['date'].str.split('-')
     gisaid_data = gisaid_data[gisaid_data['tmp'].str.len()>=3]
     gisaid_data['date'] = pd.to_datetime(gisaid_data['date'], errors='coerce')
-    gisaid_data = gisaid_data[gisaid_data['date']<date]
+    gisaid_data = gisaid_data[(gisaid_data['date']<date)&(gisaid_data['date']>'2020-03-01')]
     if res.shape[0]!=0:
         res['tmp'] = res['date'].astype(str).str.split('-')
         res = res[res['tmp'].str.len()>=3]
         res['date'] = pd.to_datetime(res['date'], errors='coerce')
-        res = res[res['date']<date]
+        res = res.loc[(res['date']<date)&(res['date']>'2020-03-01')]
 #     gisaid_data = gisaid_data[~((gisaid_data['pangolin_lineage']=='B.1.1.7')
 #                             &(gisaid_data['date'].dt.month==1)) & 
 #                           (gisaid_data['date'].dt.year>=2020) &
