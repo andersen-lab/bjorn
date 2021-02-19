@@ -18,7 +18,7 @@ def aggregate_replacements(subs: pd.DataFrame, date: str):
     subs.loc[subs['tmp'].str.len()==2, 'date'] += '-15'
     subs['date'] = pd.to_datetime(subs['date'], errors='coerce')
     subs = subs[subs['date']<date]
-    subs_agg = (subs.groupby(['gene', 'ref_codon', 'pos', 'alt_codon', 'ref_aa', 'codon_num', 'alt_aa'])
+    subs_agg = (subs.groupby(['mutation', 'gene', 'ref_codon', 'pos', 'alt_codon', 'ref_aa', 'codon_num', 'alt_aa'])
                 .agg(
                  num_samples=('strain', 'nunique'),
                  first_detected=('date', 'min'),
@@ -53,7 +53,7 @@ def aggregate_deletions(dels: pd.DataFrame, date: str):
     dels.loc[dels['tmp'].str.len()==2, 'date'] += '-15'
     dels['date'] = pd.to_datetime(dels['date'], errors='coerce')
     dels = dels[dels['date']<date]
-    dels_agg = (dels.groupby(['relative_coords', 'del_len'])
+    dels_agg = (dels.groupby(['mutation', 'relative_coords', 'del_len'])
                 .agg(
                  num_samples=('strain', 'nunique'),
                  first_detected=('date', 'min'),

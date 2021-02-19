@@ -28,7 +28,7 @@ alignment_filepath = out_dir/f'sequences_{date}_aligned.fasta'
 subs_fp = out_dir/f'subs_long_{date}.csv.gz'
 subs_agg_fp = out_dir/f'subs_wide_{date}.csv.gz'
 dels_fp = out_dir/f'dels_long_{date}.csv.gz'
-dels_agg_fp = out_dir/f'dels_wide_long_{date}.csv.gz'
+dels_agg_fp = out_dir/f'dels_wide_{date}.csv.gz'
 
 # extra configs
 data_src = config['data_source']
