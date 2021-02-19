@@ -12,6 +12,77 @@ from bjorn_support import map_gene_to_pos
 import data as bd
 
 
+def aggregate_replacements(subs: pd.DataFrame, date: str):
+    subs['tmp'] = subs['date'].str.split('-')
+    subs = subs[subs['tmp'].str.len()>=2]
+    subs.loc[subs['tmp'].str.len()==2, 'date'] += '-15'
+    subs['date'] = pd.to_datetime(subs['date'], errors='coerce')
+    subs = subs[subs['date']<date]
+    subs_agg = (subs.groupby(['mutation', 'gene', 'ref_codon', 'pos', 'alt_codon', 'ref_aa', 'codon_num', 'alt_aa'])
+                .agg(
+                 num_samples=('strain', 'nunique'),
+                 first_detected=('date', 'min'),
+                 last_detected=('date', 'max'),
+                 num_locations=('location', 'nunique'),
+                 location_counts=('location', 
+                                  lambda x: np.unique(x, 
+                                                      return_counts=True)),
+                 num_divisions=('division', 'nunique'),
+                 division_counts=('division', 
+                                  lambda x: np.unique(x, 
+                                                      return_counts=True)),
+                 num_countries=('country', 'nunique'),
+                 country_counts=('country', 
+                                 lambda x: np.unique(x, 
+                                                     return_counts=True))
+                )
+                .reset_index())
+    subs_agg['divisions'] = subs_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+    # subs['divisions'] = subs['divisions'].apply(process_list).astype(str)
+    subs_agg['division_counts'] = subs_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    # subs['division_counts'] = subs['division_counts'].apply(process_list).astype(str)
+    subs_agg['countries'] = subs_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
+    # subs['countries'] = subs['countries'].apply(process_list).astype(str)
+    subs_agg['country_counts'] = subs_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    return subs_agg
+
+
+def aggregate_deletions(dels: pd.DataFrame, date: str):
+    dels['tmp'] = dels['date'].str.split('-')
+    dels = dels[dels['tmp'].str.len()>=2]
+    dels.loc[dels['tmp'].str.len()==2, 'date'] += '-15'
+    dels['date'] = pd.to_datetime(dels['date'], errors='coerce')
+    dels = dels[dels['date']<date]
+    dels_agg = (dels.groupby(['mutation', 'relative_coords', 'del_len'])
+                .agg(
+                 num_samples=('strain', 'nunique'),
+                 first_detected=('date', 'min'),
+                 last_detected=('date', 'max'),
+                 num_locations=('location', 'nunique'),
+                 location_counts=('location', 
+                                  lambda x: np.unique(x, 
+                                                      return_counts=True)),
+                 num_divisions=('division', 'nunique'),
+                 division_counts=('division', 
+                                  lambda x: np.unique(x, 
+                                                      return_counts=True)),
+                 num_countries=('country', 'nunique'),
+                 country_counts=('country', 
+                                 lambda x: np.unique(x, 
+                                                     return_counts=True))
+                )
+                .reset_index())
+    dels_agg['divisions'] = dels_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+    # subs['divisions'] = subs['divisions'].apply(process_list).astype(str)
+    dels_agg['division_counts'] = dels_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    # subs['division_counts'] = subs['division_counts'].apply(process_list).astype(str)
+    dels_agg['countries'] = dels_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
+    # subs['countries'] = subs['countries'].apply(process_list).astype(str)
+    dels_agg['country_counts'] = dels_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    return dels_agg
+
+
+
 def identify_replacements(input_fasta, 
                           meta_fp,
                           patient_zero: str='NC_045512.2', 
@@ -393,8 +464,12 @@ def identify_deletions_per_sample(cns,
     # record the 5 nts after each deletion (based on reference seq)
     seqsdf['next_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[1])+1:int(x.split(':')[1])+6])
     print("Naming deletions")
-    seqsdf['mutation'] = seqsdf[['gene', 'codon_num', 'del_len']].apply(assign_deletion, axis=1)
-    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos[x]['start'])
+    seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
+    seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
+    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos[x]['start']+2)
+    seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
+    seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
+    seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
     print(f"Fuse with metadata...")
     # load and join metadata
     if meta_fp:

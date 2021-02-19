@@ -26,7 +26,9 @@ fasta_filepath = out_dir/f'sequences_{date}.fasta'
 sam_filepath = out_dir/f'sequences_{date}.sam'
 alignment_filepath = out_dir/f'sequences_{date}_aligned.fasta'
 subs_fp = out_dir/f'subs_long_{date}.csv.gz'
+subs_agg_fp = out_dir/f'subs_wide_{date}.csv.gz'
 dels_fp = out_dir/f'dels_long_{date}.csv.gz'
+dels_agg_fp = out_dir/f'dels_wide_{date}.csv.gz'
 
 # extra configs
 data_src = config['data_source']
@@ -64,8 +66,8 @@ print(f"Loading alignment file at {alignment_filepath}")
 t0 = time.time()
 # cmd = f"gzip {alignment_filepath}"
 # bs.run_command(cmd)
-alignment_filepath += '.gz'
-msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=True)
+# alignment_filepath += '.gz'
+msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
 msa_load_time = time.time() - t0
 print(f"Identifying substitution-based mutations...")
 t0 = time.time()
@@ -74,8 +76,10 @@ subs, _ = bm.identify_replacements_per_sample(msa_data,
                                               bd.GENE2POS, 
                                               data_src=data_src,
                                               test=is_test)
-subs_time = time.time() - t0
+subs_agg = bm.aggregate_replacements(subs, date)
 subs.to_csv(subs_fp, index=False, compression='gzip')
+subs_agg.to_csv(subs_agg_fp, index=False, compression='gzip')
+subs_time = time.time() - t0
 print(f"Identifying deletion-based mutations...")
 t0 = time.time()
 dels, _ = bm.identify_deletions_per_sample(msa_data, 
@@ -84,10 +88,14 @@ dels, _ = bm.identify_deletions_per_sample(msa_data,
                                            data_src=data_src, 
                                            min_del_len=1,
                                            test=is_test)
-dels_time = time.time() - t0
+dels_agg = bm.aggregate_deletions(dels, date)
 dels.to_csv(dels_fp, index=False, compression='gzip')
+dels_agg.to_csv(dels_agg_fp, index=False, compression='gzip')
+dels_time = time.time() - t0
 print(f"Substitutions saved in {subs_fp}")
 print(f"Deletions saved in {dels_fp}")
+print(f"Aggregate Substitutions saved in {subs_agg_fp}")
+print(f"Aggregate Deletions saved in {dels_agg_fp}")
 total_time = minimap_time + datafunk_time + msa_load_time + subs_time + dels_time
 # Data logging
 with open(out_dir/'log.txt', 'w') as f:
