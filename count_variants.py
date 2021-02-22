@@ -56,7 +56,7 @@ if not Path.isfile(sam_filepath):
 minimap_time = time.time() - t0
 print(f"Generating alignment from SAM data...")
 t0 = time.time()
-if not Path.isfile(alignment_filepath+'.gz'):
+if not Path.isfile(alignment_filepath):
     alignment_filepath = bs.run_datafunk(sam_filepath, ref_fasta, alignment_filepath)
     print(f"Alignment generated and saved at {alignment_filepath} \n")
 datafunk_time = time.time() - t0
@@ -76,8 +76,8 @@ subs, _ = bm.identify_replacements_per_sample(msa_data,
                                               data_src=data_src,
                                             #   test=is_test
                                               )
-subs_agg = bm.aggregate_replacements(subs, date, data_src='gisaid_feed')
 subs.to_csv(subs_fp, index=False, compression='gzip')
+subs_agg = bm.aggregate_replacements(subs, date, data_src='gisaid_feed')
 subs_agg.to_csv(subs_agg_fp, index=False, compression='gzip')
 subs_time = time.time() - t0
 print(f"Identifying deletion-based mutations...")
