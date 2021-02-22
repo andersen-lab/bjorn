@@ -19,6 +19,7 @@ def aggregate_replacements(subs: pd.DataFrame,
         subs.rename(columns={'date': 'date_collected'}, inplace=True)
     subs.loc[:, 'tmp'] = subs['date_collected'].str.split('-').copy()
     subs = subs[subs['tmp'].str.len()>=2].copy()
+    subs['date_collected'] = subs['date_collected'].astype(str)
     subs.loc[subs['tmp'].str.len()==2, 'date_collected'] += '-15'
     subs = subs[subs['date_collected']<date].copy()
     subs.loc[:, 'date_collected'] = pd.to_datetime(subs['date_collected'], errors='coerce')
@@ -58,6 +59,7 @@ def aggregate_deletions(dels: pd.DataFrame,
     if data_src=='gisaid':
         dels.rename(columns={'date': 'date_collected'}, inplace=True)
     dels.loc[:, 'tmp'] = dels['date_collected'].str.split('-').copy()
+    dels['date_collected'] = dels['date_collected'].astype(str)
     dels = dels[dels['tmp'].str.len()>=2].copy()
     dels.loc[dels['tmp'].str.len()==2, 'date_collected'] += '-15'
     dels = dels[dels['date_collected']<date].copy()
