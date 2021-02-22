@@ -1,5 +1,6 @@
 import time
 import json
+import pandas as pd
 from path import Path
 
 
@@ -46,7 +47,7 @@ if is_gzip:
 if is_test:
     gisaid_fasta = bs.sample_fasta(gisaid_fasta, test_fasta, sample_size=test_size)
 print(f"STEP 1: Aligning sequences...")
-fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
+# fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
 print(f"Reference sequence added to input sequences and saved at {fasta_filepath}")
 t0 = time.time()
 if not Path.isfile(sam_filepath):
@@ -77,8 +78,12 @@ subs, _ = bm.identify_replacements_per_sample(msa_data,
                                             #   test=is_test
                                               )
 subs.to_csv(subs_fp, index=False, compression='gzip')
-subs_agg = bm.aggregate_replacements(subs, date, data_src='gisaid_feed')
-subs_agg.to_csv(subs_agg_fp, index=False, compression='gzip')
+# subs = pd.read_csv(subs_fp, compression='gzip')
+try:
+    subs_agg = bm.aggregate_replacements(subs, date, data_src='gisaid_feed')
+    subs_agg.to_csv(subs_agg_fp, index=False, compression='gzip')
+except:
+    print("Substitution data aggregation failed. Skipping...")
 subs_time = time.time() - t0
 print(f"Identifying deletion-based mutations...")
 t0 = time.time()
@@ -89,9 +94,12 @@ dels, _ = bm.identify_deletions_per_sample(msa_data,
                                            min_del_len=1,
                                         #    test=is_test
                                            )
-dels_agg = bm.aggregate_deletions(dels, date, data_src='gisaid_feed')
 dels.to_csv(dels_fp, index=False, compression='gzip')
-dels_agg.to_csv(dels_agg_fp, index=False, compression='gzip')
+try:
+    dels_agg = bm.aggregate_deletions(dels, date, data_src='gisaid_feed')
+    dels_agg.to_csv(dels_agg_fp, index=False, compression='gzip')
+except:
+    print("Deletion data aggregation failed. Skipping...")
 dels_time = time.time() - t0
 print(f"Substitutions saved in {subs_fp}")
 print(f"Deletions saved in {dels_fp}")
