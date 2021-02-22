@@ -10,13 +10,18 @@ import visualize as bv
 import data as bd
 
 
-
+# COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
+parser.add_argument("-u", "--username",
+                        type=str,
+                        required=True,
+                        help="Username to use for downloading API feed from GISAID")
 parser.add_argument("-p", "--password",
                         type=str,
                         required=True,
                         help="Password to use for downloading API feed from GISAID")
 args = parser.parse_args()
+username = args.username
 password = args.password
 
 with open('config.json', 'r') as f:
@@ -32,15 +37,17 @@ metacols = ['covv_virus_name', 'covsurver_prot_mutations', 'covv_location',
              'covv_lineage', 'covv_collection_date', 'covv_accession_id',
              'pangolin_lineages_version', 'covv_clade', 'covv_subm_date']
 corrections = bd.COUNTY_CORRECTIONS
-# download GISAID API feed
+
+# Download GISAID API feed
 if not Path.isfile(Path(in_fp)):
     print(f"Downloading GISAID API feed...")
-    feed_cmd = f"curl -u ***REMOVED***:{password} ***REMOVED*** | xz -d -T8 > {in_fp}"
+    feed_cmd = f"curl -u {username}:{password} ***REMOVED*** | xz -d -T8 > {in_fp}"
     bs.run_command(feed_cmd)
     print(f"GISAID API feed saved in {in_fp}")
 else:
     print(f"{in_fp} already exists, skipping API feed download step")
 # load sequence data
+print(f"Loading API data...")
 if is_test:
     data = []
     with open(in_fp, 'r') as handle:
@@ -51,6 +58,7 @@ if is_test:
 else:
     data = [json.loads(line) for line in open(in_fp, 'r')]
 print(f"Total number of sequences: {len(data)}")
+# generate fasta file containing all sequences
 if not Path.isfile(Path(out_fp)):
     print(f"Converting to dict...")
     regex = re.compile('[^a-zA-Z]')
@@ -61,6 +69,7 @@ if not Path.isfile(Path(out_fp)):
     print(f"FASTA output generated and saved in {out_fp}")
 else:
     print(f"{out_fp} already exists, skipping fasta generation step")
+# generate tsv file containing processed metadata
 if not Path.isfile(Path(meta_fp)):
     # load raw metadata into dataframe
     df = pd.DataFrame(data, columns=metacols)
@@ -79,7 +88,6 @@ if not Path.isfile(Path(meta_fp)):
                     'pangolin_lineages_version': 'pangolin_version',
                     'covv_accession_id': 'accession_id'
                     }, inplace=True)
-    df['strain'] = df['strain'].replace('hCoV-19/', '').replace(' ', '')
     print(f"Loading GADM file containing geographic information...")
     gadm = gpd.read_file(gadm_fp)
     gadm_cols = [f'NAME_{i}' for i in range(5)]
@@ -311,6 +319,7 @@ if not Path.isfile(Path(meta_fp)):
     samples_missing_county = df.loc[(df['location_normed'].isin(locs_missing))&(df['country']=='USA')]
     print(f'Number of samples missing county-level geo-information (U.S. only): {samples_missing_county.shape[0]}')
     print(f'Metadata generated and saving to {meta_fp}')
+    df['strain'] = df['strain'].str.replace('hCoV-19/', '').str.replace(' ', '')
     df.to_csv(meta_fp, sep='\t', index=False, compression='gzip')
     print(f'GISAID API feed has been downloaded and processed; ready for variant counting.')
 else:
