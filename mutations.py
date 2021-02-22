@@ -12,17 +12,22 @@ from bjorn_support import map_gene_to_pos
 import data as bd
 
 
-def aggregate_replacements(subs: pd.DataFrame, date: str):
-    subs['tmp'] = subs['date'].str.split('-')
-    subs = subs[subs['tmp'].str.len()>=2]
-    subs.loc[subs['tmp'].str.len()==2, 'date'] += '-15'
-    subs['date'] = pd.to_datetime(subs['date'], errors='coerce')
-    subs = subs[subs['date']<date]
+def aggregate_replacements(subs: pd.DataFrame, 
+                           date: str,
+                           data_src: str):
+    if data_src=='gisaid':
+        subs.rename(columns={'date': 'date_collected'}, inplace=True)
+    subs.loc[:, 'tmp'] = subs['date_collected'].str.split('-').copy()
+    subs = subs[subs['tmp'].str.len()>=2].copy()
+    subs.loc[subs['tmp'].str.len()==2, 'date_collected'] += '-15'
+    subs = subs[subs['date_collected']<date].copy()
+    subs.loc[:, 'date_collected'] = pd.to_datetime(subs['date_collected'], errors='coerce')
+    # aggregate on mutation
     subs_agg = (subs.groupby(['mutation', 'gene', 'ref_codon', 'pos', 'alt_codon', 'ref_aa', 'codon_num', 'alt_aa'])
                 .agg(
                  num_samples=('strain', 'nunique'),
-                 first_detected=('date', 'min'),
-                 last_detected=('date', 'max'),
+                 first_detected=('date_collected', 'min'),
+                 last_detected=('date_collected', 'max'),
                  num_locations=('location', 'nunique'),
                  location_counts=('location', 
                                   lambda x: np.unique(x, 
@@ -37,27 +42,32 @@ def aggregate_replacements(subs: pd.DataFrame, date: str):
                                                      return_counts=True))
                 )
                 .reset_index())
-    subs_agg['divisions'] = subs_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+    subs_agg.loc[:, 'divisions'] = subs_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
     # subs['divisions'] = subs['divisions'].apply(process_list).astype(str)
-    subs_agg['division_counts'] = subs_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    subs_agg.loc[:, 'division_counts'] = subs_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
     # subs['division_counts'] = subs['division_counts'].apply(process_list).astype(str)
-    subs_agg['countries'] = subs_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
+    subs_agg.loc[:, 'countries'] = subs_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
     # subs['countries'] = subs['countries'].apply(process_list).astype(str)
-    subs_agg['country_counts'] = subs_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    subs_agg.loc[:, 'country_counts'] = subs_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
     return subs_agg
 
 
-def aggregate_deletions(dels: pd.DataFrame, date: str):
-    dels['tmp'] = dels['date'].str.split('-')
-    dels = dels[dels['tmp'].str.len()>=2]
-    dels.loc[dels['tmp'].str.len()==2, 'date'] += '-15'
-    dels['date'] = pd.to_datetime(dels['date'], errors='coerce')
-    dels = dels[dels['date']<date]
+def aggregate_deletions(dels: pd.DataFrame, 
+                        date: str,
+                        data_src: str):
+    if data_src=='gisaid':
+        dels.rename(columns={'date': 'date_collected'}, inplace=True)
+    dels.loc[:, 'tmp'] = dels['date_collected'].str.split('-').copy()
+    dels = dels[dels['tmp'].str.len()>=2].copy()
+    dels.loc[dels['tmp'].str.len()==2, 'date_collected'] += '-15'
+    dels = dels[dels['date_collected']<date].copy()
+    dels.loc[:, 'date_collected'] = pd.to_datetime(dels['date_collected'], errors='coerce')
+    # aggregate on mutation
     dels_agg = (dels.groupby(['mutation', 'relative_coords', 'del_len'])
                 .agg(
                  num_samples=('strain', 'nunique'),
-                 first_detected=('date', 'min'),
-                 last_detected=('date', 'max'),
+                 first_detected=('date_collected', 'min'),
+                 last_detected=('date_collected', 'max'),
                  num_locations=('location', 'nunique'),
                  location_counts=('location', 
                                   lambda x: np.unique(x, 
@@ -72,13 +82,13 @@ def aggregate_deletions(dels: pd.DataFrame, date: str):
                                                      return_counts=True))
                 )
                 .reset_index())
-    dels_agg['divisions'] = dels_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+    dels_agg.loc[:, 'divisions'] = dels_agg['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
     # subs['divisions'] = subs['divisions'].apply(process_list).astype(str)
-    dels_agg['division_counts'] = dels_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    dels_agg.loc[:, 'division_counts'] = dels_agg['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
     # subs['division_counts'] = subs['division_counts'].apply(process_list).astype(str)
-    dels_agg['countries'] = dels_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
+    dels_agg.loc[:, 'countries'] = dels_agg['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
     # subs['countries'] = subs['countries'].apply(process_list).astype(str)
-    dels_agg['country_counts'] = dels_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+    dels_agg.loc[:, 'country_counts'] = dels_agg['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
     return dels_agg
 
 
@@ -248,7 +258,7 @@ def identify_replacements_per_sample(cns,
         elif data_src=='gisaid_feed':
             meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
             seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
         else:
             raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     return seqsdf, ref_seq
@@ -495,7 +505,7 @@ def identify_deletions_per_sample(cns,
         elif data_src=='gisaid_feed':
             meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
             seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
         else:
             raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     return seqsdf, ref_seq
