@@ -1,13 +1,15 @@
 {
-    "out_dir": "/Users/al/Documents/scripps/analysis/gisaid",
-    "date": "2021-02-18",
-    "gisaid_fasta": "/Users/al/Documents/scripps/analysis/gisaid/jordan_sequences.fasta.gz",
-    "gisaid_meta": "/Users/al/Documents/scripps/analysis/gisaid/metadata_2021-02-17_08-32.tsv.gz",
-    "gisaid_feed": "/valhalla/gisaid/provision.json",
-    "ref_fasta": "/Users/al/Documents/scripps/data/hcov19/NC045512.fasta",
+    "out_dir": "/valhalla/gisaid",
+    "date": "2021-02-21",
+    "gisaid_fasta": "/valhalla/gisaid/sequences_2021-02-21.fasta",
+    "gisaid_meta": "/valhalla/gisaid/metadata_2021-02-21.tsv.gz",
+    "gisaid_feed": "/valhalla/gisaid/provision_2021-02-21.json",
+    "gadm": "/home/al/data/geojsons/gadm36.shp",
+    "ref_fasta": "/home/al/data/hcov19/NC045512.fasta",
     "num_cpus": "25",
-    "is_gzip": true,
+    "is_gzip": false,
     "is_test": false,
+    "feed_test": false,
     "test_fasta": "/valhalla/gisaid/test.fasta",
-    "data_source": "gisaid"
+    "data_source": "gisaid_feed"
 }
