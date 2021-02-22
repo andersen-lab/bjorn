@@ -146,7 +146,6 @@ if not Path.isfile(Path(meta_fp)):
     print(f'Admin1 standardization...')
     df.loc[df['division'].isna(), 'division'] = 'None'
     df['division_normed'] = df['division'].copy()
-    df['division_normed'] = df['division'].copy()
     df.loc[df['division_normed']=='USA', 'division_normed'] = 'United States'
     df.loc[df['division_normed'].str.contains('Georgia /'), 'division_normed'] = 'Georgia'
     df.loc[df['division_normed'].str.contains('Antwerp'), 'division_normed'] = 'Vlaanderen'
@@ -320,6 +319,18 @@ if not Path.isfile(Path(meta_fp)):
     print(f'Number of samples missing county-level geo-information (U.S. only): {samples_missing_county.shape[0]}')
     print(f'Metadata generated and saving to {meta_fp}')
     df['strain'] = df['strain'].str.replace('hCoV-19/', '').str.replace(' ', '')
+    df['country'] = df['country'].astype(str)
+    df['country_lower'] = df['country'].str.lower()
+    df['country_normed'] = df['country_normed'].astype(str)
+    df['country_normed_lower'] = df['country_normed'].str.lower()
+    df['division'] = df['division'].astype(str)
+    df['division_lower'] = df['division'].str.lower()
+    df['division_normed'] = df['division_normed'].astype(str)
+    df['division_normed_lower'] = df['division_normed'].str.lower()
+    df['location'] = df['location'].astype(str)
+    df['location_lower'] = df['location'].str.lower()
+    df['location_normed'] = df['location_normed'].astype(str)
+    df['location_normed_lower'] = df['location_normed'].str.lower()
     df.to_csv(meta_fp, sep='\t', index=False, compression='gzip')
     print(f'GISAID API feed has been downloaded and processed; ready for variant counting.')
 else:
