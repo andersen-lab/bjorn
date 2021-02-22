@@ -46,9 +46,8 @@ if is_gzip:
 if is_test:
     gisaid_fasta = bs.sample_fasta(gisaid_fasta, test_fasta, sample_size=test_size)
 print(f"STEP 1: Aligning sequences...")
-if not Path.isfile(fasta_filepath):
-    fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
-    print(f"Reference sequence added to input sequences and saved at {fasta_filepath}")
+fasta_filepath = bs.concat_fasta_2([gisaid_fasta, ref_fasta], fasta_filepath)
+print(f"Reference sequence added to input sequences and saved at {fasta_filepath}")
 t0 = time.time()
 if not Path.isfile(sam_filepath):
     t0 = time.time()
@@ -75,8 +74,9 @@ subs, _ = bm.identify_replacements_per_sample(msa_data,
                                               gisaid_meta,  
                                               bd.GENE2POS, 
                                               data_src=data_src,
-                                              test=is_test)
-subs_agg = bm.aggregate_replacements(subs, date)
+                                            #   test=is_test
+                                              )
+subs_agg = bm.aggregate_replacements(subs, date, data_src='gisaid_feed')
 subs.to_csv(subs_fp, index=False, compression='gzip')
 subs_agg.to_csv(subs_agg_fp, index=False, compression='gzip')
 subs_time = time.time() - t0
@@ -87,8 +87,9 @@ dels, _ = bm.identify_deletions_per_sample(msa_data,
                                            bd.GENE2POS, 
                                            data_src=data_src, 
                                            min_del_len=1,
-                                           test=is_test)
-dels_agg = bm.aggregate_deletions(dels, date)
+                                        #    test=is_test
+                                           )
+dels_agg = bm.aggregate_deletions(dels, date, data_src='gisaid_feed')
 dels.to_csv(dels_fp, index=False, compression='gzip')
 dels_agg.to_csv(dels_agg_fp, index=False, compression='gzip')
 dels_time = time.time() - t0
