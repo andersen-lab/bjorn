@@ -13,7 +13,7 @@ from multiprocessing import Pool
 from itertools import repeat
 import os
 from datetime import datetime as dt
-from bjorn_support import concat_fasta, align_fasta, compute_tree, map_gene_to_pos
+from bjorn_support import concat_fasta, align_fasta, compute_tree, map_gene_to_pos, load_fasta
 from mutations import identify_replacements, identify_deletions, identify_insertions
 from onion_trees import load_tree, visualize_tree, get_indel2color, get_sample2color
 import data as bd
@@ -392,20 +392,33 @@ if __name__=="__main__":
         colors = list(mcolors.TABLEAU_COLORS.keys())
         # path to new github metadata
         meta_fp = out_dir/'metadata.csv'
+        # load multiple sequence alignment
+        msa_data = load_fasta(msa_fp, is_aligned=True)
+        # identify insertions
+        insertions = identify_insertions(msa_data, 
+                                         meta_fp=meta_fp, 
+                                         patient_zero=patient_zero, 
+                                         min_ins_len=1,
+                                         data_src='alab')
+        # save insertion results to file
+        insertions.to_csv(out_dir/'insertions.csv', index=False)
         # identify substitution mutations
-        subs = identify_replacements(msa_fp,
-                                 meta_fp,
-                                 patient_zero)
+        subs = identify_replacements(msa_data,
+                                    meta_fp=meta_fp,
+                                    data_src='alab',
+                                    patient_zero=patient_zero)
+        # save substitution results to file
         subs.to_csv(out_dir/'replacements.csv', index=False)
         # identify deletions
-        deletions = identify_deletions(msa_fp,
-                                   meta_fp,
-                                   patient_zero,
-                                   min_del_len=1)
+        deletions = identify_deletions(msa_data,
+                                        meta_fp=meta_fp,
+                                        data_src='alab',
+                                        patient_zero=patient_zero,
+                                        min_del_len=1)
         # save deletion results to file
         deletions.to_csv(out_dir/'deletions.csv', index=False)
         # plot Phylogenetic tree with top consensus deletions annotated
-        # deletions = deletions.nlargest(len(colors), 'num_samples')
+        deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
         # sample_colors = get_sample2color(deletions, colors)
         # fig2 = visualize_tree(tree, sample_colors,
@@ -415,10 +428,6 @@ if __name__=="__main__":
         #                   indels=deletions, colors=colors,
         #                   isnv_info=True);
         # fig3.savefig(tree_dir/'deletion_isnv_tree.pdf', dpi=300)
-        # identify insertions
-        insertions = identify_insertions(msa_fp, meta_fp, patient_zero, min_ins_len=1)
-        # save deletion results to file
-        insertions.to_csv(out_dir/'insertions.csv', index=False)
         # plot Phylogenetic tree with top consensus deletions annotated
         insertions = insertions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(insertions, colors)
@@ -434,10 +443,9 @@ if __name__=="__main__":
             Path.mkdir(out_dir);
     # Data logging
     with open("{}/data_release.log".format(out_dir), 'w') as f:
-        f.write(f"Prepared {final_result.shape[0]} samples for release")
+        f.write(f"Prepared {final_result.shape[0]} samples for release\n")
         f.write(f'{num_samples_missing_coverage} samples are missing coverage information\n')
         f.write(f'{low_coverage_samples.shape[0]} samples were found to have coverage below 90%\n')
         f.write(f'{num_samples_missing_cons} samples were ignored because they were missing consensus sequence files\n')
-        f.write(f'{num_samples_missing_bams} samples were ignored because they were missing BAM sequence files\n')
         f.write(f'{num_samples_missing_bams} samples were ignored because they were missing BAM sequence files\n')
     print(f"Transfer Complete. All results saved in {out_dir}")

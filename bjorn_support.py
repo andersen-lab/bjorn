@@ -148,6 +148,7 @@ def concat_fasta_2(in_filepaths: list, out_filepath):
     """Concatenate fasta sequences into single fasta file.
     Takes a list of fasta filepaths and an output filename for saving"""
     cat_cmd = f"cat {' '.join(in_filepaths)} > {out_filepath}"
+    print(cat_cmd)
     run_command(cat_cmd)
     return out_filepath
 
