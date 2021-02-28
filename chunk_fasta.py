@@ -39,3 +39,5 @@ for i, batch in enumerate(bs.batch_iterator(fasta_data, chunk_size)):
     with open(filepath, "w") as handle:
         num_sequences = SeqIO.write(batch, handle, "fasta")
     print(f"Wrote {num_sequences} records to {filepath}")
+
+print(f"FASTA chunking complete. All fasta files saved in {out_dir}")
