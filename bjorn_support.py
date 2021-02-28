@@ -9,6 +9,35 @@ import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
+def batch_iterator(iterator, chunk_size):
+    """Returns lists of length batch_size.
+
+    This can be used on any iterator, for example to batch up
+    SeqRecord objects from Bio.SeqIO.parse(...), or to batch
+    Alignment objects from Bio.AlignIO.parse(...), or simply
+    lines from a file handle.
+
+    This is a generator function, and it returns lists of the
+    entries from the supplied iterator.  Each list will have
+    batch_size entries, although the final list may be shorter.
+    Citation: https://biopython.org/wiki/Split_large_file
+    """
+    record = True
+    while record:
+        chunk = []
+        while len(chunk) < chunk_size:
+            try:
+                record = next(iterator)
+            except StopIteration:
+                record = None
+            if record is None:
+                # End of file
+                break
+            chunk.append(record)
+        if chunk:
+            yield chunk
+
+
 def dict2fasta(seqs: dict, fasta_fp: str, wrap=80):
     with open(fasta_fp, 'w') as f:
         for gid, gseq in seqs.items():
