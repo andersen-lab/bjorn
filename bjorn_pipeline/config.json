@@ -1,9 +1,9 @@
 {
     "out_dir": "/valhalla/gisaid/workflow",
-    "date": "2021-02-28",
-    "gisaid_fasta": "/valhalla/gisaid/gisaid_sequences_2021-02-28.fasta",
-    "gisaid_meta": "/valhalla/gisaid/metadata_2021-02-28.tsv.gz",
-    "gisaid_feed": "/valhalla/gisaid/provision_2021-02-28.json",
+    "date": "2021-03-01",
+    "gisaid_fasta": "gisaid_sequences_2021-03-01.fasta",
+    "gisaid_meta": "metadata_2021-03-01.tsv.gz",
+    "gisaid_feed": "provision_2021-03-01.json",
     "gadm": "/home/al/data/geojsons/gadm36.shp",
     "countries_filepath": "/home/al/data/geojsons/gadm_countries.json",
     "divisions_filepath": "/home/al/data/geojsons/gadm_divisions.json",
