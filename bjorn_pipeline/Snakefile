@@ -78,10 +78,10 @@ rule chunk_fasta:
     input:
         gisaid_sequences_filepath,
         reference_filepath
-    params:
-        chunk_size,
     output:
-        "{chunks_dir}/fasta/{sample}.fasta"
+        expand("{chunks_dir}/fasta/{sample}.fasta", chunks_dir = chunks_dir, sample = info_df['chunk_names'])
+    params:
+        chunk_size
     threads: 1
     shell:
         """

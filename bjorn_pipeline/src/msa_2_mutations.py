@@ -106,9 +106,9 @@ muts['tmp'] = muts['date_collected'].str.split('-')
 muts = muts[muts['tmp'].str.len()>=2]
 muts.loc[muts['tmp'].str.len()==2, 'date_collected'] += '-15'
 muts['date_collected'] = pd.to_datetime(muts['date_collected'], errors='coerce')
+muts['date_collected'] = muts['date_collected'].astype(str)
 muts = muts[muts['date_collected']<date]
 muts = muts[muts['date_collected']>min_date]
-muts['date_collected'] = muts['date_collected'].astype(str)
 # rename field names
 muts.rename(columns={
     'country': 'country_original',
