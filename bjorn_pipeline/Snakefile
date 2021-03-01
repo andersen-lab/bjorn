@@ -1,0 +1,101 @@
+import sys
+from datetime import datetime
+import pandas as pd
+import json
+import argparse
+import src.bjorn_support as bs
+
+
+# load user parameters
+configfile: "config.json"
+
+# username = config['username']
+# password = config['password']
+out_dir = config['out_dir']
+meta_filepath = config['gisaid_meta']
+chunks_dir = out_dir + '/chunks'
+chunk_size = int(config['chunk_size'])
+num_cpus = int(config['num_cpus'])
+gisaid_sequences_filepath = config['gisaid_fasta']
+reference_filepath = config['ref_fasta']
+patient_zero = config['patient_zero']
+current_date = config['date']
+# TODO: create dataframe containing chunked filenames
+info_df = bs.create_chunk_names(gisaid_sequences_filepath, chunk_size)
+
+
+rule all:
+    input:
+        # "{out_dir}/mutations_{current_date}.csv.gz".format(out_dir = out_dir, current_date = current_date) # output data (signal)
+        expand("{chunks_dir}/muts/{sample}_{current_date}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_date = current_date), # bjorn
+        expand("{chunks_dir}/msa/{sample}.aligned.fasta", chunks_dir = chunks_dir, sample = info_df['chunk_names']), # data2funk -> gofasta
+        expand("{chunks_dir}/sam/{sample}.sam", chunks_dir = chunks_dir, sample = info_df['chunk_names']), # minimap2 -> mafft
+        expand("{chunks_dir}/fasta/{sample}.fasta", chunks_dir = chunks_dir, sample = info_df['chunk_names']), # chunk_fasta
+        # gisaid_sequences_filepath, # input data (signal)
+        # reference_filepath, # input data (patient zero)
+
+
+# TODO: test msa_2_mutations.py 
+rule run_bjorn:
+    input:
+        "{chunks_dir}/msa/{sample}.aligned.fasta",
+    params:
+        meta_filepath=meta_filepath,
+        patient_zero=patient_zero,
+    output:
+        "{chunks_dir}/muts/{sample}_{current_date}.mutations.csv",
+    shell:
+        """
+        python src/msa_2_mutations.py -i {input} -m {params.meta_filepath} -r {params.patient_zero} -o {output}
+        """
+
+rule run_data2funk:
+    input:
+        "{chunks_dir}/sam/{sample}.sam",
+    params:
+        reference_filepath=reference_filepath,
+    output:
+        "{chunks_dir}/msa/{sample}.aligned.fasta",
+    shell:
+        """
+        datafunk sam_2_fasta -s {input} -r {params.reference_filepath} -o {output} --pad --log-inserts
+        """
+
+rule run_minimap2:
+    input:
+        "{chunks_dir}/fasta/{sample}.fasta"
+    output:
+        "{chunks_dir}/sam/{sample}.sam",
+    params:
+        num_cpus=num_cpus,
+        reference_filepath=reference_filepath
+    shell:
+        """
+        minimap2 -a -x asm5 -t {params.num_cpus} {params.reference_filepath} {input} -o {output}
+        """
+
+rule chunk_fasta:
+    input:
+        gisaid_sequences_filepath,
+        reference_filepath
+    params:
+        chunk_size,
+    output:
+        "{chunks_dir}/fasta/{sample}.fasta"
+    threads: 1
+    shell:
+        """
+        python src/chunk_fasta.py -f {input[0]} -r {input[1]} -s {params} -o {chunks_dir}/fasta
+        """
+
+
+# TODO: create merge_mutations.py 
+# rule merge_results:
+#     input:
+#         "{chunks_dir}/{sample}_{current_date}.mutations.csv",
+#     output:
+#         "{out_dir}/mutations_{current_date}.csv.gz"
+#     shell:
+#         """
+#         python merge_mutations.py -i {chunks_dir} -o {output}
+#         """
