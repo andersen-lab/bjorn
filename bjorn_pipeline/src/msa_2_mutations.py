@@ -129,6 +129,7 @@ muts.rename(columns={
 muts.loc[muts['location']=='unk', 'location'] = unknown_val
 muts.loc[muts['division']==muts['country'], 'division'] = unknown_val
 muts.fillna(unknown_val, inplace=True)
+muts = muts.astype(str)
 # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
 muts.to_csv(out_fp, index=False)
 print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")
