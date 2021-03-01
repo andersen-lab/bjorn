@@ -11,12 +11,12 @@ from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
 def create_chunk_names(fasta_filepath: str, chunk_size: int) -> pd.DataFrame:
-    # with open(fasta_filepath, 'r') as filehandle:
-    #     count = 0
-    #     for line in filehandle:
-    #         if line.startswith(">"):
-    #             count += 1
-    num_sequences = 634625#count
+    with open(fasta_filepath, 'r') as filehandle:
+        count = 0
+        for line in filehandle:
+            if line.startswith(">"):
+                count += 1
+    num_sequences = count  #634625
     chunk_names = [f"chunk_{i+1}" for i in range(math.ceil(num_sequences / chunk_size))]
     return pd.DataFrame(data=chunk_names, columns=['chunk_names'])
 
