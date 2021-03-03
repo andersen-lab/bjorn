@@ -10,13 +10,14 @@ import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
-def create_chunk_names(fasta_filepath: str, chunk_size: int) -> pd.DataFrame:
-    with open(fasta_filepath, 'r') as filehandle:
-        count = 0
-        for line in filehandle:
-            if line.startswith(">"):
-                count += 1
-    num_sequences = count  #634625
+def create_chunk_names(meta_filepath: str, chunk_size: int) -> pd.DataFrame:
+    # with open(fasta_filepath, 'r') as filehandle:
+    #     count = 0
+    #     for line in filehandle:
+    #         if line.startswith(">"):
+    #             count += 1
+    meta_df = pd.read_csv(meta_filepath, sep='\t', compression='gzip')
+    num_sequences = meta_df['accession_id'].unique().shape[0]
     chunk_names = [f"chunk_{i+1}" for i in range(math.ceil(num_sequences / chunk_size))]
     return pd.DataFrame(data=chunk_names, columns=['chunk_names'])
 
@@ -347,3 +348,12 @@ def compute_acc_nt_pos(x, gene2pos):
 def compute_acc_aa_pos(x, gene2pos):
     s = gene2pos.get(x['gene'], 0)
     return s + x['codon_num']
+
+
+def check_state(x, gaps=False):
+    if x[-2:].isupper():
+        if gaps:
+            x = x[:-3]
+        else:
+            x = x[:-2]
+    return x

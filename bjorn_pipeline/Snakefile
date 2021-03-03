@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import argparse
 import src.bjorn_support as bs
+import src.json2fasta as bj
 
 
 # load user parameters
@@ -21,12 +22,12 @@ reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
 current_date = config['date']
 # TODO: create dataframe containing chunked filenames
-info_df = bs.create_chunk_names(gisaid_sequences_filepath, chunk_size)
+info_df = bj.download_process_data(username, password, chunk_size)
 
 
 rule all:
     input:
-        "{out_dir}/mutations_{current_date}.csv.gz".format(out_dir = out_dir, current_date = current_date), # output data (signal)
+        "{out_dir}/mutations_{current_date}.csv".format(out_dir = out_dir, current_date = current_date), # output data (signal)
         expand("{chunks_dir}/muts/{sample}_{current_date}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_date = current_date), # bjorn
         expand("{chunks_dir}/msa/{sample}.aligned.fasta", chunks_dir = chunks_dir, sample = info_df['chunk_names']), # data2funk -> gofasta
         expand("{chunks_dir}/sam/{sample}.sam", chunks_dir = chunks_dir, sample = info_df['chunk_names']), # minimap2 -> mafft
@@ -40,10 +41,10 @@ rule merge_results:
     input:
         expand("{chunks_dir}/muts/{sample}_{current_date}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_date = current_date),
     output:
-        "{out_dir}/mutations_{current_date}.csv.gz"
+        "{out_dir}/mutations_{current_date}.csv"
     shell:
         """
-        python merge_mutations.py -i {chunks_dir}/muts/ -o {output}
+        python src/merge_results.py -i {chunks_dir}/muts/ -o {output}
         """
 
 
@@ -88,7 +89,7 @@ rule run_minimap2:
 
 rule chunk_fasta:
     input:
-        gisaid_sequences_filepath
+        gisaid_sequences_filepath,
     output:
         expand("{chunks_dir}/fasta/{sample}.fasta", chunks_dir = chunks_dir, sample = info_df['chunk_names'])
     params:
@@ -101,15 +102,25 @@ rule chunk_fasta:
         """
 
 
-rule generate_data:
-    params:
-        username,
-        password
-    threads: 1
-    output:
-        gisaid_sequences_filepath,
-        meta_filepath
-    shell:
-        """
-        python src/json2fasta.py -u {params[0]} -p {params[1]}
-        """
+# rule compute_chunk_size:
+#     input:
+#         meta_filepath,
+#     params:
+#         chunk_size=chunk_size
+#     threads: 1
+#     run:
+#         info_df = bs.create_chunk_names(input[0], params.chunk_size)
+
+
+# rule generate_data:
+#     params:
+#         username,
+#         password
+#     threads: 1
+#     output:
+#         gisaid_sequences_filepath,
+#         meta_filepath
+#     shell:
+#         """
+#         python src/json2fasta.py -u {params[0]} -p {params[1]}
+#         """
