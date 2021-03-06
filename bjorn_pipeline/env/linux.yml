@@ -7,11 +7,19 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=1_gnu
+  - abseil-cpp=20200923.3=h9c3ff4c_0
   - aioeasywebdav=2.4.0=py36h9f0ad1d_1001
   - aiohttp=3.7.3=py36h8f6f2f9_0
   - appdirs=1.4.4=pyh9f0ad1d_0
+  - arrow-cpp=3.0.0=py36h573a39d_4_cpu
   - async-timeout=3.0.1=py_1000
   - attrs=20.3.0=pyhd3deb0d_0
+  - aws-c-cal=0.4.5=hb3cee0b_7
+  - aws-c-common=0.5.1=h7f98852_0
+  - aws-c-event-stream=0.2.7=hf6e4101_0
+  - aws-c-io=0.9.0=hd4bc808_1
+  - aws-checksums=0.1.11=hbd38b91_2
+  - aws-sdk-cpp=1.8.138=hfa2f2a4_3
   - backports=1.0=py_2
   - backports.functools_lru_cache=1.6.1=py_0
   - bcrypt=3.2.0=py36h8c4c3a4_1
@@ -19,6 +27,7 @@ dependencies:
   - boost-cpp=1.74.0=hc6e9bd1_2
   - boto3=1.16.49=pyhd8ed1ab_0
   - botocore=1.19.49=pyhd8ed1ab_0
+  - brotli=1.0.9=h9c3ff4c_4
   - brotlipy=0.7.0=py36he6145b8_1001
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h36c2ea0_0
@@ -61,11 +70,13 @@ dependencies:
   - geos=3.9.1=h9c3ff4c_2
   - geotiff=1.6.0=h2b14fbe_4
   - gettext=0.19.8.1=h0b5b191_1005
+  - gflags=2.2.2=he1b5a44_1004
   - giflib=5.2.1=h36c2ea0_2
   - gitdb=4.0.5=py_0
   - gitpython=3.1.11=py_0
   - glib=2.66.7=h9c3ff4c_1
   - glib-tools=2.66.7=h9c3ff4c_1
+  - glog=0.4.0=h49b9bf7_3
   - google-api-core=1.22.2=py36h9f0ad1d_0
   - google-auth=1.24.0=pyhd3deb0d_0
   - google-cloud-core=1.5.0=pyhd3deb0d_0
@@ -75,6 +86,7 @@ dependencies:
   - googleapis-common-protos=1.52.0=py36h5fab9bb_1
   - graphite2=1.3.13=h58526e2_1001
   - graphviz=2.42.3=h0511662_0
+  - grpc-cpp=1.35.0=h146f9af_0
   - grpcio=1.34.0=py36h8e87921_0
   - gst-plugins-base=1.18.3=h04508c2_0
   - gstreamer=1.18.3=h3560a44_0
@@ -135,8 +147,10 @@ dependencies:
   - libspatialite=5.0.1=he52d314_3
   - libssh2=1.9.0=hab1572f_5
   - libstdcxx-ng=9.3.0=h2ae2ef3_17
+  - libthrift=0.13.0=h5aa387f_6
   - libtiff=4.2.0=hdc55705_0
   - libtool=2.4.6=h58526e2_1007
+  - libutf8proc=2.6.1=h7f98852_0
   - libuuid=2.32.1=h7f98852_1000
   - libwebp-base=1.1.0=h36c2ea0_3
   - libxcb=1.13=h14c3975_1002
@@ -161,9 +175,11 @@ dependencies:
   - olefile=0.46=pyh9f0ad1d_1
   - openjpeg=2.4.0=hf7af979_0
   - openssl=1.1.1j=h7f98852_0
+  - orc=1.6.7=h7950760_0
   - pandas=1.1.4=py36hd87012b_0
   - pango=1.42.4=h69149e4_5
   - paramiko=2.7.2=pyh9f0ad1d_0
+  - parquet-cpp=1.5.1=2
   - path=15.0.0=py36h5fab9bb_1
   - pathlib=1.0.1=py36h5fab9bb_4
   - patsy=0.5.1=py36_0
@@ -181,6 +197,7 @@ dependencies:
   - protobuf=3.14.0=py36hc4f0c31_0
   - psutil=5.8.0=py36h8f6f2f9_0
   - pthread-stubs=0.4=h36c2ea0_1001
+  - pyarrow=3.0.0=py36h9331bd2_4_cpu
   - pyasn1=0.4.8=py_0
   - pyasn1-modules=0.2.7=py_0
   - pycparser=2.20=pyh9f0ad1d_2
@@ -207,11 +224,13 @@ dependencies:
   - pyyaml=5.3.1=py36he6145b8_1
   - qt=5.12.9=hda022c4_4
   - ratelimiter=1.2.0=py_1002
+  - re2=2020.11.01=h58526e2_0
   - readline=8.0=he28a2e2_2
   - requests=2.25.1=pyhd3deb0d_0
   - retrying=1.3.3=py_2
   - rsa=4.6=pyh9f0ad1d_0
   - rtree=0.9.7=py36hb415506_1
+  - s2n=1.0.0=h9b69904_0
   - s3transfer=0.3.3=pyhd8ed1ab_5
   - samtools=1.10=h2e538c0_3
   - scikit-image=0.17.2=py36h284efc9_4
@@ -222,6 +241,7 @@ dependencies:
   - smmap=3.0.4=pyh9f0ad1d_0
   - snakemake=5.3.0=py36_1
   - snakemake-minimal=5.3.0=py36_1
+  - snappy=1.1.8=he1b5a44_3
   - sqlite=3.34.0=h74cdb3f_0
   - statsmodels=0.12.0=py36h7b6447c_0
   - tifffile=2019.7.26.2=py36_0
