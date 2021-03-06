@@ -134,7 +134,7 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
             try:
                 sample_id = f.split('/')[-1].split('_')[0]
             except:
-                continue
+                sample_id = f.split('/')[-1]
             file_paths[sample_id].append(f)
     return file_paths
 
