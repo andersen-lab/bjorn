@@ -6,6 +6,7 @@ import time
 import json
 import pandas as pd
 from path import Path
+import bjorn_support as bs
 
 
 # COLLECTING USER PARAMETERS
@@ -20,14 +21,34 @@ parser.add_argument("-o", "--outfp",
                         help="Output filepath")
 
 args = parser.parse_args()
-
-# whether or not to include bam files in the release
 input_dir = args.inputdir
 out_fp = args.outfp
+
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+unknown_val = config['unknown_value']
+date = config['date']
+date_modified = config['date_modified']
+api_data_fp = config['outbreak_fp']#/valhalla/gisaid/new_api_data.json.gz'
+meta_data_fp = config['meta_outbreak_fp']#'/valhalla/gisaid/new_genomics_metadata.json'
+countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
+divisions_fp = config['divisions_fp']#'/home/al/data/geojsons/gadm_divisions.json'
+locations_fp = config['locations_fp']#'/home/al/data/geojsons/gadm_locations.json'
+with open(countries_fp) as f:
+    countries = json.load(f)
+with open(divisions_fp) as f:
+    divisions = json.load(f)
+with open(locations_fp) as f:
+    locations = json.load(f)
+# write metadata info to json file
+metadata = {'date_modified': date_modified}
+with open(meta_data_fp, 'w') as fp:
+    json.dump(metadata, fp)
 # fetch list of mutation csv filepaths
 mut_fps = glob.glob(f"{input_dir}/*.mutations.csv")
 # concat with pd
-mut_df = pd.concat((pd.read_csv(fp) for fp in mut_fps))
+muts = pd.concat((pd.read_csv(fp, dtype=str) for fp in mut_fps))
 # generate json
 meta_info = [
         'strain', 'accession_id',
@@ -51,21 +72,34 @@ muts_info = ['type', 'mutation', 'gene',
              'absolute_coords', 
              'change_length_nt', 'is_frameshift',
              'deletion_codon_coords']
-mut_df = mut_df[~(mut_df['gene'].isin(['5UTR', '3UTR']))]
+muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
+muts['date_modified'] = date_modified
+muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
+muts['division_id'] = muts['division'].apply(lambda x: divisions.get(x, unknown_val))
+muts['location_id'] = muts['location'].apply(lambda x: locations.get(x, unknown_val))
+muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
 # GENERATE JSON DATA MODEL
 start = time.time()
-# (mut_df.groupby(meta_info, as_index=True)
-#              .apply(lambda x: x[muts_info].to_dict('records'))
-#              .reset_index()
-#              .rename(columns={0:'mutations'})
-#              .to_json(out_fp,
-#                       orient='records',
-#                       compression='gzip'))
-mut_df.to_csv(out_fp, index=False)
+(muts.groupby(meta_info, as_index=True)
+             .apply(lambda x: x[muts_info].to_dict('records'))
+             .reset_index()
+             .rename(columns={0:'mutations'})
+             .to_json(api_data_fp,
+                      orient='records',
+                      compression='gzip'))
 end = time.time()
 print(f'Execution time: {end - start} seconds')
 # upload to gcloud
-
+upload_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil -m cp {api_data_fp} gs://andersen-lab_temp/outbreak_genomics/"
+bs.run_command(upload_cmd)
 # update gcloud access rights
-
+upload_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil -m cp {meta_data_fp} gs://andersen-lab_temp/outbreak_genomics/"
+bs.run_command(upload_cmd)
 # send auto-slack message about it? (nah, too much)
+access_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil acl ch -R -u AllUsers:R gs://andersen-lab_temp/outbreak_genomics/*"
+bs.run_command(access_cmd)
+# GENERATE CSV DATA MODEL
+start = time.time()
+muts.to_csv(out_fp, index=False)
+end = time.time()
+print(f'Execution time: {end - start} seconds')
