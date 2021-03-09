@@ -819,3 +819,12 @@ def is_frameshift(x):
     if x % 3 == 0:
         return False
     return True
+
+
+def get_dels_separated(x):
+    c1 = int(x[x.find('DEL')+3:].split('/')[0])
+    try:
+        c2 = int(x.split('/')[1])
+        return np.arange(c1, c2+1)
+    except:
+        return c1
