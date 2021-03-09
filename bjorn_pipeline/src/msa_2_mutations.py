@@ -96,17 +96,6 @@ muts['location'] = muts['location'].astype(str)
 muts['location_lower'] = muts['location'].str.lower()
 muts['location_normed'] = muts['location_normed'].astype(str)
 muts['location_normed_lower'] = muts['location_normed'].str.lower()
-with open(countries_fp) as f:
-    countries = json.load(f)
-muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
-with open(divisions_fp) as f:
-    divisions = json.load(f)
-muts['tmp_info1'] = muts['country'] + '-' + muts['division']
-muts['division_id'] = muts['tmp_info1'].apply(lambda x: divisions.get(x, unknown_val))
-with open(locations_fp) as f:
-    locations = json.load(f)
-muts['tmp_info2'] = muts['country'] + '-' + muts['division'] + '-' + muts['location']
-muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown_val))
 # clean time information
 muts['tmp'] = muts['date_collected'].str.split('-')
 muts = muts[muts['tmp'].str.len()>=2]
@@ -131,9 +120,21 @@ muts.rename(columns={
     'location_normed_lower': 'location_lower',
     'del_len': 'change_length_nt'
     }, inplace=True)
+
 # final cleaning (missing values)
 muts.loc[muts['location']=='unk', 'location'] = unknown_val
 muts.loc[muts['division']==muts['country'], 'division'] = unknown_val
+with open(countries_fp) as f:
+    countries = json.load(f)
+muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
+with open(divisions_fp) as f:
+    divisions = json.load(f)
+muts['tmp_info1'] = muts['country'] + '-' + muts['division']
+muts['division_id'] = muts['tmp_info1'].apply(lambda x: divisions.get(x, unknown_val))
+with open(locations_fp) as f:
+    locations = json.load(f)
+muts['tmp_info2'] = muts['country'] + '-' + muts['division'] + '-' + muts['location']
+muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown_val))
 muts.drop(columns=['tmp', 'tmp_info1', 'tmp_info2'], inplace=True)
 muts.fillna(unknown_val, inplace=True)
 muts = muts.astype(str)
