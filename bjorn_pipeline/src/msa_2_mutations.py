@@ -43,9 +43,9 @@ patient_zero = config['patient_zero']
 data_src = config['data_source']
 min_date = config['min_date']
 unknown_val = config['unknown_value']
-countries_fp = config['countries_filepath']
-divisions_fp = config['divisions_filepath']
-locations_fp = config['locations_filepath']
+countries_fp = config['countries_fp']
+divisions_fp = config['divisions_fp']
+locations_fp = config['locations_fp']
 
 
 print(f"Loading alignment file at {alignment_filepath}")
@@ -73,6 +73,10 @@ dels, _ = bm.identify_deletions_per_sample(msa_data,
                                         #    test=is_test
                                            )
 dels_time = time.time() - t0
+# separate deletions on a per-codon basis
+dels['mutation'] = dels['mutation'].apply(bm.get_dels_separated)
+dels = dels.explode('mutation')
+dels['mutation'] = dels['gene'] + ':' + dels['mutation'].astype(str)
 print(subs.shape)
 print(dels.shape)
 muts = pd.concat([subs, dels])
@@ -94,13 +98,15 @@ muts['location_normed'] = muts['location_normed'].astype(str)
 muts['location_normed_lower'] = muts['location_normed'].str.lower()
 with open(countries_fp) as f:
     countries = json.load(f)
-muts['country_id'] = muts['country_normed'].apply(lambda x: countries.get(x, unknown_val))
+muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
 with open(divisions_fp) as f:
     divisions = json.load(f)
-muts['division_id'] = muts['division_normed'].apply(lambda x: divisions.get(x, unknown_val))
+muts['tmp_info1'] = muts['country'] + '-' + muts['division']
+muts['division_id'] = muts['tmp_info1'].apply(lambda x: divisions.get(x, unknown_val))
 with open(locations_fp) as f:
     locations = json.load(f)
-muts['location_id'] = muts['location_normed'].apply(lambda x: locations.get(x, unknown_val))
+muts['tmp_info2'] = muts['country'] + '-' + muts['division'] + '-' + muts['location']
+muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown_val))
 # clean time information
 muts['tmp'] = muts['date_collected'].str.split('-')
 muts = muts[muts['tmp'].str.len()>=2]
@@ -128,6 +134,7 @@ muts.rename(columns={
 # final cleaning (missing values)
 muts.loc[muts['location']=='unk', 'location'] = unknown_val
 muts.loc[muts['division']==muts['country'], 'division'] = unknown_val
+muts.drop(columns=['tmp', 'tmp_info1', 'tmp_info2'], inplace=True)
 muts.fillna(unknown_val, inplace=True)
 muts = muts.astype(str)
 # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')

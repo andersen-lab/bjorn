@@ -32,15 +32,15 @@ date = config['date']
 date_modified = config['date_modified']
 api_data_fp = config['outbreak_fp']#/valhalla/gisaid/new_api_data.json.gz'
 meta_data_fp = config['meta_outbreak_fp']#'/valhalla/gisaid/new_genomics_metadata.json'
-countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
-divisions_fp = config['divisions_fp']#'/home/al/data/geojsons/gadm_divisions.json'
-locations_fp = config['locations_fp']#'/home/al/data/geojsons/gadm_locations.json'
-with open(countries_fp) as f:
-    countries = json.load(f)
-with open(divisions_fp) as f:
-    divisions = json.load(f)
-with open(locations_fp) as f:
-    locations = json.load(f)
+# countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
+# divisions_fp = config['divisions_fp']#'/home/al/data/geojsons/gadm_divisions.json'
+# locations_fp = config['locations_fp']#'/home/al/data/geojsons/gadm_locations.json'
+# with open(countries_fp) as f:
+#     countries = json.load(f)
+# with open(divisions_fp) as f:
+#     divisions = json.load(f)
+# with open(locations_fp) as f:
+#     locations = json.load(f)
 # write metadata info to json file
 metadata = {'date_modified': date_modified}
 with open(meta_data_fp, 'w') as fp:
@@ -74,9 +74,9 @@ muts_info = ['type', 'mutation', 'gene',
              'deletion_codon_coords']
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
 muts['date_modified'] = date_modified
-muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
-muts['division_id'] = muts['division'].apply(lambda x: divisions.get(x, unknown_val))
-muts['location_id'] = muts['location'].apply(lambda x: locations.get(x, unknown_val))
+# muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
+# muts['division_id'] = muts['division'].apply(lambda x: divisions.get(x, unknown_val))
+# muts['location_id'] = muts['location'].apply(lambda x: locations.get(x, unknown_val))
 muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
 # GENERATE JSON DATA MODEL
 start = time.time()
