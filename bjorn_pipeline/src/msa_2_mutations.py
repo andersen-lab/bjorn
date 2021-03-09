@@ -76,7 +76,7 @@ dels_time = time.time() - t0
 # separate deletions on a per-codon basis
 dels['mutation'] = dels['mutation'].apply(bm.get_dels_separated)
 dels = dels.explode('mutation')
-dels['mutation'] = dels['gene'] + ':' + dels['mutation'].astype(str)
+dels['mutation'] = dels['gene'] + ':' + 'DEL' + dels['mutation'].astype(str)
 print(subs.shape)
 print(dels.shape)
 muts = pd.concat([subs, dels])
