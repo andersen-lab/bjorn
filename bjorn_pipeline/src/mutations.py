@@ -168,6 +168,7 @@ def identify_replacements_per_sample(cns,
                                      meta_fp=None,
                                      gene2pos: dict=bd.GENE2POS,
                                      data_src: str='gisaid',
+                                     min_seq_len=20000,
                                      patient_zero: str='NC_045512.2',
                                      ref_path: str='/home/al/data/hcov19/NC045512.fasta',
                                      test: bool=False):
@@ -188,6 +189,10 @@ def identify_replacements_per_sample(cns,
                 .rename(columns={'index': 'idx'}))
     if test:
         seqsdf = seqsdf.sample(100)
+    # compute length of each sequence
+    seqsdf['seq_len'] = seqsdf['sequence'].str.len()
+    # filter out seqs that are too short
+    seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
     print(f"Identifying mutations...")
     # for each sample, identify list of substitutions (position:alt)
     seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
@@ -416,6 +421,8 @@ def identify_deletions_per_sample(cns,
                                   gene2pos: dict=bd.GENE2POS, 
                                   data_src='gisaid',
                                   min_del_len=1, 
+                                  max_del_len=500,
+                                  min_seq_len=20000,
                                   start_pos=265,
                                   end_pos=29674,
                                   patient_zero: str='NC_045512.2',
@@ -438,6 +445,7 @@ def identify_deletions_per_sample(cns,
         seqsdf = seqsdf.sample(100)
     # compute length of each sequence
     seqsdf['seq_len'] = seqsdf['sequence'].str.len()
+    seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
     print(f"Identifying deletions...")
     # identify deletion positions
     seqsdf['del_positions'] = seqsdf['sequence'].apply(find_deletions)
@@ -445,11 +453,15 @@ def identify_deletions_per_sample(cns,
     seqsdf.drop(columns=['sequence'], inplace=True)
     # sequences with one or more deletions
     seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() > 0]
+    # sequences with less than 500 deletions
+    seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() < max_del_len]
     seqsdf = seqsdf.explode('del_positions')
     # compute length of each deletion
     seqsdf['del_len'] = seqsdf['del_positions'].apply(len)
-    # only consider deletions longer than 2nts
+    # only consider deletions longer than 1nts
     seqsdf = seqsdf[seqsdf['del_len'] >= min_del_len]
+    # only consider deletions shorter than 500nts
+    seqsdf = seqsdf[seqsdf['del_len'] < max_del_len]
     # fetch coordinates of each deletion
     seqsdf['relative_coords'] = seqsdf['del_positions'].apply(get_indel_coords)
     seqsdf['type'] = 'deletion'

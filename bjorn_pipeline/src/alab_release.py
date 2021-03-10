@@ -73,6 +73,12 @@ def create_github_meta(new_meta_df: pd.DataFrame, old_meta_filepath: str, meta_c
 
 def create_gisaid_meta(new_meta_df: pd.DataFrame, meta_cols: list):
     """Generate GISAID metadata for newly released samples"""
+    na_cols = ['Gender','Patient age','Patient status']
+    new_meta_df.loc[:, na_cols] = new_meta_df[na_cols].fillna('N/A')
+    new_meta_df['Coverage'] = new_meta_df['avg_depth'].copy()
+    new_meta_df.drop(columns=['avg_depth'], inplace=True)
+    new_meta_df['Assembly method'] = 'iVar 1.3.1'
+    new_meta_df['Submitter'] = 'gkarthik'
     new_meta_df[meta_cols].to_csv(out_dir/'gisaid_metadata.csv', index=False)
     return f"GISAID metadata saved in {out_dir/'gisaid_metadata.csv'}"
 
