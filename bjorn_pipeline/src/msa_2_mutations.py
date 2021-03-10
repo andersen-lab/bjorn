@@ -58,6 +58,7 @@ subs, _ = bm.identify_replacements_per_sample(msa_data,
                                               gisaid_meta,  
                                               gene2pos=bd.GENE2POS, 
                                               data_src=data_src,
+                                              min_seq_len=20000,
                                               patient_zero=patient_zero
                                             #   test=is_test
                                               )
@@ -69,14 +70,14 @@ dels, _ = bm.identify_deletions_per_sample(msa_data,
                                            gene2pos=bd.GENE2POS, 
                                            data_src=data_src, 
                                            min_del_len=1,
+                                           max_del_len=500,
+                                           min_seq_len=20000,
                                            patient_zero=patient_zero
                                         #    test=is_test
                                            )
 dels_time = time.time() - t0
-# separate deletions on a per-codon basis
-dels['mutation'] = dels['mutation'].apply(bm.get_dels_separated)
-dels = dels.explode('mutation')
-dels['mutation'] = dels['gene'] + ':' + 'DEL' + dels['mutation'].astype(str)
+# QC FILTER: remove seqs with >500 nt deletions
+# dels = dels.loc[dels['del_positions'].str.len()<500]
 print(subs.shape)
 print(dels.shape)
 muts = pd.concat([subs, dels])
@@ -124,20 +125,8 @@ muts.rename(columns={
 # final cleaning (missing values)
 muts.loc[muts['location']=='unk', 'location'] = unknown_val
 muts.loc[muts['division']==muts['country'], 'division'] = unknown_val
-with open(countries_fp) as f:
-    countries = json.load(f)
-muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val))
-with open(divisions_fp) as f:
-    divisions = json.load(f)
-muts['tmp_info1'] = muts['country'] + '-' + muts['division']
-muts['division_id'] = muts['tmp_info1'].apply(lambda x: divisions.get(x, unknown_val))
-with open(locations_fp) as f:
-    locations = json.load(f)
-muts['tmp_info2'] = muts['country'] + '-' + muts['division'] + '-' + muts['location']
-muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown_val))
-muts.drop(columns=['tmp', 'tmp_info1', 'tmp_info2'], inplace=True)
 muts.fillna(unknown_val, inplace=True)
-muts = muts.astype(str)
+# muts = muts.astype(str) TAKES FOREVER
 # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
 muts.to_csv(out_fp, index=False)
 print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")

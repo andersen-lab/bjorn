@@ -1,15 +1,16 @@
 {
     "out_dir": "/valhalla/gisaid/workflow",
-    "date": "2021-03-01",
-    "gisaid_fasta": "gisaid_sequences_2021-03-01.fasta",
-    "gisaid_meta": "metadata_2021-03-01.tsv.gz",
-    "gisaid_feed": "provision_2021-03-01.json",
+    "date": "2021-03-10",
+    "date_modified": "2021-03-10-09:00",
+    "gisaid_fasta": "gisaid_sequences_2021-03-10.fasta",
+    "gisaid_meta": "metadata_2021-03-10.tsv.gz",
+    "gisaid_feed": "provision_2021-03-10.json",
     "gadm": "/home/al/data/geojsons/gadm36.shp",
     "countries_filepath": "/home/al/data/geojsons/gadm_countries.json",
     "divisions_filepath": "/home/al/data/geojsons/gadm_divisions.json",
     "locations_filepath": "/home/al/data/geojsons/gadm_locations.json",
     "ref_fasta": "/home/al/data/hcov19/NC045512.fasta",
-    "num_cpus": "5",
+    "num_cpus": "1",
     "is_gzip": false,
     "is_test": false,
     "feed_test": false,
@@ -21,5 +22,10 @@
     "patient_zero": "NC_045512.2",
     "unknown_value": "None",
     "min_date": "2020-01-25",
-    "chunk_size": "10000"
+    "chunk_size": "10000",
+    "outbreak_fp": "/valhalla/gisaid/workflow/new_api_data.json.gz",
+    "meta_outbreak_fp": "/valhalla/gisaid/workflow/new_genomics_metadata.json",
+    "countries_fp": "/home/al/data/geojsons/gadm_countries.json",
+    "divisions_fp": "/home/al/data/geojsons/gadm_divisions.json",
+    "locations_fp": "/home/al/data/geojsons/gadm_locations.json"
 }

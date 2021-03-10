@@ -55,7 +55,10 @@ def download_process_data(username, password, chunk_size):
                 if i >= test_size:
                     break
     else:
-        data = [json.loads(line) for line in open(in_fp, 'r')]
+        if Path.isfile(Path(out_fp)) and Path.isfile(Path(meta_fp)):
+            data = []
+        else:
+            data = [json.loads(line) for line in open(in_fp, 'r')]
     print(f"Total number of sequences: {len(data)}")
     # generate fasta file containing all sequences
     if not Path.isfile(Path(out_fp)):
