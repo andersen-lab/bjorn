@@ -174,7 +174,7 @@ def process_id(x):
 if __name__=="__main__":
     # Input Parameters
     # COLUMNS TO INCLUDE IN GITHUB METADATA
-    git_meta_cols = ["ID", "collection_date", "location", "percent_coverage_cds", "avg_depth", "authors", "originating_lab", "fasta_hdr"]
+    git_meta_cols = ["ID", "collection_date", "location", "percent_coverage_cds", "Coverage", "authors", "originating_lab", "fasta_hdr"]
     # COLUMNS TO INCLUDE IN GISAID METADATA
     gisaid_meta_cols = ['Submitter',
                    'FASTA filename', 'Virus name', 'Type', 'Passage details/history',
@@ -184,7 +184,7 @@ if __name__=="__main__":
                    'Treatment', 'Sequencing technology', 'Assembly method', 'Coverage',
                    'originating_lab', 'Address', 'Sample ID given by the sample provider',
                    'Submitting lab', 'Address.1',
-                   'Sample ID given by the submitting laboratory', 'authors', 'avg_depth']
+                   'Sample ID given by the submitting laboratory', 'authors']
     # COLUMNS TO INCLUDE IN GITHUB METADATA
     genbank_meta_cols = ['Sample ID', 'ID', 'Virus name', 'location', 'Specimen source', 'collection_date', 'Host']
     parser = argparse.ArgumentParser()
@@ -375,8 +375,8 @@ if __name__=="__main__":
         cns_seqs = SeqIO.parse(msa_dir/out_dir.basename()+'.fa', 'fasta')
         cns_seqs = list(cns_seqs)
         # generate files containing metadata for Github, GISAID, GenBank
-        create_github_meta(ans, released_samples_fpath, git_meta_cols)
-        create_gisaid_meta(ans, gisaid_meta_cols)
+        create_github_meta(ans.copy(), released_samples_fpath, git_meta_cols)
+        create_gisaid_meta(ans.copy(), gisaid_meta_cols)
         assemble_genbank_release(cns_seqs, ans, genbank_meta_cols, out_dir/'genbank')
         sra_dir = out_dir/'sra'
         if not Path.isdir(sra_dir):
