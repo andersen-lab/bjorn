@@ -360,7 +360,7 @@ if __name__=="__main__":
     # compute number of samples below 90% coverage
     low_coverage_samples = ans[ans["percent_coverage_cds"] < min_coverage]
     # ignore samples below 90% coverage
-    ans = ans[ans["percent_coverage_cds"] >= 90]
+    ans = ans[ans["percent_coverage_cds"] >= min_coverage]
     # generate concatenated consensus sequences
     if not dry_run:
         # Transfer files
@@ -456,7 +456,7 @@ if __name__=="__main__":
     with open("{}/data_release.log".format(out_dir), 'w') as f:
         f.write(f"Prepared {final_result.shape[0]} samples for release\n")
         f.write(f'{num_samples_missing_coverage} samples are missing coverage information\n')
-        f.write(f'{low_coverage_samples.shape[0]} samples were found to have coverage below 90%\n')
+        f.write(f'{low_coverage_samples.shape[0]} samples were found to have coverage below {min_coverage}%\n')
         f.write(f'{num_samples_missing_cons} samples were ignored because they were missing consensus sequence files\n')
         f.write(f'{num_samples_missing_bams} samples were ignored because they were missing BAM sequence files\n')
     print(f"Transfer Complete. All results saved in {out_dir}")
