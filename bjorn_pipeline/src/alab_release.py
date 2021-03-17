@@ -203,6 +203,11 @@ if __name__=="__main__":
                         default="NC_045512.2",
                         help="FASTA header name for reference")
 
+    parser.add_argument("-mc", "--min-coverage",
+                        type=int,
+                        default=95,
+                        help="Minimum coverage of sequences (QC filter)")
+
     parser.add_argument("-o", "--out-dir",
                         type=str,
                         default="./",
@@ -231,8 +236,8 @@ if __name__=="__main__":
 
     # whether or not to include bam files in the release
     include_bams = args.include_bams
-    # these are the columns to include in the metadata.csv output
-
+    # this is the minimum coverage for accepting consensus sequences
+    min_coverage = args.min_coverage
     # path to reference sequence (used later for MSA and tree construction)
     ref_path = Path(args.reference) if args.reference is not None else None
     patient_zero = args.reference_name
@@ -353,7 +358,7 @@ if __name__=="__main__":
     ans['fasta_hdr'] = ans['Virus name']
     num_samples_missing_coverage = ans[ans['percent_coverage_cds'].isna()].shape[0]
     # compute number of samples below 90% coverage
-    low_coverage_samples = ans[ans["percent_coverage_cds"] < 90]
+    low_coverage_samples = ans[ans["percent_coverage_cds"] < min_coverage]
     # ignore samples below 90% coverage
     ans = ans[ans["percent_coverage_cds"] >= 90]
     # generate concatenated consensus sequences
