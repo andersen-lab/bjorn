@@ -254,7 +254,7 @@ def align_fasta_reference(fasta_filepath, out_filepath, ref_fp: str, num_cpus=8)
 
 
 def align_fasta_viralMSA(fasta_filepath, out_filepath, ref_fp: str, 
-                         num_cpus=8, email='al.a.latif.94@gmail.com',
+                         num_cpus=8, email='notmyemail@noway.com',
                          viralmsa_fp = '/home/al/code/ViralMSA.py'):
     """Generate Multiple Sequence Alignment of concatenated sequences in input fasta file using mafft"""
     msa_cmd = f"{viralmsa_fp} -e {email} -t {num_cpus} -s {fasta_filepath} -o {out_filepath} -r {ref_fp}"
