@@ -15,6 +15,10 @@ parser.add_argument("-i", "--inputdir",
                         type=str,
                         required=True,
                         help="Input directory containing chunked mutation results in csv files")
+parser.add_argument("-m", "--inputmeta",
+                        type=str,
+                        required=True,
+                        help="Input filepath containing chunked metadata for each sample")
 parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
@@ -22,25 +26,23 @@ parser.add_argument("-o", "--outfp",
 
 args = parser.parse_args()
 input_dir = args.inputdir
+meta_fp = args.inputmeta
 out_fp = args.outfp
 
 with open('config.json', 'r') as f:
     config = json.load(f)
 
+out_dir = config['out_dir']
+log_fp = out_dir + '/' + config['log_file']
 unknown_val = config['unknown_value']
 date = config['date']
+min_date = config['min_date']
 date_modified = config['date_modified']
 api_data_fp = config['outbreak_fp']#/valhalla/gisaid/new_api_data.json.gz'
 meta_data_fp = config['meta_outbreak_fp']#'/valhalla/gisaid/new_genomics_metadata.json'
 countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
 divisions_fp = config['divisions_fp']#'/home/al/data/geojsons/gadm_divisions.json'
 locations_fp = config['locations_fp']#'/home/al/data/geojsons/gadm_locations.json'
-# with open(countries_fp) as f:
-#     countries = json.load(f)
-# with open(divisions_fp) as f:
-#     divisions = json.load(f)
-# with open(locations_fp) as f:
-#     locations = json.load(f)
 with open(countries_fp) as f:
     countries = json.load(f)
 with open(divisions_fp) as f:
@@ -55,6 +57,57 @@ with open(meta_data_fp, 'w') as fp:
 mut_fps = glob.glob(f"{input_dir}/*.mutations.csv")
 # concat with pd
 muts = pd.concat((pd.read_csv(fp, dtype=str) for fp in mut_fps))
+# ignore mutations found in non-coding regions
+muts = muts.loc[~(muts['gene']=='Non-coding region')]
+# fuse with metadata
+print(f"Fusing with metadata...")
+start = time.time()
+meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+muts = pd.merge(muts, meta, left_on='idx', right_on='strain')
+fuse_time = time.time() - start
+# clean geographic information
+start = time.time()
+muts['country'] = muts['country'].astype(str)
+muts['country_lower'] = muts['country'].str.lower()
+muts['country_normed'] = muts['country_normed'].astype(str)
+muts['country_normed_lower'] = muts['country_normed'].str.lower()
+muts['division'] = muts['division'].astype(str)
+muts['division_lower'] = muts['division'].str.lower()
+muts['division_normed'] = muts['division_normed'].astype(str)
+muts['division_normed_lower'] = muts['division_normed'].str.lower()
+muts['location'] = muts['location'].astype(str)
+muts['location_lower'] = muts['location'].str.lower()
+muts['location_normed'] = muts['location_normed'].astype(str)
+muts['location_normed_lower'] = muts['location_normed'].str.lower()
+# clean time information
+muts['tmp'] = muts['date_collected'].str.split('-')
+muts = muts[muts['tmp'].str.len()>=2]
+muts.loc[muts['tmp'].str.len()==2, 'date_collected'] += '-15'
+muts['date_collected'] = pd.to_datetime(muts['date_collected'], errors='coerce')
+muts['date_collected'] = muts['date_collected'].astype(str)
+muts = muts[muts['date_collected']<date]
+muts = muts[muts['date_collected']>min_date]
+# rename field names
+muts.rename(columns={
+    'country': 'country_original',
+    'division': 'division_original',
+    'location': 'location_original',
+    'country_lower': 'country_original_lower',
+    'division_lower': 'division_original_lower',
+    'location_lower': 'location_original_lower',
+    'country_normed': 'country',
+    'division_normed': 'division',
+    'location_normed': 'location',
+    'country_normed_lower': 'country_lower',
+    'division_normed_lower': 'division_lower',
+    'location_normed_lower': 'location_lower',
+    'del_len': 'change_length_nt'
+    }, inplace=True)
+
+# final cleaning (missing values)
+muts.loc[muts['location']=='unk', 'location'] = unknown_val
+muts.loc[muts['division']==muts['country'], 'division'] = unknown_val
+muts.fillna(unknown_val, inplace=True)
 # generate json
 meta_info = [
         'strain', 'accession_id',
@@ -89,6 +142,7 @@ muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown
 # muts['division_id'] = muts['division'].apply(lambda x: divisions.get(x, unknown_val))
 # muts['location_id'] = muts['location'].apply(lambda x: locations.get(x, unknown_val))
 muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
+preprocess_time = time.time() - start
 # GENERATE JSON DATA MODEL
 start = time.time()
 (muts.groupby(meta_info, as_index=True)
@@ -96,10 +150,14 @@ start = time.time()
              .reset_index()
              .rename(columns={0:'mutations'})
              .to_json(api_data_fp,
-                      orient='records',
-                      compression='gzip'))
-end = time.time()
-print(f'Execution time: {end - start} seconds')
+                      orient='records'))
+io_time = time.time() - start
+start = time.time()
+gzip_cmd = f"gzip -f {api_data_fp}"
+bs.run_command(gzip_cmd)
+api_data_fp += '.gz'
+gzip_time = time.time() - start
+# print(f'Execution time: {end - start} seconds')
 # upload to gcloud
 upload_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil -m cp {api_data_fp} gs://andersen-lab_temp/outbreak_genomics/"
 bs.run_command(upload_cmd)
@@ -109,8 +167,20 @@ bs.run_command(upload_cmd)
 # send auto-slack message about it? (nah, too much)
 access_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil acl ch -R -u AllUsers:R gs://andersen-lab_temp/outbreak_genomics/*"
 bs.run_command(access_cmd)
+api_data_fn = api_data_fp.split('/')[-1]
+stat_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil stat gs://andersen-lab_temp/outbreak_genomics/{api_data_fn}"
+upload_stats = bs.run_command_log(stat_cmd)
 # GENERATE CSV DATA MODEL
-start = time.time()
+num_records = muts.drop_duplicates(subset=meta_info).shape[0]
+num_ids = muts['accession_id'].unique().shape[0]
 muts.to_csv(out_fp, index=False)
-end = time.time()
-print(f'Execution time: {end - start} seconds')
+# Data logging
+with open(log_fp, 'w') as f:
+    f.write(f"Number of records: {num_records}\n")
+    f.write(f"Number of unique accession IDs: {num_ids}\n")
+    f.write(f"Metadata Fusion Execution time: {fuse_time} seconds\n")
+    f.write(f"Data Preprocessing Execution time: {preprocess_time} seconds\n")
+    f.write(f"IO Execution time: {io_time} seconds\n")
+    f.write(f"Gzip Execution time: {gzip_time} seconds\n")
+    f.write(f"GCloud upload statistics: \n {upload_stats}")
+print(f"Transfer Complete. All results saved in {out_dir}")
