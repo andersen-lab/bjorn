@@ -17,7 +17,7 @@ def create_chunk_names(meta_filepath: str, chunk_size: int) -> pd.DataFrame:
     #         if line.startswith(">"):
     #             count += 1
     meta_df = pd.read_csv(meta_filepath, sep='\t', compression='gzip')
-    num_sequences = meta_df['accession_id'].unique().shape[0]
+    num_sequences = meta_df['strain'].unique().shape[0]
     chunk_names = [f"chunk_{i+1}" for i in range(math.ceil(num_sequences / chunk_size))]
     return pd.DataFrame(data=chunk_names, columns=['chunk_names'])
 
@@ -229,6 +229,15 @@ def run_command(cmd):
             sys.stdout.flush()
 
 
+def run_command_log(cmd):
+    "helper function used to run bash commands"
+    # run it
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # But do not wait till netstat finish, start displaying output immediately
+    out = p.stdout.read()
+    return out.decode('utf-8')
+
+
 def align_fasta(fasta_filepath, out_filepath, num_cpus=8):
     """Generate Multiple Sequence Alignment of concatenated sequences in input fasta file using mafft.
     TODO: ALLOW USER TO INPUT CUSTOM COMMAND"""
@@ -241,6 +250,16 @@ def align_fasta_reference(fasta_filepath, out_filepath, ref_fp: str, num_cpus=8)
     """Generate Multiple Sequence Alignment of concatenated sequences in input fasta file using mafft"""
     msa_cmd = f"mafft --auto --thread {num_cpus} --keeplength --addfragments {fasta_filepath} {ref_fp} > {out_filepath}"
     run_command(msa_cmd)
+    return out_filepath
+
+
+def align_fasta_viralMSA(fasta_filepath, out_filepath, ref_fp: str, 
+                         num_cpus=8, email='al.a.latif.94@gmail.com',
+                         viralmsa_fp = '/home/al/code/ViralMSA.py'):
+    """Generate Multiple Sequence Alignment of concatenated sequences in input fasta file using mafft"""
+    msa_cmd = f"{viralmsa_fp} -e {email} -t {num_cpus} -s {fasta_filepath} -o {out_filepath} -r {ref_fp}"
+    run_command(msa_cmd)
+    out_filepath = out_filepath + '/' + fasta_filepath.split('/')[-1] + '.aln'
     return out_filepath
 
 
