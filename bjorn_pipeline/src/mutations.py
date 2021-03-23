@@ -12,6 +12,22 @@ from bjorn_support import map_gene_to_pos
 import data as bd
 
 
+
+def identify_samples_with_suspicious_mutations(substitutions, deletions, insertions):
+    """Returns list of sample IDs that have triggered an insertion, deletion, and/or 
+    substitution-based flag, indicating that they require further manual inspection 
+    before public release"""
+    nonconcerning_genes = ['5UTR', 'ORF7a', 'ORF7b', 'ORF8', 'ORF10', 'Non-coding region']
+    subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
+    sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
+    dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
+    sus_dels_ids = deletions.loc[dels_flag, 'samples'].str.split(',').explode().unique().tolist()
+    ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)))
+    sus_ins_ids = insertions.loc[ins_flag, 'samples'].str.split(',').explode().unique().tolist()
+    sus_mutations = pd.concat([substitutions.loc[subs_flag], deletions.loc[dels_flag], insertions.loc[ins_flag]])
+    sus_ids = list(set(sus_subs_ids + sus_dels_ids + sus_ins_ids))
+    return sus_ids, sus_mutations
+
 def aggregate_replacements(subs: pd.DataFrame, 
                            date: str,
                            data_src: str):
@@ -681,8 +697,8 @@ def identify_insertions(cns,
     # group sample by the deletion they share
     if seqsdf.shape[0]>0:
         if data_src=='alab':
-            ins_seqs = (seqsdf.groupby(['type', 'gene', 'absolute_coords', 'relative_coords', 'ins_len', 'pos', 'codon_num', 'prev_5nts', 'next_5nts'])
-                                .agg(samples=('ID', 'unique'),       # list of sample IDs with the deletion
+            ins_seqs = (seqsdf.groupby(['type', 'is_frameshift', 'gene', 'absolute_coords', 'relative_coords', 'ins_len', 'pos', 'codon_num', 'prev_5nts', 'next_5nts'])
+                                .agg(samples=('idx', 'unique'),       # list of sample IDs with the deletion
                                         num_samples=('ID', 'nunique'),
                                         first_detected=('date', 'min'),
                                         last_detected=('date', 'max'),
@@ -693,7 +709,8 @@ def identify_insertions(cns,
             
             ins_seqs['locations'] = ins_seqs['location_counts'].apply(lambda x: list(x[0]))
             ins_seqs['location_counts'] = ins_seqs['location_counts'].apply(lambda x: list(x[1]))
-            return ins_seqs[['type', 'gene', 'absolute_coords', 
+            ins_seqs['samples'] = ins_seqs['samples'].apply(process_samples).astype(str)
+            return ins_seqs[['type', 'is_frameshift', 'gene', 'absolute_coords', 
                             'ins_len', 'pos', 
                             'codon_num', 'num_samples',
                             'first_detected', 'last_detected', 'locations',
