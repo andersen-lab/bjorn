@@ -349,7 +349,13 @@ if __name__=="__main__":
     bam_data = list(zip(*[bam_ids, bam_filepaths]))
     bam_df = pd.DataFrame(data=bam_data, columns=['sample_id', 'PATH'])
     # grab all paths to consensus sequences
-    consensus_filepaths = glob.glob(f"{analysis_fpath}/**/consensus_sequences/illumina/*.fa")
+    # grab all filepaths for bam data
+    consensus_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='fa', 
+                                     data_type='consensus_sequences', 
+                                     tech='illumina',
+                                     generalised=True,
+                                     return_type='list')
+    # consensus_filepaths = glob.glob(f"{analysis_fpath}/**/consensus_sequences/illumina/*.fa")
     consensus_filepaths = [Path(fp) for fp in consensus_filepaths]
     # consolidate sample ID format
     consensus_ids = get_ids(consensus_filepaths)
@@ -399,7 +405,12 @@ if __name__=="__main__":
     final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
-    cov_filepaths = glob.glob("{}/**/trimmed_bams/illumina/reports/*.tsv".format(analysis_fpath))
+    cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
+                                     data_type='trimmed_bams', 
+                                     tech='illumina/reports',
+                                     generalised=True,
+                                     return_type='list')
+    # cov_filepaths = glob.glob("{}/**/trimmed_bams/illumina/reports/*.tsv".format(analysis_fpath))
     # get_ipython().getoutput("find {analysis_fpath} -type f -path '*trimmed_bams/illumina/reports*' -name '*.tsv'")
     cov_filepaths = [Path(fp) for fp in cov_filepaths]
     # read coverage data and clean it up
