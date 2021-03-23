@@ -138,7 +138,9 @@ def fetch_seqs(seqs_filepath, out_fp, sample_idxs: list, is_aligned=False, is_gz
 
 
 def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[], 
-                  data_type: str='consensus', tech: str='illumina') -> dict:
+                  data_type: str='consensus', tech: str='illumina', 
+                  generalised=False,
+                  return_type='dict') -> dict:
     """Take list of sample IDs, the general area where your files are located, and their format.
        Returns a dictionary with sample IDs as keys and the filepaths as values.
     """
@@ -157,18 +159,30 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
                 continue
     else:
         if data_type and tech:
-            fs = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*.{data_fmt}")
+            if generalised:
+                fs = glob.glob(f"{analysis_path}/**/*{data_type}*/*{tech}*/*.{data_fmt}")
+            else:
+                fs = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*.{data_fmt}")
         elif data_type:
-            fs = glob.glob(f"{analysis_path}/*{data_type}*/*.{data_fmt}")
+            if generalised:
+                fs = glob.glob(f"{analysis_path}/**/*{data_type}*/*.{data_fmt}")
+            else:
+                fs = glob.glob(f"{analysis_path}/*{data_type}*/*.{data_fmt}")
         else:
-            fs = glob.glob(f"{analysis_path}/*.{data_fmt}")
+            if generalised:
+                fs = glob.glob(f"{analysis_path}/**/*.{data_fmt}")
+            else:
+                fs = glob.glob(f"{analysis_path}/*.{data_fmt}")
         for f in fs:
             try:
                 sample_id = f.split('/')[-1].split('_')[0]
             except:
                 sample_id = f.split('/')[-1]
             file_paths[sample_id].append(f)
-    return file_paths
+    if return_type=='dict':
+        return file_paths
+    elif return_type=='list':
+        return [file_paths[k][0] for k in file_paths.keys()]
 
 
 def get_variant_filepaths(sample_ids: list, analysis_path: str='/home/gk/analysis') -> dict:
