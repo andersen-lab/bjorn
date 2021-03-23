@@ -10,6 +10,38 @@ import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
+def generate_release_report(out_dir, report_name='release_report.tar'):
+    report_fp = out_dir/report_name
+    s1 = "find {out_dir}/ -name '*.csv' -type f -exec tar rfP {report_fp} {{}} \\;".format(out_dir=out_dir, report_fp=report_fp)
+    print(s1)
+    run_command(s1)
+    s2 = f"tar rfP {report_fp} {out_dir}/msa/*"
+    print(s2)
+    run_command(s2)
+    return 0
+
+
+
+def separate_alignments(msa_data, sus_ids, out_dir, filename):
+    good_seqs = []
+    poor_seqs = []
+    for rec in msa_data:
+        if rec.id in sus_ids:
+            poor_seqs.append(rec)
+        else:
+            good_seqs.append(rec)
+    good_msa = Align.MultipleSeqAlignment(good_seqs)   
+    good_msa_fn = filename + '_aligned_white.fa'
+    good_msa_fp = out_dir/good_msa_fn
+    AlignIO.write(good_msa, good_msa_fp, 'fasta')
+    poor_msa = Align.MultipleSeqAlignment(poor_seqs) 
+    poor_msa_fn = filename + '_aligned_inspect.fa'
+    poor_msa_fp = out_dir/poor_msa_fn 
+    AlignIO.write(poor_msa, poor_msa_fp, 'fasta')
+    return 0
+    
+
+
 def create_chunk_names(meta_filepath: str, chunk_size: int) -> pd.DataFrame:
     # with open(fasta_filepath, 'r') as filehandle:
     #     count = 0
