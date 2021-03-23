@@ -144,7 +144,6 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
     """Take list of sample IDs, the general area where your files are located, and their format.
        Returns a dictionary with sample IDs as keys and the filepaths as values.
     """
-    print(True)
     file_paths = defaultdict(list)
     if sample_ids:
         for s_id in sample_ids:
@@ -161,7 +160,6 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
     else:
         if data_type and tech:
             if generalised:
-                print(True)
                 fs = glob.glob(f"{analysis_path}/**/*{data_type}*/*{tech}*/*.{data_fmt}")
             else:
                 fs = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*.{data_fmt}")
@@ -184,7 +182,7 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
     if return_type=='dict':
         return file_paths
     elif return_type=='list':
-        return [file_paths[k][0] for k in file_paths.keys()]
+        return fs
 
 
 def get_variant_filepaths(sample_ids: list, analysis_path: str='/home/gk/analysis') -> dict:
