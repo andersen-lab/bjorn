@@ -13,11 +13,14 @@ import data as bd
 
 
 
-def identify_samples_with_suspicious_mutations(substitutions, deletions, insertions):
+def identify_samples_with_suspicious_mutations(substitutions: pd.DataFrame, 
+                                               deletions: pd.DataFrame, 
+                                               insertions: pd.DataFrame,
+                                               nonconcerning_genes: list):
     """Returns list of sample IDs that have triggered an insertion, deletion, and/or 
     substitution-based flag, indicating that they require further manual inspection 
     before public release"""
-    nonconcerning_genes = ['5UTR', 'ORF7a', 'ORF7b', 'ORF8', 'ORF10', 'Non-coding region']
+    # nonconcerning_genes = ['5UTR', 'ORF7a', 'ORF7b', 'ORF8', 'ORF10', 'Non-coding region']
     subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
     sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
     dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
