@@ -13,18 +13,34 @@ import data as bd
 
 
 
-def identify_samples_with_suspicious_mutations(substitutions, deletions, insertions):
+def identify_samples_with_suspicious_mutations(substitutions: pd.DataFrame, 
+                                               deletions: pd.DataFrame, 
+                                               insertions: pd.DataFrame,
+                                               nonconcerning_genes: list):
     """Returns list of sample IDs that have triggered an insertion, deletion, and/or 
     substitution-based flag, indicating that they require further manual inspection 
     before public release"""
-    nonconcerning_genes = ['5UTR', 'ORF7a', 'ORF7b', 'ORF8', 'ORF10', 'Non-coding region']
-    subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
-    sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
-    dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
-    sus_dels_ids = deletions.loc[dels_flag, 'samples'].str.split(',').explode().unique().tolist()
-    ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)))
-    sus_ins_ids = insertions.loc[ins_flag, 'samples'].str.split(',').explode().unique().tolist()
-    sus_mutations = pd.concat([substitutions.loc[subs_flag], deletions.loc[dels_flag], insertions.loc[ins_flag]])
+    # nonconcerning_genes = ['5UTR', 'ORF7a', 'ORF7b', 'ORF8', 'ORF10', 'Non-coding region']
+    
+    try:
+        subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
+        sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
+    except:
+        sus_subs_ids = []
+    try:
+        dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
+        sus_dels_ids = deletions.loc[dels_flag, 'samples'].str.split(',').explode().unique().tolist()
+    except:
+        sus_dels_ids = []
+    try:
+        ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)))
+        sus_ins_ids = insertions.loc[ins_flag, 'samples'].str.split(',').explode().unique().tolist()
+    except:
+        sus_ins_ids = []
+    try:
+        sus_mutations = pd.concat([substitutions.loc[subs_flag], deletions.loc[dels_flag], insertions.loc[ins_flag]])
+    except:
+        sus_mutations = pd.DataFrame()
     sus_ids = list(set(sus_subs_ids + sus_dels_ids + sus_ins_ids))
     return sus_ids, sus_mutations
 
@@ -144,92 +160,96 @@ def identify_replacements_per_sample(cns,
                 .rename(columns={'index': 'idx'}))
     if test:
         seqsdf = seqsdf.sample(100)
-    # compute length of each sequence
-    seqsdf['seq_len'] = seqsdf['sequence'].str.len()
-    # filter out seqs that are too short
-    seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
-    print(f"Identifying mutations...")
-    # for each sample, identify list of substitutions (position:alt)
-    seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
-                                                      args=(ref_seq,))
-    # sequences with one or more substitutions
-    seqsdf = seqsdf.loc[seqsdf['replacements'].str.len() > 0]
-    seqsdf = seqsdf.loc[seqsdf['replacements'].str.len() < max_num_subs]
-    seqs = dict(zip(seqsdf['idx'], seqsdf['sequence']))
-    # drop the actual sequences to save mem
-    seqsdf.drop(columns=['sequence'], inplace=True)
-    gc.collect();
-    # wide-to-long data manipulation
-    seqsdf = seqsdf.explode('replacements')
-    # initialize position column
-    seqsdf['pos'] = -1
-    # populate position column
-    seqsdf.loc[~seqsdf['replacements'].isna(), 'pos'] = (seqsdf.loc[~seqsdf['replacements'].isna(), 'replacements']
-       .apply(lambda x: int(x.split(':')[0])))
-    # filter out non-substitutions
-    seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
-    print(f"Mapping Genes to mutations...")
-    # identify gene of each substitution
-    seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
-    seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
-    seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
-    # seqsdf = seqsdf.loc[~seqsdf['gene'].isna()]
-    # seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
-    # filter our substitutions in non-gene positions
-    seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
-    print(f"Computing codon numbers...")
-    # compute codon number of each substitution
-    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
-    seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
-    # seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
-    print(f"Fetching reference codon...")
-    # fetch the reference codon for each substitution
-    seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
-    seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
-    # seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
-    print(f"Fetching alternative codon...")
-    # fetch the alternative codon for each substitution
-    seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
-    # seqsdf['alt_codon'] = seqsdf.apply(get_alt_codon_old, args=(seqs, gene2pos,), axis=1)
-    del seqs
-    gc.collect();
-    print(f"Mapping amino acids...")
-    # fetch the reference and alternative amino acids
-    seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
-    seqsdf['alt_aa'] = seqsdf['alt_codon'].apply(get_aa)
-    # filter out substitutions with non-amino acid alternates (bad consensus calls)
-    seqsdf = seqsdf.loc[seqsdf['alt_aa']!='nan']
-    print("Naming substitutions")
-    seqsdf['mutation'] = seqsdf['gene'] + ':' + seqsdf['ref_aa'] + seqsdf['codon_num'].astype(str) + seqsdf['alt_aa']
-    seqsdf['type'] = 'substitution'
-    print(f"Fusing with metadata...")
-    # load and join metadata
-    if meta_fp:
-        if data_src=='alab':
-            meta = pd.read_csv(meta_fp)
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='fasta_hdr')
-            # clean and process sample collection dates
-            seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown') 
-                           & (seqsdf['collection_date']!='1900-01-00')]
-            seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
-            seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
-        elif data_src=='gisaid':
-            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
-            # filter out improper collection dates
-            # meta['tmp'] = meta['date'].str.split('-')
-            # meta = meta[meta['tmp'].str.len()>=3]
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            # seqsdf['date'] = pd.to_datetime(seqsdf['date'], errors='coerce')
-            # seqsdf['month'] = seqsdf['date'].dt.month
-            seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
-            seqsdf = seqsdf[seqsdf['host']=='Human']
-            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
-        elif data_src=='gisaid_feed':
-            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
-        else:
-            raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+    try:
+        # compute length of each sequence
+        seqsdf['seq_len'] = seqsdf['sequence'].str.len()
+        # filter out seqs that are too short
+        seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
+        print(f"Identifying mutations...")
+        # for each sample, identify list of substitutions (position:alt)
+        seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
+                                                        args=(ref_seq,))
+        # sequences with one or more substitutions
+        seqsdf = seqsdf.loc[seqsdf['replacements'].str.len() > 0]
+        seqsdf = seqsdf.loc[seqsdf['replacements'].str.len() < max_num_subs]
+        seqs = dict(zip(seqsdf['idx'], seqsdf['sequence']))
+        # drop the actual sequences to save mem
+        seqsdf.drop(columns=['sequence'], inplace=True)
+        gc.collect();
+        # wide-to-long data manipulation
+        seqsdf = seqsdf.explode('replacements')
+        # initialize position column
+        seqsdf['pos'] = -1
+        # populate position column
+        seqsdf.loc[~seqsdf['replacements'].isna(), 'pos'] = (seqsdf.loc[~seqsdf['replacements'].isna(), 'replacements']
+        .apply(lambda x: int(x.split(':')[0])))
+        # filter out non-substitutions
+        seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
+        print(f"Mapping Genes to mutations...")
+        # identify gene of each substitution
+        seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
+        seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
+        seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
+        # seqsdf = seqsdf.loc[~seqsdf['gene'].isna()]
+        # seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
+        # filter our substitutions in non-gene positions
+        seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
+        print(f"Computing codon numbers...")
+        # compute codon number of each substitution
+        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
+        seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
+        # seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
+        print(f"Fetching reference codon...")
+        # fetch the reference codon for each substitution
+        seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
+        seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
+        # seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
+        print(f"Fetching alternative codon...")
+        # fetch the alternative codon for each substitution
+        seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
+        # seqsdf['alt_codon'] = seqsdf.apply(get_alt_codon_old, args=(seqs, gene2pos,), axis=1)
+        del seqs
+        gc.collect();
+        print(f"Mapping amino acids...")
+        # fetch the reference and alternative amino acids
+        seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
+        seqsdf['alt_aa'] = seqsdf['alt_codon'].apply(get_aa)
+        # filter out substitutions with non-amino acid alternates (bad consensus calls)
+        seqsdf = seqsdf.loc[seqsdf['alt_aa']!='nan']
+        print("Naming substitutions")
+        seqsdf['mutation'] = seqsdf['gene'] + ':' + seqsdf['ref_aa'] + seqsdf['codon_num'].astype(str) + seqsdf['alt_aa']
+        seqsdf['type'] = 'substitution'
+        print(f"Fusing with metadata...")
+        # load and join metadata
+        if meta_fp:
+            if data_src=='alab':
+                meta = pd.read_csv(meta_fp)
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='fasta_hdr')
+                # clean and process sample collection dates
+                seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown') 
+                            & (seqsdf['collection_date']!='1900-01-00')]
+                seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
+                seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
+            elif data_src=='gisaid':
+                meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+                # filter out improper collection dates
+                # meta['tmp'] = meta['date'].str.split('-')
+                # meta = meta[meta['tmp'].str.len()>=3]
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
+                # seqsdf['date'] = pd.to_datetime(seqsdf['date'], errors='coerce')
+                # seqsdf['month'] = seqsdf['date'].dt.month
+                seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
+                seqsdf = seqsdf[seqsdf['host']=='Human']
+                seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            elif data_src=='gisaid_feed':
+                meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
+                # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            else:
+                raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+    except:
+        print(f"No substitutions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+        seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
 
 
@@ -261,93 +281,96 @@ def identify_deletions_per_sample(cns,
                 .reset_index().rename(columns={'index': 'idx'}))
     if test:
         seqsdf = seqsdf.sample(100)
-    # compute length of each sequence
-    seqsdf['seq_len'] = seqsdf['sequence'].str.len()
-    seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
-    print(f"Identifying deletions...")
-    # identify deletion positions
-    seqsdf['del_positions'] = seqsdf['sequence'].apply(find_deletions)
-    # dump sequences to save mem, boost speed
-    seqsdf.drop(columns=['sequence'], inplace=True)
-    gc.collect();
-    # sequences with one or more deletions
-    seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() > 0]
-    # sequences with less than 500 deletions
-    seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() < max_del_len]
-    seqsdf = seqsdf.explode('del_positions')
-    # compute length of each deletion
-    seqsdf['del_len'] = seqsdf['del_positions'].apply(len)
-    # only consider deletions longer than 1nts
-    seqsdf = seqsdf[seqsdf['del_len'] >= min_del_len]
-    # only consider deletions shorter than 500nts
-    seqsdf = seqsdf[seqsdf['del_len'] < max_del_len]
-    # fetch coordinates of each deletion
-    seqsdf['relative_coords'] = seqsdf['del_positions'].apply(get_indel_coords)
-    seqsdf['type'] = 'deletion'
-    # adjust coordinates to account for the nts trimmed from beginning e.g. 265nts
-    seqsdf['absolute_coords'] = seqsdf['relative_coords'].apply(adjust_coords, args=(start_pos+1,))
-    seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0])+1)
-    print(f"Mapping Genes to mutations...")
-    # approximate the gene where each deletion was identified
-    seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
-    seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
-    # seqsdf = seqsdf.loc[~seqsdf['gene'].isna()]
-    # filter our substitutions in non-gene positions
-    seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
-    # seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
-    print(f"Computing codon numbers...")
-    # compute codon number of each substitution
-    seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
-    print(f"Fetching reference codon...")
-    # fetch the reference codon for each substitution
-    seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
-    print(f"Mapping amino acids...")
-    # fetch the reference and alternative amino acids
-    seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
-    # record the deletion subsequence
-    seqsdf['del_seq'] = seqsdf['absolute_coords'].apply(get_deletion, args=(ref_seq,))
-    # record the 5 nts before each deletion (based on reference seq)
-    seqsdf['prev_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[0])-5:int(x.split(':')[0])])
-    # record the 5 nts after each deletion (based on reference seq)
-    seqsdf['next_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[1])+1:int(x.split(':')[1])+6])
-    print("Naming deletions")
-    seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
-    seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
-    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', -2)+2)
-    seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
-    seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
-    seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
-    seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
-    del seqs
-    gc.collect();
-    print(f"Fuse with metadata...")
-    # load and join metadata
-    if meta_fp:
-        if data_src=='alab':
-            meta = pd.read_csv(meta_fp)
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='fasta_hdr')
-            # clean and process sample collection dates
-            seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown') 
-                           & (seqsdf['collection_date']!='1900-01-00')]
-            seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
-            seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
-        elif data_src=='gisaid':
-            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
-            # filter out improper collection dates
-            # meta['tmp'] = meta['date'].str.split('-')
-            # meta = meta[meta['tmp'].str.len()>=3]
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            # seqsdf['date'] = pd.to_datetime(seqsdf['date'], errors='coerce')
-            # seqsdf['month'] = seqsdf['date'].dt.month
-            seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
-            seqsdf = seqsdf[seqsdf['host']=='Human']
-            seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
-        elif data_src=='gisaid_feed':
-            meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
-            seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
-            # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
-        else:
-            raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+    try:
+        # compute length of each sequence
+        seqsdf['seq_len'] = seqsdf['sequence'].str.len()
+        seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
+        print(f"Identifying deletions...")
+        # identify deletion positions
+        seqsdf['del_positions'] = seqsdf['sequence'].apply(find_deletions)
+        # dump sequences to save mem, boost speed
+        seqsdf.drop(columns=['sequence'], inplace=True)
+        gc.collect();
+        # sequences with one or more deletions
+        seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() > 0]
+        # sequences with less than 500 deletions
+        seqsdf = seqsdf.loc[seqsdf['del_positions'].str.len() < max_del_len]
+        seqsdf = seqsdf.explode('del_positions')
+        # compute length of each deletion
+        seqsdf['del_len'] = seqsdf['del_positions'].apply(len)
+        # only consider deletions longer than 1nts
+        seqsdf = seqsdf[seqsdf['del_len'] >= min_del_len]
+        # only consider deletions shorter than 500nts
+        seqsdf = seqsdf[seqsdf['del_len'] < max_del_len]
+        # fetch coordinates of each deletion
+        seqsdf['relative_coords'] = seqsdf['del_positions'].apply(get_indel_coords)
+        seqsdf['type'] = 'deletion'
+        # adjust coordinates to account for the nts trimmed from beginning e.g. 265nts
+        seqsdf['absolute_coords'] = seqsdf['relative_coords'].apply(adjust_coords, args=(start_pos+1,))
+        seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0])+1)
+        print(f"Mapping Genes to mutations...")
+        # approximate the gene where each deletion was identified
+        seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
+        seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
+        # seqsdf = seqsdf.loc[~seqsdf['gene'].isna()]
+        # filter our substitutions in non-gene positions
+        seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
+        # seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
+        print(f"Computing codon numbers...")
+        seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
+        print(f"Fetching reference codon...")
+        # fetch the reference codon for each substitution
+        # seqsdf['ref_codon'] = seqsdf.apply(get_ref_codon, args=(ref_seq, gene2pos), axis=1)
+        print(f"Mapping amino acids...")
+        # fetch the reference and alternative amino acids
+        # seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
+        # record the deletion subsequence
+        seqsdf['del_seq'] = seqsdf['absolute_coords'].apply(get_deletion, args=(ref_seq,))
+        # record the 5 nts before each deletion (based on reference seq)
+        seqsdf['prev_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[0])-5:int(x.split(':')[0])])
+        # record the 5 nts after each deletion (based on reference seq)
+        seqsdf['next_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[1])+1:int(x.split(':')[1])+6])
+        print("Naming deletions")
+        seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
+        seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
+        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', -2)+2)
+        seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
+        seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
+        seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
+        seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
+        del seqs
+        gc.collect();
+        print(f"Fuse with metadata...")
+        # load and join metadata
+        if meta_fp:
+            if data_src=='alab':
+                meta = pd.read_csv(meta_fp)
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='fasta_hdr')
+                # clean and process sample collection dates
+                seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown') 
+                            & (seqsdf['collection_date']!='1900-01-00')]
+                seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
+                seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
+            elif data_src=='gisaid':
+                meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+                # filter out improper collection dates
+                # meta['tmp'] = meta['date'].str.split('-')
+                # meta = meta[meta['tmp'].str.len()>=3]
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
+                # seqsdf['date'] = pd.to_datetime(seqsdf['date'], errors='coerce')
+                # seqsdf['month'] = seqsdf['date'].dt.month
+                seqsdf.loc[seqsdf['location'].isna(), 'location'] = 'unk'
+                seqsdf = seqsdf[seqsdf['host']=='Human']
+                seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            elif data_src=='gisaid_feed':
+                meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+                seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
+                # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
+            else:
+                raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+    except:
+        print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+        seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
 
 
@@ -370,13 +393,16 @@ def identify_insertions_per_sample(cns,
                                    end_pos=29674,
                                    patient_zero: str='NC_045512.2',
                                    test=False):
-        """R"""
+        """Returns dataframe of all insertion-based mutations from a pre-loaded multiple sequence alignment, 
+            containing the reference sequence (default: NC_045512.2)
+            The data is NOT aggregated, meaning that there will be a record for each observed insertion for each sample"""
         # load into dataframe
         ref_seq = get_seq(cns, patient_zero)[start_pos:end_pos]
         insert_positions = identify_insertion_positions(ref_seq)
         if insert_positions:
             seqs = get_seqs(cns)
         else:
+            print(f"No insertions found in any of the sequences in the alignment. Output will contain an empty dataframe")
             return pd.DataFrame(), ref_seq
         seqsdf = (pd.DataFrame(index=seqs.keys(), 
                                data=seqs.values(), 
@@ -820,6 +846,8 @@ def identify_deletions(cns,
                                            start_pos=start_pos,
                                            end_pos=end_pos,
                                            data_src=data_src)
+    if seqsdf.shape[0]==0:
+        return seqsdf
     if location:
         seqsdf = seqsdf.loc[seqsdf['location'].str.contains(location)]
     # group sample by the deletion they share

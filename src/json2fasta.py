@@ -334,10 +334,14 @@ def download_process_data(username, password, chunk_size):
         df['location_normed'] = df['location_normed'].astype(str)
         df['location_normed_lower'] = df['location_normed'].str.lower()
         df.to_csv(meta_fp, sep='\t', index=False, compression='gzip')
+        del df
+        gc.collect();
         print(f'GISAID API feed has been downloaded and processed; ready for variant counting.')
     else:
         print(f"{meta_fp} already exists, skipping metadata generation step")
     info_df = bs.create_chunk_names(meta_fp, chunk_size)
+    del data
+    gc.collect();
     return info_df
 
 

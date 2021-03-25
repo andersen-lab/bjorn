@@ -2,7 +2,7 @@ import argparse
 import pandas as pd
 from path import Path
 from shutil import copy
-
+from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 import bjorn_support as bs
 import mutations as bm
 
@@ -43,6 +43,12 @@ num_cpus = args.cpus
 ref_path = args.reference
 patient_zero = args.reference_name
 
+# fix fasta header names
+fa_fps = bs.get_filepaths(seqs_dir, data_fmt='fasta', data_type='', tech='')
+for fa_fp in fa_fps['IonXpress']:
+    seq = SeqIO.read(fa_fp, 'fasta')
+    seq.id = fa_fp.split('/')[-1].split('.')[0]
+    SeqIO.write(seq, fa_fp, 'fasta')
 msa_dir = out_dir/'msa'
 if not Path.isdir(msa_dir):
     Path.mkdir(msa_dir)
