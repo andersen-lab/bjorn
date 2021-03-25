@@ -23,6 +23,8 @@ conda activate bjorn
 conda activate bjorn
 ```
 * Open `config.json` to specify your parameters such as
+    * current date
+    * date appended to each filepath 
     * output directory where results are saved
     * number of CPU cores available for use 
 * Run the `run_sitrep.sh` script to initiate the Snakemake pipeline
@@ -40,11 +42,15 @@ conda activate bjorn
     * filepath to updated metadata of samples that have already been uploaded
     * output directory where results are saved
     * number of CPU cores available for use
+    * DEFAULT: test parameters
 * Open `config.json` to specify your parameters such as
     * list of SARS-CoV-2 genes that are considered non-concerning
         * i.e. the occurrence of open-read frame (ORF) altering mutations can be accepted
         * e.g. ['ORF8', 'ORF10']
-* Run the `run_sitrep.sh` script to initiate the data release pipeline
+    * list of SARS-CoV-2 mutations that are considered non-concerning
+        * i.e. the occurrence of `ORF8:Q27_` can be accepted (B117 exists)
+        * e.g. ['ORF8:Q27_']
+* Run the `run_alab_release.sh` script to initiate the data release pipeline
 ```bash
-bash run_sitrep.sh
+bash run_alab_release.sh
 ```
