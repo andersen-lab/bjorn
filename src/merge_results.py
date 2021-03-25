@@ -87,6 +87,8 @@ muts['date_collected'] = pd.to_datetime(muts['date_collected'], errors='coerce')
 muts['date_collected'] = muts['date_collected'].astype(str)
 muts = muts[muts['date_collected']<date]
 muts = muts[muts['date_collected']>min_date]
+# filter out sequences with collection dates after submission dates
+muts = muts.loc[muts['date_collected']<=muts['date_submitted']]
 # rename field names
 muts.rename(columns={
     'country': 'country_original',

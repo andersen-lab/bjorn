@@ -19,6 +19,7 @@ import mutations as bm
 # from mutations import identify_replacements, identify_deletions, identify_insertions
 from onion_trees import load_tree, visualize_tree, get_indel2color, get_sample2color
 import data as bd
+import json
 
 
 ## FUNCTION DEFINTIONS
@@ -71,7 +72,7 @@ def create_github_meta(new_meta_df: pd.DataFrame, old_meta_filepath: str, meta_c
     old_metadata = pd.read_csv(old_meta_filepath)
     new_metadata = pd.concat([old_metadata, new_meta_df.loc[:, meta_cols]])
     new_metadata.to_csv(out_dir/'metadata.csv', index=False)
-    return f"Github metadata saved in {out_dir/'metadata.csv'}"
+    return new_metadata
 
 
 def create_gisaid_meta(new_meta_df: pd.DataFrame, meta_cols: list):
@@ -83,7 +84,7 @@ def create_gisaid_meta(new_meta_df: pd.DataFrame, meta_cols: list):
     new_meta_df['Assembly method'] = 'iVar 1.3.1'
     new_meta_df['Submitter'] = 'gkarthik'
     new_meta_df[meta_cols].to_csv(out_dir/'gisaid_metadata.csv', index=False)
-    return f"GISAID metadata saved in {out_dir/'gisaid_metadata.csv'}"
+    return new_meta_df
 
 
 def get_ids(filepaths: list) -> list:
@@ -333,9 +334,14 @@ if __name__=="__main__":
     )
 
     # Collecting Sequence Data
-
     # grab all filepaths for bam data
-    bam_filepaths = glob.glob(f"{analysis_fpath}/**/merged_aligned_bams/illumina/*.bam")
+    bam_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='bam', 
+                                     data_type='merged_aligned_bams', 
+                                     tech='illumina',
+                                     generalised=True,
+                                     return_type='list')
+    # print(bam_filepaths)
+    # bam_filepaths = glob.glob(f"{analysis_fpath}/**/merged_aligned_bams/illumina/*.bam")
     bam_filepaths = [Path(fp) for fp in bam_filepaths]
     # consolidate sample ID format
     bam_ids = get_ids(bam_filepaths)
@@ -343,7 +349,13 @@ if __name__=="__main__":
     bam_data = list(zip(*[bam_ids, bam_filepaths]))
     bam_df = pd.DataFrame(data=bam_data, columns=['sample_id', 'PATH'])
     # grab all paths to consensus sequences
-    consensus_filepaths = glob.glob(f"{analysis_fpath}/**/consensus_sequences/illumina/*.fa")
+    # grab all filepaths for bam data
+    consensus_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='fa', 
+                                     data_type='consensus_sequences', 
+                                     tech='illumina',
+                                     generalised=True,
+                                     return_type='list')
+    # consensus_filepaths = glob.glob(f"{analysis_fpath}/**/consensus_sequences/illumina/*.fa")
     consensus_filepaths = [Path(fp) for fp in consensus_filepaths]
     # consolidate sample ID format
     consensus_ids = get_ids(consensus_filepaths)
@@ -393,7 +405,12 @@ if __name__=="__main__":
     final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
-    cov_filepaths = glob.glob("{}/**/trimmed_bams/illumina/reports/*.tsv".format(analysis_fpath))
+    cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
+                                     data_type='trimmed_bams', 
+                                     tech='illumina/reports',
+                                     generalised=True,
+                                     return_type='list')
+    # cov_filepaths = glob.glob("{}/**/trimmed_bams/illumina/reports/*.tsv".format(analysis_fpath))
     # get_ipython().getoutput("find {analysis_fpath} -type f -path '*trimmed_bams/illumina/reports*' -name '*.tsv'")
     cov_filepaths = [Path(fp) for fp in cov_filepaths]
     # read coverage data and clean it up
@@ -439,9 +456,9 @@ if __name__=="__main__":
         cns_seqs = list(cns_seqs)
         # generate files containing metadata for Github, GISAID, GenBank
         # GitHub metadata for all samples (out_dir/metadata.csv)
-        create_github_meta(ans.copy(), released_samples_fpath, git_meta_cols)
+        git_meta_df = create_github_meta(ans.copy(), released_samples_fpath, git_meta_cols)
         # GISAID metadata for all samples (out_dir/gisaid_metadata.csv)
-        create_gisaid_meta(ans.copy(), gisaid_meta_cols)
+        gisaid_meta_df = create_gisaid_meta(ans.copy(), gisaid_meta_cols)
         # assemble_genbank_release(cns_seqs, ans, genbank_meta_cols, out_dir/'genbank')
         # sra_dir = out_dir/'sra'
         # if not Path.isdir(sra_dir):
@@ -479,12 +496,12 @@ if __name__=="__main__":
         # save insertion results to file
         insertions.to_csv(out_dir/'insertions.csv', index=False)
         # identify substitution mutations
-        subs = bm.identify_replacements(msa_data,
+        substitutions = bm.identify_replacements(msa_data,
                                     meta_fp=meta_fp,
                                     data_src='alab',
                                     patient_zero=patient_zero)
         # save substitution results to file
-        subs.to_csv(out_dir/'replacements.csv', index=False)
+        substitutions.to_csv(out_dir/'replacements.csv', index=False)
         # identify deletions
         deletions = bm.identify_deletions(msa_data,
                                         meta_fp=meta_fp,
@@ -494,8 +511,25 @@ if __name__=="__main__":
         # save deletion results to file
         deletions.to_csv(out_dir/'deletions.csv', index=False)
         # identify samples with suspicious INDELs and/or substitutions
-        sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(subs, deletions, insertions)
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        nonconcerning_genes = config['nonconcerning_genes']
+        sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(substitutions, 
+                                                                          deletions, 
+                                                                          insertions,
+                                                                          nonconcerning_genes)
         sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
+        # collect metadata for white-listed samples
+        gisaid_white = gisaid_meta_df[~gisaid_meta_df['Virus name'].isin(sus_ids)]
+        git_white = git_meta_df[~git_meta_df['fasta_hdr'].isin(sus_ids)]
+        # collect metadata for samples that require manual inspection
+        gisaid_inspect = gisaid_meta_df[gisaid_meta_df['Virus name'].isin(sus_ids)]
+        git_inspect = git_meta_df[git_meta_df['fasta_hdr'].isin(sus_ids)]
+        # save them to files
+        gisaid_white.to_csv(out_dir/'clean_gisaid_meta.csv', index=False)
+        gisaid_inspect.to_csv(out_dir/'inspect_gisaid_meta.csv', index=False)
+        git_white.to_csv(out_dir/'clean_metadata.csv', index=False)
+        git_inspect.to_csv(out_dir/'inspect_metadata.csv', index=False)
         # re-transfer FASTA and BAM files of samples into either white-listed or inspection-listed folders
         retransfer_files(ans.copy(), out_dir, sus_ids, include_bams=include_bams, ncpus=num_cpus)
         bs.separate_alignments(bs.load_fasta(msa_fp, is_aligned=True), sus_ids=sus_ids, 
@@ -529,9 +563,10 @@ if __name__=="__main__":
     # Data logging
     with open("{}/data_release.log".format(out_dir), 'w') as f:
         f.write(f"Prepared {final_result.shape[0]} samples for release\n")
-        f.write(f'{num_samples_missing_coverage} samples are missing coverage information\n')
         f.write(f'{low_coverage_samples.shape[0]} samples were found to have coverage below {min_coverage}%\n')
+        f.write(f'{num_samples_missing_coverage} samples are missing coverage information\n')
         f.write(f'{num_samples_missing_cons} samples were ignored because they were missing consensus sequence files\n')
         f.write(f'{num_samples_missing_bams} samples were ignored because they were missing BAM sequence files\n')
-        f.write(f'{len(sus_ids)} samples contain suspicious mutations and require manual inspection\n')
+        f.write(f"""{len(sus_ids)} samples contain suspicious mutations and require manual inspection. 
+        They can be found in {out_dir}/fa_inspect and {out_dir}/bam_inspect\n""")
     print(f"Transfer Complete. All results saved in {out_dir}")
