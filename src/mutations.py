@@ -25,20 +25,26 @@ def identify_samples_with_suspicious_mutations(substitutions: pd.DataFrame,
     try:
         subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
         sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
+        sus_subs = substitutions.loc[subs_flag]
     except:
         sus_subs_ids = []
+        sus_subs = pd.DataFrame()
     try:
         dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
         sus_dels_ids = deletions.loc[dels_flag, 'samples'].str.split(',').explode().unique().tolist()
+        sus_dels = deletions.loc[dels_flag]
     except:
         sus_dels_ids = []
+        sus_dels = pd.DataFrame()
     try:
         ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)))
         sus_ins_ids = insertions.loc[ins_flag, 'samples'].str.split(',').explode().unique().tolist()
+        sus_inss = insertions.loc[ins_flag]
     except:
         sus_ins_ids = []
+        sus_inss = pd.DataFrame()
     try:
-        sus_mutations = pd.concat([substitutions.loc[subs_flag], deletions.loc[dels_flag], insertions.loc[ins_flag]])
+        sus_mutations = pd.concat([sus_subs, sus_dels, sus_inss])
     except:
         sus_mutations = pd.DataFrame()
     sus_ids = list(set(sus_subs_ids + sus_dels_ids + sus_ins_ids))
