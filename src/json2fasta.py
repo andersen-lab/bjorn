@@ -24,7 +24,7 @@ import src.data as bd
 # password = args.password
 
 def download_process_data(username, password, chunk_size):
-    with open('config.json', 'r') as f:
+    with open('../config.json', 'r') as f:
         config = json.load(f)
     out_dir = Path(config['out_dir'])
     in_fp = out_dir/config['gisaid_feed']
@@ -230,6 +230,8 @@ def download_process_data(username, password, chunk_size):
         print(f'Admin2 standardization (U.S. only)')
         df.loc[df['location'].isna(), 'location'] = 'None'
         df['location_normed'] = df['location'].copy()
+        houston_filter = (df['division']=='Texas') & (df['location']=='Houston')
+        df.loc[houston_filter, 'location_normed'] = 'Harris County'
         for key, val in corrections.items():
             df.loc[:, 'location_normed'] = df['location_normed'].str.replace(key, val)
         df.loc[:, 'location_normed'] = df['location_normed'].str.replace('County', '').str.replace('county', '').str.replace(',', '')
