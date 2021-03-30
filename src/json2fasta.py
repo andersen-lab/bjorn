@@ -99,8 +99,9 @@ def download_process_data(username, password, chunk_size):
         print(f"Admin0 standardization...")
         df['country_normed'] = df['country'].copy()
         df['country_normed'].fillna('None', inplace=True)
-        df.loc[df['country_normed']=='USA', 'country_normed'] = 'United States'
-        df.loc[df['country_normed'].str.contains('Congo'), 'country_normed'] = 'Republic of Congo'
+        df.loc[df['country_normed']=='USA', 'country_normed'] = 'United States'     
+        df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains('Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
+        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of the Congo'
         df.loc[df['country_normed'].str.contains('Cote dIvoire'), 'country_normed'] = "Côte d'Ivoire"
         df.loc[df['country_normed'].str.contains('North Macedonia'), 'country_normed'] = "Macedonia"
         df.loc[df['country_normed'].str.contains('Curacao'), 'country_normed'] = "Curaçao"
