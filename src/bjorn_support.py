@@ -22,11 +22,14 @@ def generate_release_report(out_dir, report_name='release_report.tar'):
 
 
 
-def separate_alignments(msa_data, sus_ids, out_dir, filename):
+def separate_alignments(msa_data, sus_ids, out_dir, filename, patient_zero='NC_045512.2'):
     good_seqs = []
     poor_seqs = []
     for rec in msa_data:
         if rec.id in sus_ids:
+            poor_seqs.append(rec)
+        elif rec.id==patient_zero:
+            good_seqs.append(rec)
             poor_seqs.append(rec)
         else:
             good_seqs.append(rec)

@@ -401,8 +401,8 @@ if __name__=="__main__":
     # get IDs of samples that have already been released
     released_seqs = meta_df['sample_id'].unique()
     # filter out released samples from all the samples we got
-    # final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
-    final_result = sequence_results.copy()
+    final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
+    # final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
     cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
@@ -558,6 +558,8 @@ if __name__=="__main__":
         #                   indels=insertions, colors=colors,
         #                   isnv_info=True);
         # fig5.savefig(tree_dir/'insertion_isnv_tree.pdf', dpi=300)
+    else:
+        sus_ids = []
     if not Path.isdir(out_dir):
         Path.mkdir(out_dir);
     # Data logging

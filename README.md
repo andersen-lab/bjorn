@@ -1,4 +1,5 @@
-This is the code repository for `bjorn` - a suite of miscellaneous tools that can be used to:
+# `björn`
+This is the code repository for `björn` - a suite of miscellaneous tools that can be used to:
 
 * generate information for large-scale genomic surveillance of SARS-CoV-2 sequences. This functionality relies on external tools such as `datafunk`, `minimap2`, and `pandas`. 
 
@@ -6,21 +7,21 @@ This is the code repository for `bjorn` - a suite of miscellaneous tools that ca
 
 ## Installation
 * Install Anaconda: [instructions can be found here](https://docs.anaconda.com/anaconda/install/)
-* Create the `bjorn` environment
+* Create the `björn` environment
 ```bash
-conda env create -f env/linux.yml -n bjorn
+conda env create -f env/linux.yml -n björn
 ```
 * Activate environment
 ```bash
-conda activate bjorn
+conda activate björn
 ```
 * Install datafunk (inside the activated environment): [instructions (ensure environment is activated during installation)](https://github.com/cov-ert/datafunk)
 
 ## Usage
 ### Information for Surveillance of SARS-CoV-2 Genomic Mutations
-* Activate `bjorn` environment
+* Activate `björn` environment
 ```bash
-conda activate bjorn
+conda activate björn
 ```
 * Open `config.json` to specify your parameters such as
     * current date
@@ -33,9 +34,9 @@ bash run_sitrep.sh
 ```
 
 ### Post-processing of SARS-CoV-2 Sequencing Results for Release to public databases
-* Activate `bjorn` environment
+* Activate `björn` environment
 ```bash
-conda activate bjorn
+conda activate björn
 ```
 * Open `run_alab_release.sh` to specify your parameters such as
     * filepath to sample sheet containing sample metadata (input)
