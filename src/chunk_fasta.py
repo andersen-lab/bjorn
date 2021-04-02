@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import argparse
 from Bio import SeqIO
 from path import Path
