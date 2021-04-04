@@ -12,13 +12,13 @@ import data as bd
 
 
 
-def download_process_data(username, password, chunk_size):
+def download_process_data(username, password, chunk_size, current_datetime):
     with open('config.json', 'r') as f:
         config = json.load(f)
     out_dir = Path(config['out_dir'])
-    in_fp = out_dir/config['gisaid_feed']
-    out_fp = out_dir/config['gisaid_fasta']
-    meta_fp = out_dir/config['gisaid_meta']
+    in_fp = out_dir/(config['gisaid_feed'] + '_' + current_datetime + '.json')
+    out_fp = out_dir/(config['gisaid_fasta'] + '_' + current_datetime + '.fasta')
+    meta_fp = out_dir/(config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz')
     info_fp = out_dir/config['chunk_info']
     gadm_fp = config['gadm']
     is_test = config['feed_test']
@@ -354,11 +354,16 @@ if __name__=="__main__":
                             type=int,
                             required=True,
                             help="Chunk size")
+    parser.add_argument("-t", "--time",
+                            type=str,
+                            required=True,
+                            help="Current datetime")
     args = parser.parse_args()
     username = args.username
     password = args.password
     chunk_size = args.size
-    result = download_process_data(username, password, chunk_size)
+    current_datetime = args.time
+    result = download_process_data(username, password, chunk_size, current_datetime)
     assert result==0, "ERROR: downloading GISAID data incomplete. Please inspect log."
     # info_df = bs.create_chunk_names(meta_fp, chunk_size)
 
