@@ -401,8 +401,8 @@ if __name__=="__main__":
     # get IDs of samples that have already been released
     released_seqs = meta_df['sample_id'].unique()
     # filter out released samples from all the samples we got
-    final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
-    # final_result = sequence_results.copy()
+    # final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
+    final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
     cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
@@ -444,7 +444,7 @@ if __name__=="__main__":
     # generate concatenated consensus sequences
     if not dry_run:
         # Transfer files
-        transfer_files(ans, out_dir, include_bams=include_bams, ncpus=num_cpus)
+        # transfer_files(ans, out_dir, include_bams=include_bams, ncpus=num_cpus)
         msa_dir = out_dir/'msa'
         if not Path.isdir(msa_dir):
             Path.mkdir(msa_dir);
@@ -514,10 +514,12 @@ if __name__=="__main__":
         with open('config.json', 'r') as f:
             config = json.load(f)
         nonconcerning_genes = config['nonconcerning_genes']
+        nonconcerning_mutations = config['nonconcerning_mutations']
         sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(substitutions, 
                                                                           deletions, 
                                                                           insertions,
-                                                                          nonconcerning_genes)
+                                                                          nonconcerning_genes,
+                                                                          nonconcerning_mutations)
         sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
         # collect metadata for white-listed samples
         gisaid_white = gisaid_meta_df[~gisaid_meta_df['Virus name'].isin(sus_ids)]
@@ -531,7 +533,7 @@ if __name__=="__main__":
         git_white.to_csv(out_dir/'clean_metadata.csv', index=False)
         git_inspect.to_csv(out_dir/'inspect_metadata.csv', index=False)
         # re-transfer FASTA and BAM files of samples into either white-listed or inspection-listed folders
-        retransfer_files(ans.copy(), out_dir, sus_ids, include_bams=include_bams, ncpus=num_cpus)
+        # retransfer_files(ans.copy(), out_dir, sus_ids, include_bams=include_bams, ncpus=num_cpus)
         bs.separate_alignments(bs.load_fasta(msa_fp, is_aligned=True), sus_ids=sus_ids, 
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
