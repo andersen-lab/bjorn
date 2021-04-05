@@ -401,8 +401,8 @@ if __name__=="__main__":
     # get IDs of samples that have already been released
     released_seqs = meta_df['sample_id'].unique()
     # filter out released samples from all the samples we got
-    # final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
-    final_result = sequence_results.copy()
+    final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
+    # final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
     cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
@@ -538,8 +538,8 @@ if __name__=="__main__":
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
         bs.generate_release_report(out_dir)
-        print(sus_ids)
-        print(nonconcerning_mutations)
+        # print(sus_ids)
+        # print(nonconcerning_mutations)
         # plot Phylogenetic tree with top consensus deletions annotated
         # deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
