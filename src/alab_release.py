@@ -444,7 +444,7 @@ if __name__=="__main__":
     # generate concatenated consensus sequences
     if not dry_run:
         # Transfer files
-        # transfer_files(ans, out_dir, include_bams=include_bams, ncpus=num_cpus)
+        transfer_files(ans, out_dir, include_bams=include_bams, ncpus=num_cpus)
         msa_dir = out_dir/'msa'
         if not Path.isdir(msa_dir):
             Path.mkdir(msa_dir);
@@ -533,11 +533,13 @@ if __name__=="__main__":
         git_white.to_csv(out_dir/'clean_metadata.csv', index=False)
         git_inspect.to_csv(out_dir/'inspect_metadata.csv', index=False)
         # re-transfer FASTA and BAM files of samples into either white-listed or inspection-listed folders
-        # retransfer_files(ans.copy(), out_dir, sus_ids, include_bams=include_bams, ncpus=num_cpus)
+        retransfer_files(ans.copy(), out_dir, sus_ids, include_bams=include_bams, ncpus=num_cpus)
         bs.separate_alignments(bs.load_fasta(msa_fp, is_aligned=True), sus_ids=sus_ids, 
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
         bs.generate_release_report(out_dir)
+        print(sus_ids)
+        print(nonconcerning_mutations)
         # plot Phylogenetic tree with top consensus deletions annotated
         # deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
