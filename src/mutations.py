@@ -16,7 +16,8 @@ import data as bd
 def identify_samples_with_suspicious_mutations(substitutions: pd.DataFrame, 
                                                deletions: pd.DataFrame, 
                                                insertions: pd.DataFrame,
-                                               nonconcerning_genes: list):
+                                               nonconcerning_genes: list,
+                                               nonconcerning_mutations: list):
     """Returns list of sample IDs that have triggered an insertion, deletion, and/or 
     substitution-based flag, indicating that they require further manual inspection 
     before public release"""
@@ -26,21 +27,21 @@ def identify_samples_with_suspicious_mutations(substitutions: pd.DataFrame,
        'is_frameshift', 'indel_len', 'indel_seq', 'relative_coords',
        'prev_5nts', 'next_5nts', 'samples']
     try:
-        subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)))
+        subs_flag = ((substitutions['alt_aa']=='*') & (~substitutions['gene'].isin(nonconcerning_genes)) & (~substitutions['mutation'].isin(nonconcerning_mutations))) 
         sus_subs_ids = substitutions.loc[subs_flag, 'samples'].str.split(',').explode().unique().tolist()
         sus_subs = substitutions.loc[subs_flag]
     except:
         sus_subs_ids = []
         sus_subs = pd.DataFrame()
     try:
-        dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)))
+        dels_flag = ((deletions['is_frameshift']==True) & (~deletions['gene'].isin(nonconcerning_genes)) & (~deletions['mutation'].isin(nonconcerning_mutations)))
         sus_dels_ids = deletions.loc[dels_flag, 'samples'].str.split(',').explode().unique().tolist()
         sus_dels = deletions.loc[dels_flag]
     except:
         sus_dels_ids = []
         sus_dels = pd.DataFrame()
     try:
-        ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)))
+        ins_flag = ((insertions['is_frameshift']==True) & (~insertions['gene'].isin(nonconcerning_genes)) & (~insertions['mutation'].isin(nonconcerning_mutations)))
         sus_ins_ids = insertions.loc[ins_flag, 'samples'].str.split(',').explode().unique().tolist()
         sus_inss = insertions.loc[ins_flag]
     except:
@@ -411,14 +412,14 @@ def identify_insertions_per_sample(cns,
             The data is NOT aggregated, meaning that there will be a record for each observed insertion for each sample"""
         # load into dataframe
         ref_seq = get_seq(cns, patient_zero)[start_pos:end_pos]
-        insert_positions_tmp = identify_insertion_positions(ref_seq)
-        insert_positions = []
-        prev_insertion_len = 0
-        for insertion in mit.consecutive_groups(insert_positions_tmp):
-            insertion = list(insertion)
-            for ins_pos in insertion:
-                insert_positions.append(ins_pos-prev_insertion_len+1)
-            prev_insertion_len += len(insertion)
+        insert_positions = identify_insertion_positions(ref_seq)
+        # insert_positions = []
+        # prev_insertion_len = 0
+        # for insertion in mit.consecutive_groups(insert_positions_tmp):
+        #     insertion = list(insertion)
+        #     for ins_pos in insertion:
+        #         insert_positions.append(ins_pos-prev_insertion_len+1)
+        #     prev_insertion_len += len(insertion)
         if insert_positions:
             seqs = get_seqs(cns)
         else:
