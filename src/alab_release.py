@@ -401,8 +401,8 @@ if __name__=="__main__":
     # get IDs of samples that have already been released
     released_seqs = meta_df['sample_id'].unique()
     # filter out released samples from all the samples we got
-    # final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
-    final_result = sequence_results.copy()
+    final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
+    # final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
     cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
@@ -514,10 +514,12 @@ if __name__=="__main__":
         with open('config.json', 'r') as f:
             config = json.load(f)
         nonconcerning_genes = config['nonconcerning_genes']
+        nonconcerning_mutations = config['nonconcerning_mutations']
         sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(substitutions, 
                                                                           deletions, 
                                                                           insertions,
-                                                                          nonconcerning_genes)
+                                                                          nonconcerning_genes,
+                                                                          nonconcerning_mutations)
         sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
         # collect metadata for white-listed samples
         gisaid_white = gisaid_meta_df[~gisaid_meta_df['Virus name'].isin(sus_ids)]
@@ -536,6 +538,8 @@ if __name__=="__main__":
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
         bs.generate_release_report(out_dir)
+        # print(sus_ids)
+        # print(nonconcerning_mutations)
         # plot Phylogenetic tree with top consensus deletions annotated
         # deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
@@ -558,6 +562,8 @@ if __name__=="__main__":
         #                   indels=insertions, colors=colors,
         #                   isnv_info=True);
         # fig5.savefig(tree_dir/'insertion_isnv_tree.pdf', dpi=300)
+    else:
+        sus_ids = []
     if not Path.isdir(out_dir):
         Path.mkdir(out_dir);
     # Data logging
