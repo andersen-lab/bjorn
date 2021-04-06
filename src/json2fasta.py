@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import gc
 import re
 import json
@@ -5,31 +6,20 @@ import argparse
 import pandas as pd
 import geopandas as gpd
 from path import Path
-import src.bjorn_support as bs
-import src.data as bd
+import bjorn_support as bs
+import data as bd
 
 
-# # COLLECTING USER PARAMETERS
-# parser = argparse.ArgumentParser()
-# parser.add_argument("-u", "--username",
-#                         type=str,
-#                         required=True,
-#                         help="Username to use for downloading API feed from GISAID")
-# parser.add_argument("-p", "--password",
-#                         type=str,
-#                         required=True,
-#                         help="Password to use for downloading API feed from GISAID")
-# args = parser.parse_args()
-# username = args.username
-# password = args.password
+
 
 def download_process_data(username, password, chunk_size):
-    with open('../config.json', 'r') as f:
+    with open('config.json', 'r') as f:
         config = json.load(f)
     out_dir = Path(config['out_dir'])
     in_fp = out_dir/config['gisaid_feed']
     out_fp = out_dir/config['gisaid_fasta']
     meta_fp = out_dir/config['gisaid_meta']
+    info_fp = out_dir/config['chunk_info']
     gadm_fp = config['gadm']
     is_test = config['feed_test']
     test_size = 100
@@ -109,8 +99,9 @@ def download_process_data(username, password, chunk_size):
         print(f"Admin0 standardization...")
         df['country_normed'] = df['country'].copy()
         df['country_normed'].fillna('None', inplace=True)
-        df.loc[df['country_normed']=='USA', 'country_normed'] = 'United States'
-        df.loc[df['country_normed'].str.contains('Congo'), 'country_normed'] = 'Republic of Congo'
+        df.loc[df['country_normed']=='USA', 'country_normed'] = 'United States'     
+        df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains('Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
+        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of the Congo'
         df.loc[df['country_normed'].str.contains('Cote dIvoire'), 'country_normed'] = "Côte d'Ivoire"
         df.loc[df['country_normed'].str.contains('North Macedonia'), 'country_normed'] = "Macedonia"
         df.loc[df['country_normed'].str.contains('Curacao'), 'country_normed'] = "Curaçao"
@@ -342,9 +333,34 @@ def download_process_data(username, password, chunk_size):
     else:
         print(f"{meta_fp} already exists, skipping metadata generation step")
     info_df = bs.create_chunk_names(meta_fp, chunk_size)
-    del data
-    gc.collect();
-    return info_df
+    info_df.to_csv(info_fp, index=False)
+    # del data
+    # gc.collect();
+    return 0
+
+
+if __name__=="__main__":
+    # COLLECTING USER PARAMETERS
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-u", "--username",
+                            type=str,
+                            required=True,
+                            help="Username to use for downloading API feed from GISAID")
+    parser.add_argument("-p", "--password",
+                            type=str,
+                            required=True,
+                            help="Password to use for downloading API feed from GISAID")
+    parser.add_argument("-s", "--size",
+                            type=int,
+                            required=True,
+                            help="Chunk size")
+    args = parser.parse_args()
+    username = args.username
+    password = args.password
+    chunk_size = args.size
+    result = download_process_data(username, password, chunk_size)
+    assert result==0, "ERROR: downloading GISAID data incomplete. Please inspect log."
+    # info_df = bs.create_chunk_names(meta_fp, chunk_size)
 
 
 # with open('config.json', 'r') as f:
