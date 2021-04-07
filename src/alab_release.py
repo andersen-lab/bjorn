@@ -514,10 +514,12 @@ if __name__=="__main__":
         with open('config.json', 'r') as f:
             config = json.load(f)
         nonconcerning_genes = config['nonconcerning_genes']
+        nonconcerning_mutations = config['nonconcerning_mutations']
         sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(substitutions, 
                                                                           deletions, 
                                                                           insertions,
-                                                                          nonconcerning_genes)
+                                                                          nonconcerning_genes,
+                                                                          nonconcerning_mutations)
         sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
         # collect metadata for white-listed samples
         gisaid_white = gisaid_meta_df[~gisaid_meta_df['Virus name'].isin(sus_ids)]
@@ -536,6 +538,8 @@ if __name__=="__main__":
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
         bs.generate_release_report(out_dir)
+        # print(sus_ids)
+        # print(nonconcerning_mutations)
         # plot Phylogenetic tree with top consensus deletions annotated
         # deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
