@@ -10,6 +10,24 @@ import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 
 
+def separate_samples(sample_sheet: pd.DataFrame, 
+                     private_ids: list=['LASV'], 
+                     primer_ids: list=['iTru']) -> dict:
+    """RELEASE functionality: Separate A-lab Sample Sheet into constituent sub-sheets for each primer set."""
+    results = {}
+    samples_to_exclude = []
+    # separate out private sample IDs
+    results['_private_sheet'] = pd.concat([sample_sheet.loc[sample_sheet['Sample_ID'].str.contains(idx)] for idx in private_ids])
+    for sample_idx in results['_private_sheet']['Sample_ID'].unique():
+            samples_to_exclude.append(sample_idx)
+    for primer_idx in primer_ids:
+        results[f'{primer_idx}_primers'] = sample_sheet.loc[sample_sheet['I7_Index_ID'].str.contains(primer_idx)]
+        for sample_idx in results[f'{primer_idx}_primers']['Sample_ID'].unique():
+            samples_to_exclude.append(sample_idx)
+    results['OG_primers'] = sample_sheet.loc[~sample_sheet['Sample_ID'].isin(samples_to_exclude)]
+    return results
+
+
 def generate_release_report(out_dir, report_name='release_report.tar'):
     report_fp = out_dir/report_name
     s1 = "find {out_dir}/ -name '*.csv' -type f -exec tar rfP {report_fp} {{}} \\;".format(out_dir=out_dir, report_fp=report_fp)
@@ -19,7 +37,6 @@ def generate_release_report(out_dir, report_name='release_report.tar'):
     print(s2)
     run_command(s2)
     return 0
-
 
 
 def separate_alignments(msa_data, sus_ids, out_dir, filename, patient_zero='NC_045512.2'):
