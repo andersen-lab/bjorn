@@ -218,6 +218,12 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Saxony-Anhalt'), 'division_normed'] = 'Sachsen-Anhalt'
         df.loc[df['division_normed'].str.contains('North Rhine-Westphalia'), 'division_normed'] = 'Nordrhein-Westfalen'
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
+        df.loc[(df['country_normed'].str.contains('South Africa')),
+                & (df['division_normed'].str.contains('KwaZulu Natal')), 
+               'division_normed'] = 'KwaZulu-Natal'
+        df.loc[(df['country_normed'].str.contains('South Africa')),
+                & (df['division_normed'].str.contains('Northern Cape Province')), 
+               'division_normed'] = 'Northern Cape'
         print(f'Admin2 standardization (U.S. only)')
         df.loc[df['location'].isna(), 'location'] = 'None'
         df['location_normed'] = df['location'].copy()
