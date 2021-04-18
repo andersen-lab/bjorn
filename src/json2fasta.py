@@ -101,8 +101,13 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df['country_normed'].fillna('None', inplace=True)
         df.loc[df['country_normed'].str.lower()=='usa', 'country_normed'] = 'United States'     
         df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains('Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
-        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of the Congo'
+        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of Congo'
+        df.loc[df['country_normed'].str.contains('Eswatini'), 'country_normed'] = "Swaziland"
+        df.loc[df['country_normed'].str.contains('Bonaire'), 'country_normed'] = "Bonaire, Sint Eustatius and Saba"
+        df.loc[df['country_normed'].str.contains('Sint Eustatius'), 'country_normed'] = "Bonaire, Sint Eustatius and Saba"
         df.loc[df['country_normed'].str.contains('Cote dIvoire'), 'country_normed'] = "Côte d'Ivoire"
+        df.loc[df['country_normed'].str.contains("Cote d'Ivoire"), 'country_normed'] = "Côte d'Ivoire"
+        df.loc[df['country_normed'].str.contains("México"), 'country_normed'] = "Mexico"
         df.loc[df['country_normed'].str.contains('North Macedonia'), 'country_normed'] = "Macedonia"
         df.loc[df['country_normed'].str.contains('Curacao'), 'country_normed'] = "Curaçao"
         df.loc[df['country_normed'].str.contains('Saint Martin'), 'country_normed'] = "Saint-Martin"
@@ -218,10 +223,10 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Saxony-Anhalt'), 'division_normed'] = 'Sachsen-Anhalt'
         df.loc[df['division_normed'].str.contains('North Rhine-Westphalia'), 'division_normed'] = 'Nordrhein-Westfalen'
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
-        df.loc[(df['country_normed'].str.contains('South Africa')),
+        df.loc[(df['country_normed'].str.contains('South Africa'))
                 & (df['division_normed'].str.contains('KwaZulu Natal')), 
                'division_normed'] = 'KwaZulu-Natal'
-        df.loc[(df['country_normed'].str.contains('South Africa')),
+        df.loc[(df['country_normed'].str.contains('South Africa'))
                 & (df['division_normed'].str.contains('Northern Cape Province')), 
                'division_normed'] = 'Northern Cape'
         print(f'Admin2 standardization (U.S. only)')
