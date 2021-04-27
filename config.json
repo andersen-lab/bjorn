@@ -1,5 +1,5 @@
 {
-    "nonconcerning_genes": ["5UTR", "3UTR", "Non-coding region"],
+    "nonconcerning_genes": ["5UTR", "3UTR"],
     "nonconcerning_mutations": ["ORF8:Q27*"],
     "out_dir": "/southpark/gisaid",
     "date": "2021-03-30",
