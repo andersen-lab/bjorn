@@ -270,6 +270,11 @@ if __name__=="__main__":
                         type=int,
                         default=95,
                         help="Minimum coverage of sequences (QC filter)")
+    
+    parser.add_argument("-md", "--min-depth",
+                        type=int,
+                        default=1000,
+                        help="Minimum depth of sequences (QC filter)")
 
     parser.add_argument("-o", "--out-dir",
                         type=str,
@@ -301,6 +306,8 @@ if __name__=="__main__":
     include_bams = args.include_bams
     # this is the minimum coverage for accepting consensus sequences
     min_coverage = args.min_coverage
+    # this is the minimum average depth (per nucleotide position) for accepting consensus sequences
+    min_depth = args.min_depth
     # path to reference sequence (used later for MSA and tree construction)
     ref_path = Path(args.reference) if args.reference is not None else None
     patient_zero = args.reference_name
@@ -439,8 +446,9 @@ if __name__=="__main__":
     num_samples_missing_coverage = ans[ans['percent_coverage_cds'].isna()].shape[0]
     # compute number of samples below 90% coverage
     low_coverage_samples = ans[ans["percent_coverage_cds"] < min_coverage]
-    # ignore samples below 90% coverage
-    ans = ans[ans["percent_coverage_cds"] >= min_coverage]
+    # ignore samples below minimum coverage and average depth
+    qc_filter = (ans["percent_coverage_cds"] >= min_coverage) & (ans["avg_depth"] >= min_depth)
+    ans = ans.loc[qc_filter]
     # generate concatenated consensus sequences
     if not dry_run:
         # Transfer files
