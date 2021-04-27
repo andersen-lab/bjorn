@@ -243,7 +243,7 @@ def download_process_data(username, password, chunk_size, current_datetime):
             &(df['division_normed']=='Gavleborg'), 'division_normed'] = 'Gävleborg'
         df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Jamtland'), 'division_normed'] = 'Jämtland'
-        df.loc[(m['country_normed']=='Sweden')
+        df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Jonkoping'), 'division_normed'] = 'Jönköping'
         df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Ostergotland'), 'division_normed'] = 'Östergötland'
