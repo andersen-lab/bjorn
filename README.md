@@ -43,6 +43,8 @@ conda activate bjorn
     * filepath to updated metadata of samples that have already been uploaded
     * output directory where results are saved
     * number of CPU cores available for use
+    * minimum coverage required for each sample (QC filter)
+    * minimum average depth required for each sample (QC filter)
     * DEFAULT: test parameters
 * Open `config.json` to specify your parameters such as
     * list of SARS-CoV-2 genes that are considered non-concerning
@@ -55,3 +57,5 @@ conda activate bjorn
 ```bash
 bash run_alab_release.sh
 ```
+* `bjorn` assumes the following file structure for the input sequencing data
+![Release Structure](figs/alab_release_filestructure.png)
