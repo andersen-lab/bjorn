@@ -250,8 +250,6 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Skane'), 'division_normed'] = 'Skåne'
         df.loc[(df['country_normed']=='Sweden')
-            &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
-        df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Varmland'), 'division_normed'] = 'Värmland'
         df.loc[(df['country_normed']=='Sweden')
             &(df['division_normed']=='Vasterbotten'), 'division_normed'] = 'Västerbotten'
