@@ -1,4 +1,5 @@
 import sys
+import shutil
 import glob
 import subprocess
 import math
@@ -8,6 +9,21 @@ from path import Path
 import numpy as np
 import pandas as pd
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
+
+
+
+def get_variant_counts(analysis_filepath: str, search_ids: list, 
+                       min_freq: float=0.15, max_freq: float=100.,
+                       generalised: bool=False):
+    """Takes path to results directory and (optional) list of sample IDs
+    Returns data frame of the number of variants identified in each sample 
+    with frequencies between `min_freq` and `max_freq` (Default are 0. and 100., respectively)"""
+    var_fps = get_filepaths(analysis_filepath, data_fmt='tsv', data_type='variants/illumina', 
+                           sample_ids=search_ids, generalised=generalised, return_type='list')
+    var_df = pd.concat([pd.read_csv(fp, sep='\t').assign(sample_id=fp.split('/')[-1].split('_')[0]) for fp in var_fps])
+    var_df = var_df.loc[(var_df['ALT_FREQ']<max_freq) & (var_df['ALT_FREQ']>min_freq)]
+    var_df['variant'] = var_df['POS'].astype(str) + ':' + var_df['ALT'].astype(str)
+    return var_df.groupby('sample_id').agg(num_nt_mutations=('variant', 'nunique')).sort_index()
 
 
 def separate_samples(sample_sheet: pd.DataFrame, 
@@ -26,6 +42,16 @@ def separate_samples(sample_sheet: pd.DataFrame,
             samples_to_exclude.append(sample_idx)
     results['OG_primers'] = sample_sheet.loc[~sample_sheet['Sample_ID'].isin(samples_to_exclude)]
     return results
+
+
+def copy_files(filenames: list, destination_dir):
+    """Takes list of file paths and copies them to the destination folder"""
+    try:
+        for fn in filenames:
+            shutil.copy(fn, destination_dir)
+        return 0
+    except:
+        raise ValueError("Copy operation failed. Check if all filenames and directories exist")
 
 
 def generate_release_report(out_dir, report_name='release_report.tar'):
@@ -158,22 +184,27 @@ def fetch_seqs(seqs_filepath, out_fp, sample_idxs: list, is_aligned=False, is_gz
 
 
 def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[], 
-                  data_type: str='consensus', tech: str='illumina', 
+                  data_type: str='', tech: str='', 
                   generalised=False,
                   return_type='dict') -> dict:
     """Take list of sample IDs, the general area where your files are located, and their format.
        Returns a dictionary with sample IDs as keys and the filepaths as values.
     """
     file_paths = defaultdict(list)
+    fs = []
+    generalised_flag = ''
     if sample_ids:
         for s_id in sample_ids:
+            if generalised:
+                generalised_flag = '/**'
             if data_type and tech:
-                f = glob.glob(f"{analysis_path}/*{data_type}*/*{tech}*/*{s_id}*.{data_fmt}")
+                f = glob.glob(f"{analysis_path}{generalised_flag}/*{data_type}*/*{tech}*/*{s_id}*.{data_fmt}")
             elif data_type:
-                f = glob.glob(f"{analysis_path}/*{data_type}*/*{s_id}*.{data_fmt}")
+                f = glob.glob(f"{analysis_path}{generalised_flag}/*{data_type}*/*{s_id}*.{data_fmt}")
             else:
-                f = glob.glob(f"{analysis_path}/*{s_id}*.{data_fmt}")
+                f = glob.glob(f"{analysis_path}{generalised_flag}/*{s_id}*.{data_fmt}")
             try:
+                fs.append(f)
                 file_paths[s_id].append(f[0])
             except:
                 continue
@@ -202,7 +233,7 @@ def get_filepaths(analysis_path: str, data_fmt: str, sample_ids: list=[],
     if return_type=='dict':
         return file_paths
     elif return_type=='list':
-        return fs
+        return flatten_list(fs)
 
 
 def get_variant_filepaths(sample_ids: list, analysis_path: str='/home/gk/analysis') -> dict:
@@ -256,8 +287,9 @@ def run_minimap2(in_filepath, out_filepath, ref_path, num_cpus=25):
 def concat_fasta_2(in_filepaths: list, out_filepath):
     """Concatenate fasta sequences into single fasta file.
     Takes a list of fasta filepaths and an output filename for saving"""
-    cat_cmd = f"cat {' '.join(in_filepaths)} > {out_filepath}"
-    print(cat_cmd)
+    cat_cmd = f"echo {' '.join(in_filepaths)} | xargs cat >> {out_filepath}"
+    # cat_cmd = f"cat {' '.join(in_filepaths)} > {out_filepath}"
+    # print(cat_cmd)
     run_command(cat_cmd)
     return out_filepath
 
@@ -442,3 +474,18 @@ def check_state(x, gaps=False):
         else:
             x = x[:-2]
     return x
+
+
+def flatten_list(_2d_list):
+    """flatten any 2D Python list
+    Citation: https://stackabuse.com/python-how-to-flatten-list-of-lists/"""
+    flat_list = []
+    # Iterate through the outer list
+    for element in _2d_list:
+        if type(element) is list:
+            # If the element is of type list, iterate through the sublist
+            for item in element:
+                flat_list.append(item)
+        else:
+            flat_list.append(element)
+    return flat_list
