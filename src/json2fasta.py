@@ -219,16 +219,20 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Lower Saxony'), 'division_normed'] = 'Niedersachsen'
         df.loc[df['division_normed'].str.contains('Mecklenburg-Western Pomerania'), 'division_normed'] = 'Mecklenburg-Vorpommern'
         df.loc[df['division_normed'].str.contains('Rhineland-Palatinate'), 'division_normed'] = 'Rheinland-Pfalz'
-        df.loc[df['division_normed'].str.contains('Saxony'), 'division_normed'] = 'Sachsen'
-        df.loc[df['division_normed'].str.contains('Saxony-Anhalt'), 'division_normed'] = 'Sachsen-Anhalt'
+        df.loc[(df['division_normed'].str.contains('Saxony-Anhalt'))
+             & (df['country_normed'].str.contains('Germany')), 'division_normed'] = 'Sachsen-Anhalt'
+        df.loc[(df['division_normed'].str.contains('Saxony'))
+             & (df['country_normed'].str.contains('Germany')), 'division_normed'] = 'Sachsen'
         df.loc[df['division_normed'].str.contains('North Rhine-Westphalia'), 'division_normed'] = 'Nordrhein-Westfalen'
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
         df.loc[(df['country_normed'].str.contains('South Africa'))
                 & (df['division_normed'].str.contains('KwaZulu Natal')), 
                'division_normed'] = 'KwaZulu-Natal'
         df.loc[(df['country_normed'].str.contains('South Africa'))
-                & (df['division_normed'].str.contains('Northern Cape Province')), 
+             & (df['division_normed'].str.contains('Northern Cape Province')), 
                'division_normed'] = 'Northern Cape'
+        df.loc[(df['country_normed']=='Austria') 
+             & (df['division_normed']=='Tyrol'), 'division_normed'] = 'Tirol'
         print(f'Admin2 standardization (U.S. only)')
         df.loc[df['location'].isna(), 'location'] = 'None'
         df['location_normed'] = df['location'].copy()
