@@ -212,6 +212,7 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Navarra'), 'division_normed'] = 'Comunidad Foral de Navarra'
         df.loc[df['division_normed'].str.contains('Catalunya'), 'division_normed'] = 'Cataluña'
         df.loc[df['division_normed'].str.contains('Catalonia'), 'division_normed'] = 'Cataluña'
+        # Germany
         df.loc[df['division_normed'].str.contains('Baden-Wuerttemberg'), 'division_normed'] = 'Baden-Württemberg'
         df.loc[df['division_normed'].str.contains('Baden-Wurttemberg'), 'division_normed'] = 'Baden-Württemberg'
         df.loc[df['division_normed'].str.contains('Bavaria'), 'division_normed'] = 'Bayern'
@@ -225,14 +226,41 @@ def download_process_data(username, password, chunk_size, current_datetime):
              & (df['country_normed'].str.contains('Germany')), 'division_normed'] = 'Sachsen'
         df.loc[df['division_normed'].str.contains('North Rhine-Westphalia'), 'division_normed'] = 'Nordrhein-Westfalen'
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
+        # South Africa
         df.loc[(df['country_normed'].str.contains('South Africa'))
                 & (df['division_normed'].str.contains('KwaZulu Natal')), 
                'division_normed'] = 'KwaZulu-Natal'
         df.loc[(df['country_normed'].str.contains('South Africa'))
              & (df['division_normed'].str.contains('Northern Cape Province')), 
                'division_normed'] = 'Northern Cape'
+        # Austria
         df.loc[(df['country_normed']=='Austria') 
              & (df['division_normed']=='Tyrol'), 'division_normed'] = 'Tirol'
+        # Sweden
+        df.loc[(df['country_normed']=='Sweden')
+              &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Gavleborg'), 'division_normed'] = 'Gävleborg'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Jamtland'), 'division_normed'] = 'Jämtland'
+        df.loc[(m['country_normed']=='Sweden')
+            &(df['division_normed']=='Jonkoping'), 'division_normed'] = 'Jönköping'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Ostergotland'), 'division_normed'] = 'Östergötland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Skane'), 'division_normed'] = 'Skåne'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Varmland'), 'division_normed'] = 'Värmland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vasterbotten'), 'division_normed'] = 'Västerbotten'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vasternorrland'), 'division_normed'] = 'Västernorrland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vastmanland'), 'division_normed'] = 'Västmanland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vastra Gotaland'), 'division_normed'] = 'Västra Götaland'
         print(f'Admin2 standardization (U.S. only)')
         df.loc[df['location'].isna(), 'location'] = 'None'
         df['location_normed'] = df['location'].copy()
