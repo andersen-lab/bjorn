@@ -12,13 +12,13 @@ import data as bd
 
 
 
-def download_process_data(username, password, chunk_size):
+def download_process_data(username, password, chunk_size, current_datetime):
     with open('config.json', 'r') as f:
         config = json.load(f)
     out_dir = Path(config['out_dir'])
-    in_fp = out_dir/config['gisaid_feed']
-    out_fp = out_dir/config['gisaid_fasta']
-    meta_fp = out_dir/config['gisaid_meta']
+    in_fp = out_dir/(config['gisaid_feed'] + '_' + current_datetime + '.json')
+    out_fp = out_dir/(config['gisaid_fasta'] + '_' + current_datetime + '.fasta')
+    meta_fp = out_dir/(config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz')
     info_fp = out_dir/config['chunk_info']
     gadm_fp = config['gadm']
     is_test = config['feed_test']
@@ -99,10 +99,15 @@ def download_process_data(username, password, chunk_size):
         print(f"Admin0 standardization...")
         df['country_normed'] = df['country'].copy()
         df['country_normed'].fillna('None', inplace=True)
-        df.loc[df['country_normed']=='USA', 'country_normed'] = 'United States'     
+        df.loc[df['country_normed'].str.lower()=='usa', 'country_normed'] = 'United States'     
         df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains('Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
-        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of the Congo'
+        df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of Congo'
+        df.loc[df['country_normed'].str.contains('Eswatini'), 'country_normed'] = "Swaziland"
+        df.loc[df['country_normed'].str.contains('Bonaire'), 'country_normed'] = "Bonaire, Sint Eustatius and Saba"
+        df.loc[df['country_normed'].str.contains('Sint Eustatius'), 'country_normed'] = "Bonaire, Sint Eustatius and Saba"
         df.loc[df['country_normed'].str.contains('Cote dIvoire'), 'country_normed'] = "Côte d'Ivoire"
+        df.loc[df['country_normed'].str.contains("Cote d'Ivoire"), 'country_normed'] = "Côte d'Ivoire"
+        df.loc[df['country_normed'].str.contains("México"), 'country_normed'] = "Mexico"
         df.loc[df['country_normed'].str.contains('North Macedonia'), 'country_normed'] = "Macedonia"
         df.loc[df['country_normed'].str.contains('Curacao'), 'country_normed'] = "Curaçao"
         df.loc[df['country_normed'].str.contains('Saint Martin'), 'country_normed'] = "Saint-Martin"
@@ -207,6 +212,7 @@ def download_process_data(username, password, chunk_size):
         df.loc[df['division_normed'].str.contains('Navarra'), 'division_normed'] = 'Comunidad Foral de Navarra'
         df.loc[df['division_normed'].str.contains('Catalunya'), 'division_normed'] = 'Cataluña'
         df.loc[df['division_normed'].str.contains('Catalonia'), 'division_normed'] = 'Cataluña'
+        # Germany
         df.loc[df['division_normed'].str.contains('Baden-Wuerttemberg'), 'division_normed'] = 'Baden-Württemberg'
         df.loc[df['division_normed'].str.contains('Baden-Wurttemberg'), 'division_normed'] = 'Baden-Württemberg'
         df.loc[df['division_normed'].str.contains('Bavaria'), 'division_normed'] = 'Bayern'
@@ -214,10 +220,45 @@ def download_process_data(username, password, chunk_size):
         df.loc[df['division_normed'].str.contains('Lower Saxony'), 'division_normed'] = 'Niedersachsen'
         df.loc[df['division_normed'].str.contains('Mecklenburg-Western Pomerania'), 'division_normed'] = 'Mecklenburg-Vorpommern'
         df.loc[df['division_normed'].str.contains('Rhineland-Palatinate'), 'division_normed'] = 'Rheinland-Pfalz'
-        df.loc[df['division_normed'].str.contains('Saxony'), 'division_normed'] = 'Sachsen'
-        df.loc[df['division_normed'].str.contains('Saxony-Anhalt'), 'division_normed'] = 'Sachsen-Anhalt'
+        df.loc[(df['division_normed'].str.contains('Saxony-Anhalt'))
+             & (df['country_normed'].str.contains('Germany')), 'division_normed'] = 'Sachsen-Anhalt'
+        df.loc[(df['division_normed'].str.contains('Saxony'))
+             & (df['country_normed'].str.contains('Germany')), 'division_normed'] = 'Sachsen'
         df.loc[df['division_normed'].str.contains('North Rhine-Westphalia'), 'division_normed'] = 'Nordrhein-Westfalen'
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
+        # South Africa
+        df.loc[(df['country_normed'].str.contains('South Africa'))
+                & (df['division_normed'].str.contains('KwaZulu Natal')), 
+               'division_normed'] = 'KwaZulu-Natal'
+        df.loc[(df['country_normed'].str.contains('South Africa'))
+             & (df['division_normed'].str.contains('Northern Cape Province')), 
+               'division_normed'] = 'Northern Cape'
+        # Austria
+        df.loc[(df['country_normed']=='Austria') 
+             & (df['division_normed']=='Tyrol'), 'division_normed'] = 'Tirol'
+        # Sweden
+        df.loc[(df['country_normed']=='Sweden')
+              &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Gavleborg'), 'division_normed'] = 'Gävleborg'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Jamtland'), 'division_normed'] = 'Jämtland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Jonkoping'), 'division_normed'] = 'Jönköping'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Ostergotland'), 'division_normed'] = 'Östergötland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Skane'), 'division_normed'] = 'Skåne'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Varmland'), 'division_normed'] = 'Värmland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vasterbotten'), 'division_normed'] = 'Västerbotten'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vasternorrland'), 'division_normed'] = 'Västernorrland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vastmanland'), 'division_normed'] = 'Västmanland'
+        df.loc[(df['country_normed']=='Sweden')
+            &(df['division_normed']=='Vastra Gotaland'), 'division_normed'] = 'Västra Götaland'
         print(f'Admin2 standardization (U.S. only)')
         df.loc[df['location'].isna(), 'location'] = 'None'
         df['location_normed'] = df['location'].copy()
@@ -354,11 +395,16 @@ if __name__=="__main__":
                             type=int,
                             required=True,
                             help="Chunk size")
+    parser.add_argument("-t", "--time",
+                            type=str,
+                            required=True,
+                            help="Current datetime")
     args = parser.parse_args()
     username = args.username
     password = args.password
     chunk_size = args.size
-    result = download_process_data(username, password, chunk_size)
+    current_datetime = args.time
+    result = download_process_data(username, password, chunk_size, current_datetime)
     assert result==0, "ERROR: downloading GISAID data incomplete. Please inspect log."
     # info_df = bs.create_chunk_names(meta_fp, chunk_size)
 
