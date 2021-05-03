@@ -17,12 +17,12 @@ configfile: "config.json"
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
-current_date = config['date']
-gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta']
-meta_filepath = out_dir + '/' + config['gisaid_meta']
+current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
+gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
+meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
 chunks_dir = out_dir + '/chunks'
-fasta_dir = chunks_dir + '/fasta/' + current_date
+fasta_dir = chunks_dir + '/fasta/' + current_datetime
 # sam_dir = chunks_dir + '/sam/' + current_date
 # msa_dir = chunks_dir + '/msa/' + current_date
 # muts_dir = chunks_dir + '/muts/' + current_date
@@ -33,7 +33,7 @@ reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
 
 # Download and pre-process GISAID data
-download_cmd = f"src/json2fasta.py -u {username} -p {password} -s {chunk_size}"
+download_cmd = f"src/json2fasta.py -u {username} -p {password} -s {chunk_size} -t {current_datetime}"
 bs.run_command(download_cmd)
 info_df = pd.read_csv(info_filepath)
 # info_df = bj.download_process_data(username, password, chunk_size)
@@ -41,11 +41,11 @@ info_df = pd.read_csv(info_filepath)
 
 rule all:
     input:
-        "{out_dir}/mutations_{current_date}.csv".format(out_dir = out_dir, current_date = current_date), # output data (signal)
-        expand("{chunks_dir}/muts/{current_date}/{sample}.mutations.csv", chunks_dir = chunks_dir, current_date = current_date, sample = info_df['chunk_names']), # bjorn
-        expand("{chunks_dir}/msa/{current_date}/{sample}.aligned.fasta", chunks_dir = chunks_dir, current_date = current_date, sample = info_df['chunk_names']), # data2funk -> gofasta
-        expand("{chunks_dir}/sam/{current_date}/{sample}.sam", chunks_dir = chunks_dir, current_date = current_date, sample = info_df['chunk_names']), # minimap2 -> mafft
-        expand("{chunks_dir}/fasta/{current_date}/{sample}.fasta", chunks_dir = chunks_dir, current_date = current_date, sample = info_df['chunk_names']), # chunk_fasta
+        "{out_dir}/mutations_{current_datetime}.csv".format(out_dir = out_dir, current_datetime = current_datetime), # output data (signal)
+        expand("{chunks_dir}/muts/{current_datetime}/{sample}.mutations.csv", chunks_dir = chunks_dir, current_datetime = current_datetime, sample = info_df['chunk_names']), # bjorn
+        expand("{chunks_dir}/msa/{current_datetime}/{sample}.aligned.fasta", chunks_dir = chunks_dir, current_datetime = current_datetime, sample = info_df['chunk_names']), # data2funk -> gofasta
+        expand("{chunks_dir}/sam/{current_datetime}/{sample}.sam", chunks_dir = chunks_dir, current_datetime = current_datetime, sample = info_df['chunk_names']), # minimap2 -> mafft
+        expand("{chunks_dir}/fasta/{current_datetime}/{sample}.fasta", chunks_dir = chunks_dir, current_datetime = current_datetime, sample = info_df['chunk_names']), # chunk_fasta
         gisaid_sequences_filepath, # input data (signal)
         info_filepath
         # reference_filepath, # input data (patient zero)
@@ -56,25 +56,27 @@ rule all:
 # TODO: create merge_mutations.py 
 rule merge_results:
     input:
-        expand("{chunks_dir}/muts/{current_date}/{sample}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_date = current_date),
+        expand("{chunks_dir}/muts/{current_datetime}/{sample}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_datetime = current_datetime),
         meta_filepath=meta_filepath
     threads: 1
+    params:
+        current_datetime=current_datetime,
     output:
-        "{out_dir}/mutations_{current_date}.csv"
+        "{out_dir}/mutations_{current_datetime}.csv"
     shell:
         """
-        src/merge_results.py -i {chunks_dir}/muts/{current_date}/ -m {input.meta_filepath} -o {output}
+        src/merge_results.py -i {chunks_dir}/muts/{current_datetime}/ -m {input.meta_filepath} -o {output} -t {params.current_datetime}
         """
 
 
 # TODO: test msa_2_mutations.py 
 rule run_bjorn:
     input:
-        "{chunks_dir}/msa/{current_date}/{sample}.aligned.fasta"
+        "{chunks_dir}/msa/{current_datetime}/{sample}.aligned.fasta"
     params:
         patient_zero=patient_zero,
     output:
-        "{chunks_dir}/muts/{current_date}/{sample}.mutations.csv"
+        "{chunks_dir}/muts/{current_datetime}/{sample}.mutations.csv"
     shell:
         """
         src/msa_2_mutations.py -i {input} -r {params.patient_zero} -o {output}
@@ -84,11 +86,11 @@ rule run_bjorn:
 
 rule run_data2funk:
     input:
-        "{chunks_dir}/sam/{current_date}/{sample}.sam",
+        "{chunks_dir}/sam/{current_datetime}/{sample}.sam",
     params:
         reference_filepath=reference_filepath,
     output:
-        "{chunks_dir}/msa/{current_date}/{sample}.aligned.fasta",
+        "{chunks_dir}/msa/{current_datetime}/{sample}.aligned.fasta",
     shell:
         """
         datafunk sam_2_fasta -s {input} -r {params.reference_filepath} -o {output} --pad --log-inserts
@@ -96,12 +98,12 @@ rule run_data2funk:
 
 rule run_minimap2:
     input:
-        "{chunks_dir}/fasta/{current_date}/{sample}.fasta"
+        "{chunks_dir}/fasta/{current_datetime}/{sample}.fasta"
     params:
         num_cpus=num_cpus,
         reference_filepath=reference_filepath
     output:
-        "{chunks_dir}/sam/{current_date}/{sample}.sam",
+        "{chunks_dir}/sam/{current_datetime}/{sample}.sam",
     shell:
         """
         minimap2 -a -x asm5 -t {params.num_cpus} {params.reference_filepath} {input} -o {output}
@@ -117,10 +119,10 @@ rule chunk_fasta:
         # out_dir=lambda wildcards, output: Path(output).parent
     threads: 1
     output:
-        expand("{chunks_dir}/fasta/{current_date}/{sample}.fasta", chunks_dir = chunks_dir, current_date = current_date, sample = info_df['chunk_names'])
+        expand("{chunks_dir}/fasta/{current_datetime}/{sample}.fasta", chunks_dir = chunks_dir, current_datetime = current_datetime, sample = info_df['chunk_names'])
     shell:
         """
-        src/chunk_fasta.py -f {input} -r {params.reference_filepath} -s {params.chunk_size} -o {chunks_dir}/fasta/{current_date}
+        src/chunk_fasta.py -f {input} -r {params.reference_filepath} -s {params.chunk_size} -o {chunks_dir}/fasta/{current_datetime}
         """
         # bf.chunk_fasta(gisaid_sequences_filepath, params.reference_filepath, params.chunk_size, Path(params.out_dir))
 

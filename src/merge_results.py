@@ -24,21 +24,26 @@ parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
                         help="Output filepath")
+parser.add_argument("-t", "--time",
+                        type=str,
+                        required=True,
+                        help="Current datetime")
 
 args = parser.parse_args()
 input_dir = args.inputdir
 meta_fp = args.inputmeta
 out_fp = args.outfp
+current_datetime = args.time
 
 with open('config.json', 'r') as f:
     config = json.load(f)
 
 out_dir = config['out_dir']
-log_fp = out_dir + '/' + config['log_file']
+log_fp = out_dir + '/' + 'logs' + '/' + config['log_file'] + '_' + current_datetime + '.txt'
 unknown_val = config['unknown_value']
-date = config['date']
+date = '-'.join(current_datetime.split('-')[:3])
 min_date = config['min_date']
-date_modified = config['date_modified']
+date_modified = '-'.join(current_datetime.split('-')[:3]) + '-' + ':'.join(current_datetime.split('-')[3:])
 api_data_fp = config['outbreak_fp']#/valhalla/gisaid/new_api_data.json.gz'
 meta_data_fp = config['meta_outbreak_fp']#'/valhalla/gisaid/new_genomics_metadata.json'
 countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
