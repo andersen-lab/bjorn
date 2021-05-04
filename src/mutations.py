@@ -701,7 +701,7 @@ def assign_deletion_v2(x):
     """Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
     if (x['pos_in_codon'] + x['del_len']) <= 3:
         return x['gene'] + ':DEL' + str(x['codon_num'])
-    deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + (x['del_len']//3) - 1)
+    deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + np.maximum(((x['del_len']//3) - 1), 1))
     return deletion
 
 
