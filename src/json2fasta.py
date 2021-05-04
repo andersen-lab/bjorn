@@ -236,6 +236,25 @@ def download_process_data(username, password, chunk_size, current_datetime):
         # Austria
         df.loc[(df['country_normed']=='Austria') 
              & (df['division_normed']=='Tyrol'), 'division_normed'] = 'Tirol'
+        # Switzerland
+        df.loc[df['division_normed'].str.contains('Argovie'), 'division_normed'] = 'Aargau'
+        df.loc[df['division_normed'].str.contains('Geneva'), 'division_normed'] = 'Genève'
+        df.loc[df['division_normed'].str.contains('Grabunden'), 'division_normed'] = 'Graubünden'
+        df.loc[df['division_normed'].str.contains('Luzern'), 'division_normed'] = 'Lucerne' 
+        df.loc[df['division_normed'].str.contains('Neuchatel'), 'division_normed'] = 'Neuchâtel' 
+        df.loc[df['division_normed'].str.contains('Neuenburg'), 'division_normed'] = 'Neuchâtel' 
+        df.loc[df['division_normed'].str.contains('Obwald'), 'division_normed'] = 'Obwalden' 
+        df.loc[df['division_normed'].str.contains('Saint-Gall'), 'division_normed'] = 'Sankt Gallen' 
+        df.loc[df['division_normed'].str.contains('St Gallen'), 'division_normed'] = 'Sankt Gallen' 
+        df.loc[df['division_normed'].str.contains('St. Gallen'), 'division_normed'] = 'Sankt Gallen' 
+        df.loc[df['division_normed'].str.contains('Schaffhouse'), 'division_normed'] = 'Schaffhausen' 
+        df.loc[df['division_normed'].str.contains('Turgovia'), 'division_normed'] = 'Thurgau' 
+        df.loc[df['division_normed'].str.contains('VALAIS'), 'division_normed'] = 'Valais' 
+        df.loc[df['division_normed'].str.contains('Waadt'), 'division_normed'] = 'Vaud' 
+        df.loc[df['division_normed'].str.contains('Wallis'), 'division_normed'] = 'Valais' 
+        df.loc[df['division_normed'].str.contains('Zaerich'), 'division_normed'] = 'Zürich' 
+        df.loc[df['division_normed'].str.contains('Zoerich'), 'division_normed'] = 'Zürich' 
+        df.loc[df['division_normed'].str.contains('Zurich'), 'division_normed'] = 'Zürich' 
         # Sweden
         df.loc[(df['country_normed']=='Sweden')
               &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
