@@ -1,8 +1,11 @@
 #!/bin/bash
 
-d=$1
+in_dir=$1
+cpus=$2
+sheet=$3
+out_dir=$4
 
-cd $d/
+cd $in_dir/
 ulimit -n 5000
-bcl2fastq --create-fastq-for-index-reads -r 4 -w 4 -p 4 --barcode-mismatches 0 --output-dir output --sample-sheet SampleSheet.csv
+bcl2fastq --create-fastq-for-index-reads -r $cpus -w $cpus -p $cpus --barcode-mismatches 0 --output-dir $out_dir --sample-sheet $sheet
 
