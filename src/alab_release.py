@@ -270,6 +270,11 @@ if __name__=="__main__":
                         type=int,
                         default=95,
                         help="Minimum coverage of sequences (QC filter)")
+    
+    parser.add_argument("-md", "--min-depth",
+                        type=int,
+                        default=1000,
+                        help="Minimum depth of sequences (QC filter)")
 
     parser.add_argument("-o", "--out-dir",
                         type=str,
@@ -301,6 +306,8 @@ if __name__=="__main__":
     include_bams = args.include_bams
     # this is the minimum coverage for accepting consensus sequences
     min_coverage = args.min_coverage
+    # this is the minimum average depth (per nucleotide position) for accepting consensus sequences
+    min_depth = args.min_depth
     # path to reference sequence (used later for MSA and tree construction)
     ref_path = Path(args.reference) if args.reference is not None else None
     patient_zero = args.reference_name
@@ -401,8 +408,8 @@ if __name__=="__main__":
     # get IDs of samples that have already been released
     released_seqs = meta_df['sample_id'].unique()
     # filter out released samples from all the samples we got
-    # final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
-    final_result = sequence_results.copy()
+    final_result = sequence_results[~sequence_results['sample_id'].isin(released_seqs)]
+    # final_result = sequence_results.copy()
     print(f"Preparing {final_result.shape[0]} samples for release")
     # ## Getting coverage information
     cov_filepaths = bs.get_filepaths(analysis_fpath, data_fmt='tsv', 
@@ -439,8 +446,9 @@ if __name__=="__main__":
     num_samples_missing_coverage = ans[ans['percent_coverage_cds'].isna()].shape[0]
     # compute number of samples below 90% coverage
     low_coverage_samples = ans[ans["percent_coverage_cds"] < min_coverage]
-    # ignore samples below 90% coverage
-    ans = ans[ans["percent_coverage_cds"] >= min_coverage]
+    # ignore samples below minimum coverage and average depth
+    qc_filter = (ans["percent_coverage_cds"] >= min_coverage) & (ans["avg_depth"] >= min_depth)
+    ans = ans.loc[qc_filter]
     # generate concatenated consensus sequences
     if not dry_run:
         # Transfer files
@@ -514,10 +522,12 @@ if __name__=="__main__":
         with open('config.json', 'r') as f:
             config = json.load(f)
         nonconcerning_genes = config['nonconcerning_genes']
+        nonconcerning_mutations = config['nonconcerning_mutations']
         sus_ids, sus_muts = bm.identify_samples_with_suspicious_mutations(substitutions, 
                                                                           deletions, 
                                                                           insertions,
-                                                                          nonconcerning_genes)
+                                                                          nonconcerning_genes,
+                                                                          nonconcerning_mutations)
         sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
         # collect metadata for white-listed samples
         gisaid_white = gisaid_meta_df[~gisaid_meta_df['Virus name'].isin(sus_ids)]
@@ -536,6 +546,8 @@ if __name__=="__main__":
                                              out_dir=msa_dir, filename=seqs_fp.split('.')[0])
         # generate compressed report containing main results
         bs.generate_release_report(out_dir)
+        # print(sus_ids)
+        # print(nonconcerning_mutations)
         # plot Phylogenetic tree with top consensus deletions annotated
         # deletions = deletions.nlargest(len(colors), 'num_samples')
         # del2color = get_indel2color(deletions, colors)
@@ -558,6 +570,8 @@ if __name__=="__main__":
         #                   indels=insertions, colors=colors,
         #                   isnv_info=True);
         # fig5.savefig(tree_dir/'insertion_isnv_tree.pdf', dpi=300)
+    else:
+        sus_ids = []
     if not Path.isdir(out_dir):
         Path.mkdir(out_dir);
     # Data logging
