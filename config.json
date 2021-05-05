@@ -1,6 +1,6 @@
 {
-    "nonconcerning_genes": ["5UTR", "ORF7a", "ORF7b", "ORF8", "ORF10", "Non-coding region"],
-    "nonconcerning_mutations": ["S:DEL69/70"],
+    "nonconcerning_genes": ["5UTR", "3UTR"],
+    "nonconcerning_mutations": ["ORF8:Q27*"],
     "out_dir": "/southpark/gisaid",
     "gisaid_fasta": "gisaid_sequences",
     "gisaid_meta": "metadata",
