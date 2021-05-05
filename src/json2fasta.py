@@ -255,6 +255,12 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Zaerich'), 'division_normed'] = 'Zürich' 
         df.loc[df['division_normed'].str.contains('Zoerich'), 'division_normed'] = 'Zürich' 
         df.loc[df['division_normed'].str.contains('Zurich'), 'division_normed'] = 'Zürich' 
+        df.loc[df['division_normed'].str.contains('Unkown'), 'division_normed'] = 'Unknown'
+        df.loc[df['division_normed'].str.contains('Basel-Land'), 'division_normed'] = 'Basel-Landschaft'
+        df.loc[df['division_normed'].str.contains('Grisons'), 'division_normed'] = 'Graubünden'
+        df.loc[df['division_normed'].str.contains('St.Gallen'), 'division_normed'] = 'Sankt Gallen'
+        df.loc[df['division_normed'].str.contains('Geneve'), 'division_normed'] = 'Genève'
+        df.loc[df['division_normed'].str.contains('Stankt Gallen'), 'division_normed'] = 'Sankt Gallen' 
         # Sweden
         df.loc[(df['country_normed']=='Sweden')
               &(df['division_normed']=='Sodermanland'), 'division_normed'] = 'Södermanland'
