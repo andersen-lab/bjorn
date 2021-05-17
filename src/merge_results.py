@@ -57,8 +57,9 @@ with open(locations_fp) as f:
     locations = json.load(f)
 # write metadata info to json file
 metadata = {'date_modified': date_modified}
-with open(meta_data_fp, 'w') as fp:
-    json.dump(metadata, fp)
+if not is_test:
+    with open(meta_data_fp, 'w') as fp:
+        json.dump(metadata, fp)
 # fetch list of mutation csv filepaths
 mut_fps = glob.glob(f"{input_dir}/*.mutations.csv")
 # concat with pd
