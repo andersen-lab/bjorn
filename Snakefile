@@ -17,7 +17,11 @@ configfile: "config.json"
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
-current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
+is_test = config['feed_test']
+if is_test:
+    current_datetime = 'test'
+else:
+    current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
@@ -124,52 +128,3 @@ rule chunk_fasta:
         """
         src/chunk_fasta.py -f {input} -r {params.reference_filepath} -s {params.chunk_size} -o {chunks_dir}/fasta/{current_datetime}
         """
-        # bf.chunk_fasta(gisaid_sequences_filepath, params.reference_filepath, params.chunk_size, Path(params.out_dir))
-
-
-# rule load_info_df:
-#     input:
-#         info_filepath
-#     run:
-#         info_df=pd.read_csv(input)
-
-
-
-
-# rule generate_data:
-#     params:
-#         username,
-#         password
-#     threads: 1
-#     output:
-#         gisaid_sequences_filepath,
-#         meta_filepath,
-#         info_filepath
-#     shell:
-#         """
-#         src/json2fasta.py -u {params[0]} -p {params[1]}
-#         """
-
-
-# rule compute_chunk_size:
-#     input:
-#         meta_filepath,
-#     params:
-#         chunk_size=chunk_size
-#     threads: 1
-#     run:
-#         info_df = bs.create_chunk_names(input[0], params.chunk_size)
-
-
-# rule generate_data:
-#     params:
-#         username,
-#         password
-#     threads: 1
-#     output:
-#         gisaid_sequences_filepath,
-#         meta_filepath
-#     shell:
-#         """
-#         python src/json2fasta.py -u {params[0]} -p {params[1]}
-#         """
