@@ -145,7 +145,11 @@ def process_samples(x):
     return x
 
 
-def apply_qc_filters(cns, min_seq_len: int=20000, min_num_calls: int=25000):
+def apply_qc_filters(cns, 
+                     min_seq_len: int=20000, 
+                     min_num_calls: int=20000, 
+                     patient_zero: str='NC_045512.2',
+                     test: bool=False):
     """Returns list of accepted sample IDs (fasta headers) after applying QC filters"""
     seqs, ref_seq = process_cns_seqs(cns, patient_zero, start_pos=0, end_pos=29674)
     # load into dataframe
@@ -156,7 +160,7 @@ def apply_qc_filters(cns, min_seq_len: int=20000, min_num_calls: int=25000):
     if test:
         seqsdf = seqsdf.sample(100)
     # count number of ambiguous nucleotides
-    seqsdf['coverage'] = seqsdf['sequence'].str.lower().str.replace('n', '').str.len()
+    seqsdf['coverage'] = seqsdf['sequence'].str.upper().str.replace('N', '').str.len()
     # compute length of each sequence
     seqsdf['seq_len'] = seqsdf['sequence'].str.replace('-', '').str.len()
     # filter out seqs that are too short and/or have too many ambiguous calls
