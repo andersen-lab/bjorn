@@ -159,7 +159,7 @@ def apply_qc_filters(cns,
                 .reset_index().rename(columns={'index': 'idx'}))
     if test:
         seqsdf = seqsdf.sample(100)
-    # count number of ambiguous nucleotides
+    # count number of unambiguous nucleotides
     seqsdf['coverage'] = seqsdf['sequence'].str.upper().str.replace('N', '').str.len()
     # compute length of each sequence
     seqsdf['seq_len'] = seqsdf['sequence'].str.replace('-', '').str.len()
