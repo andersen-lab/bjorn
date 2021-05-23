@@ -26,6 +26,7 @@ def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
   print(f"Loading alignment file at {alignment_filepath}")
   t0 = time.time()
   msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
+  accepted_sample_ids = apply_qc_filters(msa_data, min_seq_len=20000, min_num_calls=25000)
   msa_load_time = time.time() - t0
   print(f"Identifying substitution-based mutations...")
   t0 = time.time()
@@ -34,7 +35,8 @@ def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
                                                 gene2pos=bd.GENE2POS, 
                                                 data_src=data_src,
                                                 min_seq_len=20000,
-                                                patient_zero=patient_zero
+                                                patient_zero=patient_zero,
+                                                accepted_sample_ids=accepted_sample_ids
                                               #   test=is_test
                                                 )
   subs_time = time.time() - t0
@@ -47,7 +49,8 @@ def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
                                             min_del_len=1,
                                             max_del_len=500,
                                             min_seq_len=20000,
-                                            patient_zero=patient_zero
+                                            patient_zero=patient_zero,
+                                            accepted_sample_ids=accepted_sample_ids
                                           #    test=is_test
                                             )
   dels_time = time.time() - t0
