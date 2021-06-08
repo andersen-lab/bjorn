@@ -365,6 +365,9 @@ def identify_deletions_per_sample(cns,
         seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
+        seqsdf.loc[:, 'deletion_codon_num'] = seqsdf['mutation'].apply(get_dels_separated)
+        seqsdf = seqsdf.explode('deletion_codon_num')
+        seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + seqsdf['deletion_codon_num'].astype(str)
         del seqs
         gc.collect();
         print(f"Fuse with metadata...")
@@ -394,6 +397,16 @@ def identify_deletions_per_sample(cns,
         print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
         seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
+
+
+def get_dels_separated(x):
+    """Support function for separating deletions into single-amino-acid deletions"""
+    c1 = int(x[x.find('DEL')+3:].split('/')[0])
+    try:
+        c2 = int(x.split('/')[1])
+        return np.arange(c1, c2+1)
+    except:
+        return [c1]
 
 
 def get_deletion(x, ref_seq):
@@ -716,16 +729,6 @@ def is_frameshift(x):
     if x % 3 == 0:
         return False
     return True
-
-
-def get_dels_separated(x):
-    """Support function for separating deletions cuz karthik said so"""
-    c1 = int(x[x.find('DEL')+3:].split('/')[0])
-    try:
-        c2 = int(x.split('/')[1])
-        return np.arange(c1, c2+1)
-    except:
-        return c1
 
 
 def identify_replacements(cns, 
