@@ -145,6 +145,31 @@ def process_samples(x):
     return x
 
 
+def apply_qc_filters(cns, 
+                     min_seq_len: int=20000, 
+                     min_num_calls: int=20000, 
+                     patient_zero: str='NC_045512.2',
+                     test: bool=False):
+    """Returns list of accepted sample IDs (fasta headers) after applying QC filters"""
+    seqs, ref_seq = process_cns_seqs(cns, patient_zero, start_pos=0, end_pos=29674)
+    # load into dataframe
+    seqsdf = (pd.DataFrame(index=seqs.keys(), 
+                           data=seqs.values(), 
+                           columns=['sequence'])
+                .reset_index().rename(columns={'index': 'idx'}))
+    if test:
+        seqsdf = seqsdf.sample(100)
+    # count number of unambiguous nucleotides
+    seqsdf['coverage'] = seqsdf['sequence'].str.upper().str.replace('N', '').str.len()
+    # compute length of each sequence
+    seqsdf['seq_len'] = seqsdf['sequence'].str.replace('-', '').str.len()
+    # filter out seqs that are too short and/or have too many ambiguous calls
+    qc_filter = (seqsdf['seq_len']>min_seq_len) & (seqsdf['coverage']>min_num_calls)
+    seqsdf = seqsdf.loc[qc_filter]
+    accepted_sample_ids = seqsdf['idx'].unique()
+    return accepted_sample_ids
+
+
 def identify_replacements_per_sample(cns, 
                                      meta_fp=None,
                                      gene2pos: dict=bd.GENE2POS,
@@ -153,6 +178,7 @@ def identify_replacements_per_sample(cns,
                                      max_num_subs=5000,
                                      patient_zero: str='NC_045512.2',
                                      ref_path: str='/home/al/data/hcov19/NC045512.fasta',
+                                     accepted_sample_ids: list=[],
                                      test: bool=False):
     """Returns dataframe of all substitution-based mutations from a pre-loaded multiple sequence alignment, 
     containing the reference sequence (default: NC_045512.2)
@@ -169,10 +195,12 @@ def identify_replacements_per_sample(cns,
     if test:
         seqsdf = seqsdf.sample(100)
     try:
+        # keep only sequences that passed QC filters
+        seqsdf = seqsdf.loc[seqsdf['idx'].isin(accepted_sample_ids)]
         # compute length of each sequence
         seqsdf['seq_len'] = seqsdf['sequence'].str.len()
         # filter out seqs that are too short
-        seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
+        # seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
         print(f"Identifying mutations...")
         # for each sample, identify list of substitutions (position:alt)
         seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
@@ -254,7 +282,8 @@ def identify_replacements_per_sample(cns,
 def find_replacements(x, ref):
     "Support function for enumerating nucleotide substitutions"
     return [f'{i}:{n}' for i, n in enumerate(x) 
-            if n!=ref[i] and n!='-' and n!='n']
+            if n!=ref[i] and n!='-' and n.lower()!='n']
+
 
 
 def identify_deletions_per_sample(cns, 
@@ -267,6 +296,7 @@ def identify_deletions_per_sample(cns,
                                   start_pos=265,
                                   end_pos=29674,
                                   patient_zero: str='NC_045512.2',
+                                  accepted_sample_ids: list=[],
                                   test=False):
     """Returns dataframe of all deletion-based mutations from a pre-loaded multiple sequence alignment, 
     containing the reference sequence (default: NC_045512.2)
@@ -280,8 +310,10 @@ def identify_deletions_per_sample(cns,
     if test:
         seqsdf = seqsdf.sample(100)
     try:
+        # keep only sequences that passed QC filters
+        seqsdf = seqsdf.loc[seqsdf['idx'].isin(accepted_sample_ids)]
         # compute length of each sequence
-        seqsdf['seq_len'] = seqsdf['sequence'].str.len()
+        seqsdf['seq_len'] = seqsdf['sequence'].str.replace('-', '').str.len()
         seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
         print(f"Identifying deletions...")
         # identify deletion positions
@@ -313,6 +345,7 @@ def identify_deletions_per_sample(cns,
         # filter our substitutions in non-gene positions
         seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
         print(f"Computing codon numbers...")
+        # TODO: 
         seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
         print(f"Fetching reference codon...")
         # fetch the reference codon for each substitution
@@ -332,6 +365,9 @@ def identify_deletions_per_sample(cns,
         seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
+        seqsdf.loc[:, 'deletion_codon_num'] = seqsdf['mutation'].apply(get_dels_separated)
+        seqsdf = seqsdf.explode('deletion_codon_num')
+        seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + seqsdf['deletion_codon_num'].astype(str)
         del seqs
         gc.collect();
         print(f"Fuse with metadata...")
@@ -361,6 +397,16 @@ def identify_deletions_per_sample(cns,
         print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
         seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
+
+
+def get_dels_separated(x):
+    """Support function for separating deletions into single-amino-acid deletions"""
+    c1 = int(x[x.find('DEL')+3:].split('/')[0])
+    try:
+        c2 = int(x.split('/')[1])
+        return np.arange(c1, c2+1)
+    except:
+        return [c1]
 
 
 def get_deletion(x, ref_seq):
@@ -533,9 +579,10 @@ def get_ref_codon(x, ref_seq, gene2pos: dict):
 def get_alt_codon(x, seqs: dict):
     "Support function for fetching the alternative codon"
     try:
+        # TODO: remove all deletions from seq
         seq = seqs[x['idx']]
         codon_start = x['codon_start']
-        return seq[codon_start:codon_start+3].upper()
+        return seq.replace('-', '')[codon_start:codon_start+3].upper()
     except:
         return 'NA'
 
@@ -682,16 +729,6 @@ def is_frameshift(x):
     if x % 3 == 0:
         return False
     return True
-
-
-def get_dels_separated(x):
-    """Support function for separating deletions cuz karthik said so"""
-    c1 = int(x[x.find('DEL')+3:].split('/')[0])
-    try:
-        c2 = int(x.split('/')[1])
-        return np.arange(c1, c2+1)
-    except:
-        return c1
 
 
 def identify_replacements(cns, 

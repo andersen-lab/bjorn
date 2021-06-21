@@ -4,7 +4,7 @@ import re
 import json
 import argparse
 import pandas as pd
-import geopandas as gpd
+# import geopandas as gpd
 from path import Path
 import bjorn_support as bs
 import data as bd
@@ -22,7 +22,7 @@ def download_process_data(username, password, chunk_size, current_datetime):
     info_fp = out_dir/config['chunk_info']
     gadm_fp = config['gadm']
     is_test = config['feed_test']
-    test_size = 100
+    test_size = 1000
     metacols = ['covv_virus_name', 'covsurver_prot_mutations', 'covv_location',
                 'covv_lineage', 'covv_collection_date', 'covv_accession_id',
                 'pangolin_lineages_version', 'covv_clade', 'covv_subm_date']
@@ -81,7 +81,8 @@ def download_process_data(username, password, chunk_size, current_datetime):
                         'covv_accession_id': 'accession_id'
                         }, inplace=True)
         print(f"Loading GADM file containing geographic information...")
-        gadm = gpd.read_file(gadm_fp)
+        # gadm = gpd.read_file(gadm_fp)
+        gadm = pd.read_csv(gadm_fp, sep='\t')
         gadm_cols = [f'NAME_{i}' for i in range(5)]
         gadm = gadm[gadm_cols]
         print(f"Standardizing location information...")
