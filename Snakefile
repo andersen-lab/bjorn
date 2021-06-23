@@ -19,6 +19,7 @@ configfile: config_file
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
+current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
