@@ -8,72 +8,71 @@ import json
 import pandas as pd
 from path import Path
 import bjorn_support as bs
-
+import numpy as np
 
 # COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--inputdir",
+parser.add_argument("-i", "--inputmutations",
                         type=str,
                         required=True,
-                        help="Input directory containing chunked mutation results in csv files")
+                        help="Input mutations csv")
 parser.add_argument("-m", "--inputmeta",
                         type=str,
                         required=True,
-                        help="Input filepath containing chunked metadata for each sample")
+                        help="Input metadata")
 parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
                         help="Output filepath")
-parser.add_argument("-t", "--time",
+parser.add_argument("-u", "--unknownvalue",
                         type=str,
                         required=True,
-                        help="Current datetime")
-parser.add_argument("-c", "--configfile",
-                    type=str,
-                    required=True,
-                    help="Config JOSN file")
+                        help="Unknown value")
+parser.add_argument("-n", "--mindate",
+                        type=str,
+                        required=True,
+                        help="Minimum date")
+parser.add_argument("-g", "--geojson",
+                        type=str,
+                        required=True,
+                        help="GeoJSON prefix")
+parser.add_argument("-t", "--currentdate",
+                        type=str,
+                        required=True,
+                        help="Current date")
 
 args = parser.parse_args()
-input_dir = args.inputdir
-meta_fp = args.inputmeta
+input_mut = args.inputmutations
+input_metadata = args.inputmeta
 out_fp = args.outfp
-current_datetime = args.time
-config_file = args.configfile
-
-with open(config_file, 'r') as f:
-    config = json.load(f)
-
-out_dir = config['out_dir']
-log_fp = out_dir + '/' + 'logs' + '/' + config['log_file'] + '_' + current_datetime + '.txt'
-unknown_val = config['unknown_value']
-date = '-'.join(current_datetime.split('-')[:3])
-min_date = config['min_date']
+unknown_val = args.unknownvalue
+min_date = args.mindate
+geojson_prefix = args.geojson
+current_datetime = args.currentdate
 date_modified = '-'.join(current_datetime.split('-')[:3]) + '-' + ':'.join(current_datetime.split('-')[3:])
-api_data_fp = config['outbreak_fp']#/valhalla/gisaid/new_api_data.json.gz'
-meta_data_fp = config['meta_outbreak_fp']#'/valhalla/gisaid/new_genomics_metadata.json'
-countries_fp = config['countries_fp']#'/home/al/data/geojsons/gadm_countries.json'
-divisions_fp = config['divisions_fp']#'/home/al/data/geojsons/gadm_divisions.json'
-locations_fp = config['locations_fp']#'/home/al/data/geojsons/gadm_locations.json'
+max_date = '-'.join(current_datetime.split('-')[:3])
+
+api_data_fp = out_fp            # Output JSON
+
+countries_fp = '{}/gadm_countries.json'.format(geojson_prefix)
+divisions_fp = '{}/gadm_divisions.json'.format(geojson_prefix)
+locations_fp = '{}/gadm_locations.json'.format(geojson_prefix)
+
 with open(countries_fp) as f:
     countries = json.load(f)
 with open(divisions_fp) as f:
     divisions = json.load(f)
 with open(locations_fp) as f:
     locations = json.load(f)
-# write metadata info to json file
-metadata = {'date_modified': date_modified}
-with open(meta_data_fp, 'w') as fp:
-    json.dump(metadata, fp)
-# fetch list of mutation csv filepaths
-mut_fps = glob.glob(f"{input_dir}/*.mutations.csv")
+
 # concat with pd
-muts = pd.concat((pd.read_csv(fp, dtype=str) for fp in mut_fps))
+muts = pd.read_csv(input_mut, dtype=str)
 # ignore mutations found in non-coding regions
 muts = muts.loc[~(muts['gene']=='Non-coding region')]
 # fuse with metadata
 print(f"Fusing with metadata...")
 start = time.time()
-meta = pd.read_csv(meta_fp, sep='\t', compression='gzip')
+meta = pd.read_csv(input_metadata, sep='\t', compression='gzip')
 muts = pd.merge(muts, meta, left_on='idx', right_on='strain')
 fuse_time = time.time() - start
 # clean geographic information
@@ -96,25 +95,29 @@ muts = muts[muts['tmp'].str.len()>=2]
 muts.loc[muts['tmp'].str.len()==2, 'date_collected'] += '-15'
 muts['date_collected'] = pd.to_datetime(muts['date_collected'], errors='coerce')
 muts['date_collected'] = muts['date_collected'].astype(str)
-muts = muts[muts['date_collected']<date]
-muts = muts[muts['date_collected']>min_date]
-# filter out sequences with collection dates after submission dates
+# Date conditions
+muts = muts[muts['date_collected'] <= max_date]
+muts = muts[muts['date_collected'] > min_date]
+
+# Filter out sequences with collection dates after submission dates
 muts = muts.loc[muts['date_collected']<=muts['date_submitted']]
+
 # rename field names
-muts.rename(columns={
-    'country': 'country_original',
-    'division': 'division_original',
-    'location': 'location_original',
-    'country_lower': 'country_original_lower',
-    'division_lower': 'division_original_lower',
-    'location_lower': 'location_original_lower',
-    'country_normed': 'country',
-    'division_normed': 'division',
-    'location_normed': 'location',
-    'country_normed_lower': 'country_lower',
-    'division_normed_lower': 'division_lower',
-    'location_normed_lower': 'location_lower',
-    'del_len': 'change_length_nt'
+muts.rename(
+    columns={
+        'country': 'country_original',
+        'division': 'division_original',
+        'location': 'location_original',
+        'country_lower': 'country_original_lower',
+        'division_lower': 'division_original_lower',
+        'location_lower': 'location_original_lower',
+        'country_normed': 'country',
+        'division_normed': 'division',
+        'location_normed': 'location',
+        'country_normed_lower': 'country_lower',
+        'division_normed_lower': 'division_lower',
+        'location_normed_lower': 'location_lower',
+        'del_len': 'change_length_nt'
     }, inplace=True)
 
 # final cleaning (missing values)
@@ -128,22 +131,19 @@ meta_info = [
         'country_id', 'country', 'country_original', 'country_lower', 'country_original_lower',
         'division_id', 'division', 'division_original', 'division_lower', 'division_original_lower',
         'location_id', 'location', 'location_original', 'location_lower', 'location_original_lower',
-#         'submitting_lab', 'originating_lab',
-#         'authors',
         'pangolin_lineage', 'pangolin_version',
-        'clade',
-#         'nextstrain_clade',
-#         'gisaid_epi_isl', 'genbank_accession',
-#         'purpose_of_sequencing',
-            ]
+        'clade'
+]
 
-muts_info = ['type', 'mutation', 'gene',
-             'ref_codon', 'pos', 'alt_codon',
-             'is_synonymous',
-             'ref_aa', 'codon_num', 'alt_aa',
-             'absolute_coords',
-             'change_length_nt', 'is_frameshift',
-             'deletion_codon_coords']
+muts_info = [
+    'type', 'mutation', 'gene',
+    'ref_codon', 'pos', 'alt_codon',
+    'is_synonymous',
+    'ref_aa', 'codon_num', 'alt_aa',
+    'absolute_coords',
+    'change_length_nt', 'is_frameshift',
+    'deletion_codon_coords'
+]
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
 muts['date_modified'] = date_modified
 muts['country_id'] = muts['country'].apply(lambda x: countries.get(x, unknown_val)).astype(str)
@@ -156,44 +156,25 @@ muts['location_id'] = muts['tmp_info2'].apply(lambda x: locations.get(x, unknown
 # muts['location_id'] = muts['location'].apply(lambda x: locations.get(x, unknown_val))
 muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
 preprocess_time = time.time() - start
+
+# If deletions not in chunk add columns
+del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
+muts_columns = muts.columns.tolist()
+for i in del_columns:
+    if i not in muts_columns:
+        muts[i] = np.nan
+
 # GENERATE JSON DATA MODEL
 start = time.time()
-(muts.groupby(meta_info, as_index=True)
+(
+    muts.groupby(meta_info, as_index=True)
              .apply(lambda x: x[muts_info].to_dict('records'))
              .reset_index()
              .rename(columns={0:'mutations'})
-             .to_json(api_data_fp,
-                      orient='records'))
-io_time = time.time() - start
-start = time.time()
-gzip_cmd = f"gzip -f {api_data_fp}"
-bs.run_command(gzip_cmd)
-api_data_fp += '.gz'
-gzip_time = time.time() - start
-# print(f'Execution time: {end - start} seconds')
-# upload to gcloud
-upload_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil -m cp {api_data_fp} gs://andersen-lab_temp/outbreak_genomics/"
-bs.run_command(upload_cmd)
-# update gcloud access rights
-upload_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil -m cp {meta_data_fp} gs://andersen-lab_temp/outbreak_genomics/"
-bs.run_command(upload_cmd)
-# send auto-slack message about it? (nah, too much)
-access_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil acl ch -R -u AllUsers:R gs://andersen-lab_temp/outbreak_genomics/*"
-bs.run_command(access_cmd)
-api_data_fn = api_data_fp.split('/')[-1]
-stat_cmd = f"/home/al/code/google-cloud-sdk/bin/gsutil stat gs://andersen-lab_temp/outbreak_genomics/{api_data_fn}"
-upload_stats = bs.run_command_log(stat_cmd)
-# GENERATE CSV DATA MODEL
-num_records = muts.drop_duplicates(subset=meta_info).shape[0]
-num_ids = muts['accession_id'].unique().shape[0]
-muts.to_csv(out_fp, index=False)
-# Data logging
-with open(log_fp, 'w') as f:
-    f.write(f"Number of records: {num_records}\n")
-    f.write(f"Number of unique accession IDs: {num_ids}\n")
-    f.write(f"Metadata Fusion Execution time: {fuse_time} seconds\n")
-    f.write(f"Data Preprocessing Execution time: {preprocess_time} seconds\n")
-    f.write(f"IO Execution time: {io_time} seconds\n")
-    f.write(f"Gzip Execution time: {gzip_time} seconds\n")
-    f.write(f"GCloud upload statistics: \n {upload_stats}")
-print(f"Transfer Complete. All results saved in {out_dir}")
+             .to_json(
+                 api_data_fp,
+                 orient='records',
+                 lines = True,
+                 compression = "gzip"
+             )
+ )
