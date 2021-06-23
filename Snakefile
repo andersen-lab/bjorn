@@ -16,10 +16,11 @@ config_file = "config.json"
 
 configfile: config_file
 
-username = config['username']
-password = config['password']
+if "username" and "password" in config:
+    username = config['username']
+    password = config['password']
 out_dir = config['out_dir']
-current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
+current_datetime = config["current_datetime"] if config["current_datetime"] != False else datetime.now().strftime("%Y-%m-%d-%H-%M")
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
@@ -33,6 +34,14 @@ gadm_data = config["gadm_data"]
 rule all:
     input:
         "{out_dir}/api_data_{current_datetime}.json.gz".format(current_datetime = current_datetime, out_dir = out_dir)
+
+rule clean_chunks:
+    params:
+        out_dir = out_dir
+    shell:
+        """
+        rm -r {params.out_dir}/chunks_*
+        """
 
 rule merge_json:
     input:
@@ -54,10 +63,11 @@ rule merge_mutations_metadata:
         geojson_prefix=config["geojson_prefix"],
         min_date = config["min_date"]
     output:
-        "{out_dir}/chunks_apijson_{current_datetime}/{sample}.json.gz"
+        temp("{out_dir}/chunks_apijson_{current_datetime}/{sample}.json.gz")
     shell:
         """
         src/merge_results.py -i {input.muts} -m {input.metadata} -o {output} -u None -n {params.min_date}  -g {params.geojson_prefix} -t {params.current_datetime}
+        echo "" | gzip - >> {output} # Add new line as delimiter between chunks
         """
 
 # TODO: test msa_2_mutations.py
@@ -67,7 +77,7 @@ rule run_bjorn:
     params:
         patient_zero=patient_zero
     output:
-        "{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv"
+        temp("{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv")
     shell:
         """
         src/msa_2_mutations.py -i {input} -r {params.patient_zero} -o {output}
@@ -79,7 +89,7 @@ rule run_data2funk:
     params:
         reference_filepath=reference_filepath,
     output:
-        "{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta"
+        temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
     shell:
         """
         datafunk sam_2_fasta -s {input} -r {params.reference_filepath} -o {output} --pad --log-inserts
@@ -92,7 +102,7 @@ rule run_minimap2:
         num_cpus=num_cpus,
         reference_filepath=reference_filepath
     output:
-        "{out_dir}/chunks_sam_{current_datetime}/{sample}.sam",
+        temp("{out_dir}/chunks_sam_{current_datetime}/{sample}.sam")
     shell:
         """
         minimap2 -a -x asm5 -t {params.num_cpus} {params.reference_filepath} {input} -o {output}
@@ -102,8 +112,8 @@ rule convert_to_fasta:
     input:
         "{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
     output:
-        fasta="{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta",
-        metadata="{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz"
+        fasta=temp("{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"),
+        metadata=temp("{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz")
     params:
         tmp="{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta.tmp",
         reference_filepath=reference_filepath,
@@ -121,18 +131,19 @@ rule chunk_json:
         "{out_dir}/provision_{current_datetime}.json".format(gisaid_feed = config['gisaid_feed'], out_dir = out_dir, current_datetime = current_datetime)
     params:
         chunk_dir = "{out_dir}/chunks_json_{current_datetime}".format(current_datetime = current_datetime, out_dir = out_dir),
-        chunk_prefix = "chunk_json_{current_datetime}.".format(current_datetime = current_datetime)
+        chunk_prefix = "chunk_json_{current_datetime}.".format(current_datetime = current_datetime),
+        chunk_size = chunk_size
     threads: 1
     output:
-        dynamic("{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime))
+        temp(dynamic("{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)))
     shell:
         """
-        split -l10 -d -a 5 {input} {params.chunk_dir}/{params.chunk_prefix}
+        split --verbose -l{params.chunk_size} -d -a 5 {input} {params.chunk_dir}/{params.chunk_prefix}
         """
 
 rule download_sequences:
     output:
-        "{out_dir}/provision_{current_datetime}.json"
+        temp("{out_dir}/provision_{current_datetime}.json")
     params:
         current_datetime = current_datetime
     shell:
