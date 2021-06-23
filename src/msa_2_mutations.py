@@ -29,9 +29,9 @@ def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
   msa_load_time = time.time() - t0
   print(f"Identifying substitution-based mutations...")
   t0 = time.time()
-  subs, _ = bm.identify_replacements_per_sample(msa_data, 
-                                                # gisaid_meta,  
-                                                gene2pos=bd.GENE2POS, 
+  subs, _ = bm.identify_replacements_per_sample(msa_data,
+                                                # gisaid_meta,
+                                                gene2pos=bd.GENE2POS,
                                                 data_src=data_src,
                                                 min_seq_len=20000,
                                                 patient_zero=patient_zero
@@ -40,10 +40,10 @@ def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
   subs_time = time.time() - t0
   print(f"Identifying deletion-based mutations...")
   t0 = time.time()
-  dels, _ = bm.identify_deletions_per_sample(msa_data, 
-                                            #  gisaid_meta,  
-                                            gene2pos=bd.GENE2POS, 
-                                            data_src=data_src, 
+  dels, _ = bm.identify_deletions_per_sample(msa_data,
+                                            #  gisaid_meta,
+                                            gene2pos=bd.GENE2POS,
+                                            data_src=data_src,
                                             min_del_len=1,
                                             max_del_len=500,
                                             min_seq_len=20000,
@@ -95,6 +95,7 @@ if __name__=="__main__":
 
   with open('config.json', 'r') as f:
       config = json.load(f)
+  print(config)
 
   patient_zero = config['patient_zero']
   data_src = config['data_source']
@@ -104,9 +105,9 @@ if __name__=="__main__":
   msa_load_time = time.time() - t0
   print(f"Identifying substitution-based mutations...")
   t0 = time.time()
-  subs, _ = bm.identify_replacements_per_sample(msa_data, 
-                                                # gisaid_meta,  
-                                                gene2pos=bd.GENE2POS, 
+  subs, _ = bm.identify_replacements_per_sample(msa_data,
+                                                # gisaid_meta,
+                                                gene2pos=bd.GENE2POS,
                                                 data_src=data_src,
                                                 min_seq_len=20000,
                                                 patient_zero=patient_zero
@@ -115,10 +116,10 @@ if __name__=="__main__":
   subs_time = time.time() - t0
   print(f"Identifying deletion-based mutations...")
   t0 = time.time()
-  dels, _ = bm.identify_deletions_per_sample(msa_data, 
-                                            #  gisaid_meta,  
-                                            gene2pos=bd.GENE2POS, 
-                                            data_src=data_src, 
+  dels, _ = bm.identify_deletions_per_sample(msa_data,
+                                            #  gisaid_meta,
+                                            gene2pos=bd.GENE2POS,
+                                            data_src=data_src,
                                             min_del_len=1,
                                             max_del_len=500,
                                             min_seq_len=20000,
