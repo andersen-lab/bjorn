@@ -12,12 +12,15 @@ import msa_2_mutations as bm
 
 
 # load user parameters
-configfile: "config.json"
+config_file = "config_test.json"
+
+configfile: config_file
 
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
-current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
+# current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
+current_datetime = "2021-06-22-17-25"
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
@@ -33,7 +36,7 @@ reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
 
 # Download and pre-process GISAID data
-download_cmd = f"src/json2fasta.py -u {username} -p {password} -s {chunk_size} -t {current_datetime}"
+download_cmd = f"src/json2fasta.py -u {username} -p {password} -s {chunk_size} -t {current_datetime} -c {config_file}"
 bs.run_command(download_cmd)
 info_df = pd.read_csv(info_filepath)
 # info_df = bj.download_process_data(username, password, chunk_size)
@@ -53,7 +56,7 @@ rule all:
 
 
 
-# TODO: create merge_mutations.py 
+# TODO: create merge_mutations.py
 rule merge_results:
     input:
         expand("{chunks_dir}/muts/{current_datetime}/{sample}.mutations.csv", chunks_dir = chunks_dir, sample = info_df['chunk_names'], current_datetime = current_datetime),
@@ -61,15 +64,15 @@ rule merge_results:
     threads: 1
     params:
         current_datetime=current_datetime,
+        configfile = config_file
     output:
         "{out_dir}/mutations_{current_datetime}.csv"
     shell:
         """
-        src/merge_results.py -i {chunks_dir}/muts/{current_datetime}/ -m {input.meta_filepath} -o {output} -t {params.current_datetime}
+        src/merge_results.py -i {chunks_dir}/muts/{current_datetime}/ -m {input.meta_filepath} -o {output} -t {params.current_datetime} -c {params.configfile}
         """
 
-
-# TODO: test msa_2_mutations.py 
+# TODO: test msa_2_mutations.py
 rule run_bjorn:
     input:
         "{chunks_dir}/msa/{current_datetime}/{sample}.aligned.fasta"
