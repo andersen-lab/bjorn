@@ -51,6 +51,7 @@ rule merge_json:
     shell:
         """
         cat {input} > {output}
+        src/upload.sh {output} # Upload to Google cloud
         """
 
 rule merge_mutations_metadata:
