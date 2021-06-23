@@ -19,8 +19,7 @@ configfile: config_file
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
-# current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M")
-current_datetime = "2021-06-22-17-25"
+current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M") # Set to provision JSON while testing
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
