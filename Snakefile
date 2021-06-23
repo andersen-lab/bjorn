@@ -12,7 +12,7 @@ import msa_2_mutations as bm
 
 
 # load user parameters
-config_file = "config_test.json"
+config_file = "config.json"
 
 configfile: config_file
 
