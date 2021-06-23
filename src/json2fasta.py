@@ -7,6 +7,7 @@ import pandas as pd
 from path import Path
 import bjorn_support as bs
 import data as bd
+import numpy as np
 
 def convert_to_fasta(input_json, output_prefix, gadm_fp):
     output_fasta = "{}.fasta".format(output_prefix)
@@ -74,8 +75,12 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
         columns=region_columns[:int(max_region_columns)]
     )
     df['country'] = res['country'].str.strip()
-    df['division'] = res['division'].str.strip()
-    df['location'] = res['location'].str.strip()
+    if max_region_columns >= 3:
+        df['division'] = res['division'].str.strip()
+    else:
+        df["division"] = np.nan
+    if max_region_columns >= 4:
+        df['location'] = res['location'].str.strip()
     print(f"Admin0 standardization...")
     df['country_normed'] = df['country'].copy()
     df['country_normed'].fillna('None', inplace=True)
