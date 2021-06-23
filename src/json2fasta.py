@@ -9,11 +9,8 @@ from path import Path
 import bjorn_support as bs
 import data as bd
 
-
-
-
-def download_process_data(username, password, chunk_size, current_datetime):
-    with open('config.json', 'r') as f:
+def download_process_data(username, password, chunk_size, current_datetime, config_file = "config.json"):
+    with open(config_file, 'r') as f:
         config = json.load(f)
     out_dir = Path(config['out_dir'])
     in_fp = out_dir/(config['gisaid_feed'] + '_' + current_datetime + '.json')
@@ -54,7 +51,7 @@ def download_process_data(username, password, chunk_size, current_datetime):
     if not Path.isfile(Path(out_fp)):
         print(f"Converting to dict...")
         regex = re.compile('[^a-zA-Z]')
-        seqs_dict = {sample['covv_virus_name'].replace('hCoV-19/', '').replace(' ', ''): 
+        seqs_dict = {sample['covv_virus_name'].replace('hCoV-19/', '').replace(' ', ''):
                     regex.sub('', sample['sequence'].replace('\n', '')) for sample in data}
         print(f"Converting to FASTA...")
         bs.dict2fasta(seqs_dict, out_fp)
@@ -71,8 +68,8 @@ def download_process_data(username, password, chunk_size, current_datetime):
         print(f"Total number of sequences: {num_ids}")
         print(f"Cleaning metadata")
         df.rename(columns={
-                        'covv_virus_name': 'strain', 
-                        'covv_location': 'location', 
+                        'covv_virus_name': 'strain',
+                        'covv_location': 'location',
                         'covv_collection_date': 'date_collected',
                         'covv_subm_date': 'date_submitted',
                         'covv_clade': 'clade',
@@ -85,21 +82,23 @@ def download_process_data(username, password, chunk_size, current_datetime):
         gadm_cols = [f'NAME_{i}' for i in range(5)]
         gadm = gadm[gadm_cols]
         print(f"Standardizing location information...")
-        res = pd.DataFrame(df['location'].str.split('/').tolist(), 
-                    columns=['region',
-                            'country', 
-                            'division', 
-                            'location', 
-                            'city', 
-                            'town'
-                            ])
+        max_region_columns = df["location"].apply(lambda x: len(x.split("/"))).max()
+        region_columns = ['region',
+                          'country',
+                          'division',
+                          'location',
+                          'city',
+                          'town'
+                          ]
+        res = pd.DataFrame(df['location'].str.split('/').tolist(),
+                           columns=region_columns[:int(max_region_columns)])
         df['country'] = res['country'].str.strip()
         df['division'] = res['division'].str.strip()
         df['location'] = res['location'].str.strip()
         print(f"Admin0 standardization...")
         df['country_normed'] = df['country'].copy()
         df['country_normed'].fillna('None', inplace=True)
-        df.loc[df['country_normed'].str.lower()=='usa', 'country_normed'] = 'United States'     
+        df.loc[df['country_normed'].str.lower()=='usa', 'country_normed'] = 'United States'
         df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains('Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
         df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains('Democratic')), 'country_normed'] = 'Republic of Congo'
         df.loc[df['country_normed'].str.contains('Eswatini'), 'country_normed'] = "Swaziland"
@@ -228,33 +227,33 @@ def download_process_data(username, password, chunk_size, current_datetime):
         df.loc[df['division_normed'].str.contains('Thuringia'), 'division_normed'] = 'Thüringen'
         # South Africa
         df.loc[(df['country_normed'].str.contains('South Africa'))
-                & (df['division_normed'].str.contains('KwaZulu Natal')), 
+                & (df['division_normed'].str.contains('KwaZulu Natal')),
                'division_normed'] = 'KwaZulu-Natal'
         df.loc[(df['country_normed'].str.contains('South Africa'))
-             & (df['division_normed'].str.contains('Northern Cape Province')), 
+             & (df['division_normed'].str.contains('Northern Cape Province')),
                'division_normed'] = 'Northern Cape'
         # Austria
-        df.loc[(df['country_normed']=='Austria') 
+        df.loc[(df['country_normed']=='Austria')
              & (df['division_normed']=='Tyrol'), 'division_normed'] = 'Tirol'
         # Switzerland
         df.loc[df['division_normed'].str.contains('Argovie'), 'division_normed'] = 'Aargau'
         df.loc[df['division_normed'].str.contains('Geneva'), 'division_normed'] = 'Genève'
         df.loc[df['division_normed'].str.contains('Grabunden'), 'division_normed'] = 'Graubünden'
-        df.loc[df['division_normed'].str.contains('Luzern'), 'division_normed'] = 'Lucerne' 
-        df.loc[df['division_normed'].str.contains('Neuchatel'), 'division_normed'] = 'Neuchâtel' 
-        df.loc[df['division_normed'].str.contains('Neuenburg'), 'division_normed'] = 'Neuchâtel' 
-        df.loc[df['division_normed'].str.contains('Obwald'), 'division_normed'] = 'Obwalden' 
-        df.loc[df['division_normed'].str.contains('Saint-Gall'), 'division_normed'] = 'Sankt Gallen' 
-        df.loc[df['division_normed'].str.contains('St Gallen'), 'division_normed'] = 'Sankt Gallen' 
-        df.loc[df['division_normed'].str.contains('St. Gallen'), 'division_normed'] = 'Sankt Gallen' 
-        df.loc[df['division_normed'].str.contains('Schaffhouse'), 'division_normed'] = 'Schaffhausen' 
-        df.loc[df['division_normed'].str.contains('Turgovia'), 'division_normed'] = 'Thurgau' 
-        df.loc[df['division_normed'].str.contains('VALAIS'), 'division_normed'] = 'Valais' 
-        df.loc[df['division_normed'].str.contains('Waadt'), 'division_normed'] = 'Vaud' 
-        df.loc[df['division_normed'].str.contains('Wallis'), 'division_normed'] = 'Valais' 
-        df.loc[df['division_normed'].str.contains('Zaerich'), 'division_normed'] = 'Zürich' 
-        df.loc[df['division_normed'].str.contains('Zoerich'), 'division_normed'] = 'Zürich' 
-        df.loc[df['division_normed'].str.contains('Zurich'), 'division_normed'] = 'Zürich' 
+        df.loc[df['division_normed'].str.contains('Luzern'), 'division_normed'] = 'Lucerne'
+        df.loc[df['division_normed'].str.contains('Neuchatel'), 'division_normed'] = 'Neuchâtel'
+        df.loc[df['division_normed'].str.contains('Neuenburg'), 'division_normed'] = 'Neuchâtel'
+        df.loc[df['division_normed'].str.contains('Obwald'), 'division_normed'] = 'Obwalden'
+        df.loc[df['division_normed'].str.contains('Saint-Gall'), 'division_normed'] = 'Sankt Gallen'
+        df.loc[df['division_normed'].str.contains('St Gallen'), 'division_normed'] = 'Sankt Gallen'
+        df.loc[df['division_normed'].str.contains('St. Gallen'), 'division_normed'] = 'Sankt Gallen'
+        df.loc[df['division_normed'].str.contains('Schaffhouse'), 'division_normed'] = 'Schaffhausen'
+        df.loc[df['division_normed'].str.contains('Turgovia'), 'division_normed'] = 'Thurgau'
+        df.loc[df['division_normed'].str.contains('VALAIS'), 'division_normed'] = 'Valais'
+        df.loc[df['division_normed'].str.contains('Waadt'), 'division_normed'] = 'Vaud'
+        df.loc[df['division_normed'].str.contains('Wallis'), 'division_normed'] = 'Valais'
+        df.loc[df['division_normed'].str.contains('Zaerich'), 'division_normed'] = 'Zürich'
+        df.loc[df['division_normed'].str.contains('Zoerich'), 'division_normed'] = 'Zürich'
+        df.loc[df['division_normed'].str.contains('Zurich'), 'division_normed'] = 'Zürich'
         df.loc[df['division_normed'].str.contains('Unkown'), 'division_normed'] = 'Unknown'
         df.loc[df['division_normed'].str.contains('Basel-Land'), 'division_normed'] = 'Basel-Landschaft'
         df.loc[df['division_normed'].str.contains('Grisons'), 'division_normed'] = 'Graubünden'
@@ -427,10 +426,15 @@ if __name__=="__main__":
                             type=str,
                             required=True,
                             help="Current datetime")
+    parser.add_argument("-c", "--configfile",
+                            type=str,
+                            required=True,
+                            help="Config JOSN file")
     args = parser.parse_args()
     username = args.username
     password = args.password
     chunk_size = args.size
     current_datetime = args.time
-    result = download_process_data(username, password, chunk_size, current_datetime)
+    config_file = args.configfile
+    result = download_process_data(username, password, chunk_size, current_datetime, config_file)
     assert result==0, "ERROR: downloading GISAID data incomplete. Please inspect log."
