@@ -8,7 +8,6 @@ import json
 import pandas as pd
 from path import Path
 
-
 import bjorn_support as bs
 import mutations as bm
 import data as bd
@@ -95,7 +94,6 @@ if __name__=="__main__":
 
   with open('config.json', 'r') as f:
       config = json.load(f)
-  print(config)
 
   patient_zero = config['patient_zero']
   data_src = config['data_source']
