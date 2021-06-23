@@ -10,7 +10,7 @@ import data as bd
 
 def convert_to_fasta(input_json, output_prefix, gadm_fp):
     output_fasta = "{}.fasta".format(output_prefix)
-    output_metadata = "{}.csv.gz".format(output_prefix)
+    output_metadata = "{}.tsv.gz".format(output_prefix)
     metacols = [
         'covv_virus_name',
         'covsurver_prot_mutations',
