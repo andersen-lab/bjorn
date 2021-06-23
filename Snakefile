@@ -12,54 +12,51 @@ import msa_2_mutations as bm
 import os
 
 # load user parameters
-config_file = "config_test.json"
+config_file = "config.json"
 
 configfile: config_file
 
 username = config['username']
 password = config['password']
 out_dir = config['out_dir']
-# current_datetime = datetime.now().strftime("%Y-%m-%d-%H-%M") # Set to provision JSON while testing
-current_datetime = "2021-06-22-17-25"
 gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
 meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
 info_filepath = out_dir + '/' + config['chunk_info']
-# sam_dir = chunks_dir + '/sam/' + current_date
-# msa_dir = chunks_dir + '/msa/' + current_date
-# muts_dir = chunks_dir + '/muts/' + current_date
 logs_dir = out_dir + '/logs'
 chunk_size = int(config['chunk_size'])
 num_cpus = int(config['num_cpus'])
 reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
-
-# Download and pre-process GISAID data
-# download_cmd = f"src/json2fasta.py -u {username} -p {password} -s {chunk_size} -t {current_datetime} -c {config_file}"
-
-# bs.run_command(download_cmd)
-# info_df = pd.read_csv(info_filepath)
-# info_df = bj.download_process_data(username, password, chunk_size)
-
+gadm_data = config["gadm_data"]
 
 rule all:
     input:
-        "{out_dir}/mutations_{current_datetime}.csv".format(out_dir = out_dir, current_datetime = current_datetime), # output data (signal)
+        "{out_dir}/api_data_{current_datetime}.json.gz".format(current_datetime = current_datetime, out_dir = out_dir)
 
-# TODO: create merge_mutations.py
-rule merge_results:
+rule merge_json:
     input:
-        dynamic("{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv"),
-        meta_filepath=meta_filepath
+        dynamic("{out_dir}/chunks_apijson_{current_datetime}/{{sample}}.json.gz".format(out_dir = out_dir, current_datetime = current_datetime))
+    output:
+        "{out_dir}/api_data_{current_datetime}.json.gz"
+    shell:
+        """
+        cat {input} > {output}
+        """
+
+rule merge_mutations_metadata:
+    input:
+        muts="{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv",
+        metadata="{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz"
     threads: 1
     params:
         current_datetime=current_datetime,
-        configfile = config_file,
-        chunk_muts="{out_dir}/chunks_muts_{current_datetime}".format(out_dir = out_dir, current_datetime = current_datetime)
+        geojson_prefix=config["geojson_prefix"],
+        min_date = config["min_date"]
     output:
-        "{out_dir}/mutations_{current_datetime}.csv"
+        "{out_dir}/chunks_apijson_{current_datetime}/{sample}.json.gz"
     shell:
         """
-        src/merge_results.py -i {params.chunk_muts}/ -m {input.meta_filepath} -o {output} -t {params.current_datetime} -c {params.configfile}
+        src/merge_results.py -i {input.muts} -m {input.metadata} -o {output} -u None -n {params.min_date}  -g {params.geojson_prefix} -t {params.current_datetime}
         """
 
 # TODO: test msa_2_mutations.py
@@ -67,15 +64,13 @@ rule run_bjorn:
     input:
         "{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta"
     params:
-        patient_zero=patient_zero,
+        patient_zero=patient_zero
     output:
         "{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv"
     shell:
         """
         src/msa_2_mutations.py -i {input} -r {params.patient_zero} -o {output}
         """
-        # for i, o in zip(input, output):
-        #     _ = bm.msa_2_mutations(i, params.patient_zero, o, config)
 
 rule run_data2funk:
     input:
@@ -91,7 +86,7 @@ rule run_data2funk:
 
 rule run_minimap2:
     input:
-        "{out_dir}/chunks_fasta_{current_datetime}/fasta/{sample}.fasta"
+        "{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"
     params:
         num_cpus=num_cpus,
         reference_filepath=reference_filepath
@@ -104,31 +99,39 @@ rule run_minimap2:
 
 rule convert_to_fasta:
     input:
-        "{out_dir}/chunks_json_{current_datetime}/{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
+        "{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
     output:
-        "{out_dir}/chunks_fasta_{current_datetime}/fasta/{sample}.fasta"
+        fasta="{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta",
+        metadata="{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz"
+    params:
+        tmp="{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta.tmp",
+        reference_filepath=reference_filepath,
+        gadm_data = gadm_data,
+        output_prefix="{out_dir}/chunks_fasta_{current_datetime}/{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
     shell:
         """
-        json2fasta.py 
-        src/chunk_fasta.py -f {input} -r {params.reference_filepath} -s {params.chunk_size} -o {chunks_dir}/fasta/{current_datetime}
+        src/json2fasta.py -i {input} -o {params.output_prefix} -g {params.gadm_data}
+        cat {output.fasta} {params.reference_filepath} > {params.tmp}
+        mv {params.tmp} {output.fasta}
         """
 
 rule chunk_json:
     input:
-        "{out_dir}/{gisaid_feed}_{current_datetime}.json".format(gisaid_feed = config['gisaid_feed'], out_dir = out_dir, current_datetime = current_datetime)
+        "{out_dir}/provision_{current_datetime}.json".format(gisaid_feed = config['gisaid_feed'], out_dir = out_dir, current_datetime = current_datetime)
     params:
-        chunk_dir = "{out_dir}/chunks_json_{current_datetime}/".format(current_datetime = current_datetime, out_dir = out_dir)
+        chunk_dir = "{out_dir}/chunks_json_{current_datetime}".format(current_datetime = current_datetime, out_dir = out_dir),
+        chunk_prefix = "chunk_json_{current_datetime}.".format(current_datetime = current_datetime)
     threads: 1
     output:
-        "{out_dir}/chunks_json_{current_datetime}/{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
+        dynamic("{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime))
     shell:
         """
-        split -l10 -d 5 {input} {params.chunk_dir}/{input}.
+        split -l10 -d -a 5 {input} {params.chunk_dir}/{params.chunk_prefix}
         """
 
 rule download_sequences:
     output:
-        "{out_dir}/{gisaid_feed}_{current_datetime}.json"
+        "{out_dir}/provision_{current_datetime}.json"
     params:
         current_datetime = current_datetime
     shell:
