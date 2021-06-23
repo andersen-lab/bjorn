@@ -28,14 +28,19 @@ parser.add_argument("-t", "--time",
                         type=str,
                         required=True,
                         help="Current datetime")
+parser.add_argument("-c", "--configfile",
+                    type=str,
+                    required=True,
+                    help="Config JOSN file")
 
 args = parser.parse_args()
 input_dir = args.inputdir
 meta_fp = args.inputmeta
 out_fp = args.outfp
 current_datetime = args.time
+config_file = args.configfile
 
-with open('config.json', 'r') as f:
+with open(config_file, 'r') as f:
     config = json.load(f)
 
 out_dir = config['out_dir']
@@ -124,19 +129,19 @@ meta_info = [
         'division_id', 'division', 'division_original', 'division_lower', 'division_original_lower',
         'location_id', 'location', 'location_original', 'location_lower', 'location_original_lower',
 #         'submitting_lab', 'originating_lab',
-#         'authors', 
+#         'authors',
         'pangolin_lineage', 'pangolin_version',
-        'clade', 
+        'clade',
 #         'nextstrain_clade',
 #         'gisaid_epi_isl', 'genbank_accession',
 #         'purpose_of_sequencing',
             ]
 
-muts_info = ['type', 'mutation', 'gene', 
-             'ref_codon', 'pos', 'alt_codon', 
-             'is_synonymous', 
-             'ref_aa', 'codon_num', 'alt_aa', 
-             'absolute_coords', 
+muts_info = ['type', 'mutation', 'gene',
+             'ref_codon', 'pos', 'alt_codon',
+             'is_synonymous',
+             'ref_aa', 'codon_num', 'alt_aa',
+             'absolute_coords',
              'change_length_nt', 'is_frameshift',
              'deletion_codon_coords']
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
