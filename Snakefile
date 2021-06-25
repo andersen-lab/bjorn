@@ -29,6 +29,7 @@ chunk_size = int(config['chunk_size'])
 num_cpus = int(config['num_cpus'])
 reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
+data_source = config['data_source']
 gadm_data = config["gadm_data"]
 
 rule all:
@@ -51,7 +52,7 @@ rule merge_json:
     shell:
         """
         cat {input} > {output}
-        src/upload.sh {output} # Upload to Google cloud
+        # src/upload.sh {output} # Upload to Google cloud
         """
 
 rule merge_mutations_metadata:
@@ -76,12 +77,13 @@ rule run_bjorn:
     input:
         "{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta"
     params:
-        patient_zero=patient_zero
+        patient_zero=patient_zero,
+        data_source=data_source
     output:
         temp("{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv")
     shell:
         """
-        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -o {output}
+        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -d {params.data_source} -o {output}
         """
 
 rule run_data2funk:
