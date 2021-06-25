@@ -82,6 +82,10 @@ if __name__=="__main__":
                           type=str,
                           default="NC_045512.2",
                           help="Sample name of reference sequence")
+  parser.add_argument("-d", "--data-src",
+                        type=str,
+                        default="gisaid_feed",
+                        help="Data source")
   parser.add_argument("-o", "--outfp",
                           type=str,
                           required=True,
@@ -90,13 +94,9 @@ if __name__=="__main__":
   alignment_filepath = args.input
   # gisaid_meta = args.meta
   patient_zero = args.patient_zero
+  data_src = args.data_src
   out_fp = Path(args.outfp)
 
-  with open('config.json', 'r') as f:
-      config = json.load(f)
-
-  patient_zero = config['patient_zero']
-  data_src = config['data_source']
   print(f"Loading alignment file at {alignment_filepath}")
   t0 = time.time()
   msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
