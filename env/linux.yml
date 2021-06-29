@@ -23,7 +23,7 @@ dependencies:
   - backports=1.0=py_2
   - backports.functools_lru_cache=1.6.1=py_0
   - bcrypt=3.2.0=py36h8c4c3a4_1
-  - biopython=1.78=py36h8f6f2f9_1
+  - biopython=1.79=py36h8f6f2f9_0
   - boost-cpp=1.74.0=hc6e9bd1_2
   - boto3=1.16.49=pyhd8ed1ab_0
   - botocore=1.19.49=pyhd8ed1ab_0
@@ -31,10 +31,10 @@ dependencies:
   - brotlipy=0.7.0=py36he6145b8_1001
   - bzip2=1.0.8=h7f98852_4
   - c-ares=1.17.1=h36c2ea0_0
-  - ca-certificates=2020.12.5=ha878542_0
+  - ca-certificates=2021.5.25=h06a4308_1
   - cachetools=4.1.1=py_0
   - cairo=1.16.0=h7979940_1007
-  - certifi=2020.12.5=py36h5fab9bb_1
+  - certifi=2021.5.30=py36h06a4308_0
   - cffi=1.14.5=py36hc120d54_0
   - cfitsio=3.470=hb418390_7
   - chardet=3.0.4=py36h9880bd3_1008
@@ -102,10 +102,12 @@ dependencies:
   - importlib-metadata=3.3.0=py36h5fab9bb_2
   - importlib_metadata=3.3.0=hd8ed1ab_2
   - isa-l=2.30.0=ha770c72_3
+  - itsdangerous=1.1.0=py36_0
   - ivar=1.3.1=h089eab3_0
   - jinja2=2.11.2=pyh9f0ad1d_0
   - jmespath=0.10.0=pyh9f0ad1d_0
   - jpeg=9d=h36c2ea0_0
+  - jq=1.6=h27cfd23_1000
   - json-c=0.15=h98cffda_0
   - jsonschema=3.2.0=py_2
   - k8=0.2.5=he513fc3_0
@@ -173,8 +175,9 @@ dependencies:
   - nss=3.62=hb5efdd6_0
   - numpy=1.19.5=py36h2aa4a07_0
   - olefile=0.46=pyh9f0ad1d_1
+  - oniguruma=6.9.7.1=h27cfd23_0
   - openjpeg=2.4.0=hf7af979_0
-  - openssl=1.1.1j=h7f98852_0
+  - openssl=1.1.1k=h27cfd23_0
   - orc=1.6.7=h7950760_0
   - pandas=1.1.4=py36hd87012b_0
   - pango=1.42.4=h69149e4_5
@@ -254,6 +257,7 @@ dependencies:
   - tzcode=2021a=h7f98852_0
   - urllib3=1.26.2=pyhd8ed1ab_0
   - wcwidth=0.2.5=pyh9f0ad1d_2
+  - werkzeug=1.0.1=py_0
   - wheel=0.36.2=pyhd3deb0d_0
   - wrapt=1.12.1=py36h1d69622_2
   - xerces-c=3.2.3=h9d8b166_2
@@ -307,4 +311,3 @@ dependencies:
     - unicodecsv==0.14.1
     - unidecode==1.2.0
     - xlrd==2.0.1
-prefix: /home/al/anaconda3/envs/pipeline
