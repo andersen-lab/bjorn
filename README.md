@@ -23,14 +23,14 @@ conda activate bjorn
 ```bash
 conda activate bjorn
 ```
-* Open `config.json` to specify your parameters such as
-    * current date
-    * date appended to each filepath 
+* Copy and modify `test_config.json` to specify your parameters such as
+    * gisaid sign-in info 
     * output directory where results are saved
-    * number of CPU cores available for use 
-* Run the `run_sitrep.sh` script to initiate the Snakemake pipeline
+    * number of CPU cores available for use by minimap2
+    * current date (false for latest; fix for testing)    
+* Run the `run_pipeline.sh` script to initiate the Snakemake pipeline
 ```bash
-bash run_sitrep.sh
+bash run_pipeline.sh [CONFIG_FILE]
 ```
 
 ### Post-processing of SARS-CoV-2 Sequencing Results for Release to public databases
