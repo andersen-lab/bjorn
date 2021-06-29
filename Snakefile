@@ -1,57 +1,95 @@
-import sys
-sys.path.append('src/')
-from path import Path
 from datetime import datetime
-import pandas as pd
-import json
-import argparse
-import bjorn_support as bs
-import json2fasta as bj
-import chunk_fasta as bf
-import msa_2_mutations as bm
-import os
 
 # load user parameters
-config_file = "config.json"
+configfile: "test_config.json"
 
-configfile: config_file
-
-if "username" and "password" in config:
-    username = config['username']
-    password = config['password']
+username = config['gisaid_username']
+password = config['gisaid_password']
 out_dir = config['out_dir']
+include_hash = config['include_hash']
 current_datetime = config["current_datetime"] if config["current_datetime"] != False else datetime.now().strftime("%Y-%m-%d-%H-%M")
-gisaid_sequences_filepath = out_dir + '/' + config['gisaid_fasta'] + '_' + current_datetime + '.fasta'
-meta_filepath = out_dir + '/' + config['gisaid_meta'] + '_' + current_datetime + '.tsv.gz'
-info_filepath = out_dir + '/' + config['chunk_info']
-logs_dir = out_dir + '/logs'
 chunk_size = int(config['chunk_size'])
 num_cpus = int(config['num_cpus'])
 reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
+data_source = config['data_source']
 gadm_data = config["gadm_data"]
 
 rule all:
     input:
-        "{out_dir}/api_data_{current_datetime}.json.gz".format(current_datetime = current_datetime, out_dir = out_dir)
-
-rule clean_chunks:
+        meta="{out_dir}/api_metadata_latest.json".format(out_dir = out_dir),
+        data="{out_dir}/_api_data_{current_datetime}.json.gz".format(out_dir = out_dir, current_datetime=current_datetime),
+    output:
+        "{out_dir}/api_data_latest.json.gz".format(out_dir = out_dir)
     params:
         out_dir = out_dir
     shell:
         """
-        rm -r {params.out_dir}/chunks_*
+        rm -rf {params.out_dir}/chunks_*
+        ln -f {input.data} {params.out_dir}/api_data_latest.json.gz
+        """
+
+rule upload:
+    input:
+        meta="{out_dir}/api_metadata_latest.json".format(out_dir = out_dir),
+        data="{out_dir}/api_data_latest.json.gz".format(out_dir = out_dir)
+    params:
+        out_dir = out_dir
+    shell:
+        """
+        src/cloud_upload.sh {params.out_dir} 
+        """
+
+rule clear:
+    params:
+        out_dir = out_dir
+    threads: 1
+    shell:
+        """
+        rm -f {params.out_dir}/api_data_latest.json.gz
+        rm -f {params.out_dir}/api_metadata_latest.json
+        """
+
+rule clean:
+    params:
+        out_dir = out_dir
+    threads: 1 
+    shell:
+        """
+        rm -rf {params.out_dir}/chunks_*
+        rm -f {params.out_dir}/*api*.json*
+        """
+
+rule build_meta:
+    input:
+        "{out_dir}/_api_data_{current_datetime}.json.gz".format(out_dir = out_dir, current_datetime = current_datetime)
+    output:
+        "{out_dir}/api_metadata_latest.json"
+    params:
+        out_dir = out_dir,
+        include_hash = include_hash
+    threads: 1 
+    shell:
+        """
+        echo "{{ \\""date_modified\\"": \\""{current_datetime}\\"", \
+                 \\""records\\"": $(gunzip -c {input} | wc -l) " \
+$( {params.include_hash} && echo \
+               ",\\""hash\\"": \\""$(gunzip -c {input} | jq -cs 'sort|.[]' | md5sum | cut  -d' ' -f1)\\"" " \
+) \
+             "}}" | jq -c '.' > {params.out_dir}/_api_metadata_{current_datetime}.json
+        cat {params.out_dir}/_api_metadata_{current_datetime}.json
+        ln -f {params.out_dir}/_api_metadata_{current_datetime}.json {output}
         """
 
 rule merge_json:
     input:
         dynamic("{out_dir}/chunks_apijson_{current_datetime}/{{sample}}.json.gz".format(out_dir = out_dir, current_datetime = current_datetime))
     output:
-        "{out_dir}/api_data_{current_datetime}.json.gz"
+        "{out_dir}/_api_data_{current_datetime}.json.gz"
+    threads: 1 
     shell:
         """
         cat {input} > {output}
-        src/upload.sh {output} # Upload to Google cloud
         """
 
 rule merge_mutations_metadata:
@@ -71,17 +109,18 @@ rule merge_mutations_metadata:
         echo "" | gzip - >> {output} # Add new line as delimiter between chunks
         """
 
-# TODO: test msa_2_mutations.py
 rule run_bjorn:
     input:
         "{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta"
     params:
-        patient_zero=patient_zero
+        patient_zero=patient_zero,
+        data_source=data_source
     output:
         temp("{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv")
+    threads: 1
     shell:
         """
-        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -o {output}
+        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -d {params.data_source} -o {output}
         """
 
 rule run_data2funk:
@@ -91,6 +130,7 @@ rule run_data2funk:
         reference_filepath=reference_filepath,
     output:
         temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
+    threads: 1 
     shell:
         """
         datafunk sam_2_fasta -s {input} -r {params.reference_filepath} -o {output} --pad --log-inserts
@@ -104,6 +144,7 @@ rule run_minimap2:
         reference_filepath=reference_filepath
     output:
         temp("{out_dir}/chunks_sam_{current_datetime}/{sample}.sam")
+    threads: num_cpus
     shell:
         """
         minimap2 -a -x asm5 -t {params.num_cpus} {params.reference_filepath} {input} -o {output}
@@ -120,6 +161,7 @@ rule convert_to_fasta:
         reference_filepath=reference_filepath,
         gadm_data = gadm_data,
         output_prefix="{out_dir}/chunks_fasta_{current_datetime}/{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
+    threads: 1
     shell:
         """
         src/json2fasta.py -i {input} -o {params.output_prefix} -g {params.gadm_data}
@@ -146,7 +188,10 @@ rule download_sequences:
     output:
         temp("{out_dir}/provision_{current_datetime}.json")
     params:
-        current_datetime = current_datetime
+        current_datetime = current_datetime,
+        username = username,
+        password = password
+    threads: 1
     shell:
         """
         curl -u {username}:{password} https://www.epicov.org/epi3/3p/scripps/export/provision.json.xz | xz -d -T8 > {output}
