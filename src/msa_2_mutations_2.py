@@ -1,72 +1,36 @@
 #!/usr/bin/env python
-import os
-import sys
-import gc
+
 import argparse
+import csv
+import lzma
 import time
-import json
+
 import pandas as pd
 from path import Path
 
-import bjorn_support as bs
+from Bio import AlignIO, SeqIO
+
+# import bjorn_support as bs
 import mutations as bm
 import data as bd
 
 
-# def msa_2_mutations(alignment_filepath, patient_zero, out_filepath, config):
-#   # date = config['date']
-#   patient_zero = config['patient_zero']
-#   data_src = config['data_source']
-#   # min_date = config['min_date']
-#   # unknown_val = config['unknown_value']
-#   # countries_fp = config['countries_fp']
-#   # divisions_fp = config['divisions_fp']
-#   # locations_fp = config['locations_fp']
-#   print(f"Loading alignment file at {alignment_filepath}")
-#   t0 = time.time()
-#   msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
-#   msa_load_time = time.time() - t0
-#   print(f"Identifying substitution-based mutations...")
-#   t0 = time.time()
-#   subs, _ = bm.identify_replacements_per_sample(msa_data,
-#                                                 # gisaid_meta,
-#                                                 gene2pos=bd.GENE2POS,
-#                                                 data_src=data_src,
-#                                                 min_seq_len=20000,
-#                                                 patient_zero=patient_zero
-#                                               #   test=is_test
-#                                                 )
-#   subs_time = time.time() - t0
-#   print(f"Identifying deletion-based mutations...")
-#   t0 = time.time()
-#   dels, _ = bm.identify_deletions_per_sample(msa_data,
-#                                             #  gisaid_meta,
-#                                             gene2pos=bd.GENE2POS,
-#                                             data_src=data_src,
-#                                             min_del_len=1,
-#                                             max_del_len=500,
-#                                             min_seq_len=20000,
-#                                             patient_zero=patient_zero
-#                                           #    test=is_test
-#                                             )
-#   dels_time = time.time() - t0
-#   # QC FILTER: remove seqs with >500 nt deletions
-#   # dels = dels.loc[dels['del_positions'].str.len()<500]
-#   print(subs.shape)
-#   print(dels.shape)
-#   muts = pd.concat([subs, dels])
-#   muts['is_synonymous'] = False
-#   muts.loc[muts['ref_aa']==muts['alt_aa'], 'is_synonymous'] = True
-#   print(muts.shape)
-#   # muts = muts.astype(str) TAKES FOREVER
-#   # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
-#   muts.to_csv(out_filepath, index=False)
-#   del muts, subs, dels
-#   gc.collect();
-#   print(f"Mutations extracted from {alignment_filepath} and saved in {out_filepath}\n")
-#   return 0
+''' Hacked up from the version in bjorn_support to do xz.
+    TODO this leaves the file open
+'''
+def open_fasta_xz(fasta_filepath, is_aligned=False):
+  handle = lzma.open(fasta_filepath, "rt")
+  if is_aligned:
+    cns = AlignIO.read(handle, 'fasta')
+  else:
+    cns = SeqIO.parse(handle, 'fasta')
+  # for record in cns:
+  #   print(record.id)
+  return cns
 
 
+''' Modified to include insertions, and to write TSV instead of CSV. [fry 210713]
+'''
 if __name__=="__main__":
   # COLLECTING USER PARAMETERS
   parser = argparse.ArgumentParser()
@@ -99,9 +63,22 @@ if __name__=="__main__":
 
   print(f"Loading alignment file at {alignment_filepath}")
   t0 = time.time()
-  msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
+  # msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
+  msa_data = open_fasta_xz(alignment_filepath, is_aligned=True)
   msa_load_time = time.time() - t0
-  print(f"Identifying substitution-based mutations...")
+
+  print("Identifying insertions...")
+  t0 = time.time()
+  inserts, _ = bm.identify_insertions_per_sample(msa_data,
+                                            #  gisaid_meta,
+                                            gene2pos=bd.GENE2POS,
+                                            data_src=data_src,
+                                            patient_zero=patient_zero
+                                          #    test=is_test
+                                            )
+  inserts_time = time.time() - t0
+
+  print("Identifying substitution-based mutations...")
   t0 = time.time()
   subs, _ = bm.identify_replacements_per_sample(msa_data,
                                                 # gisaid_meta,
@@ -112,7 +89,8 @@ if __name__=="__main__":
                                               #   test=is_test
                                                 )
   subs_time = time.time() - t0
-  print(f"Identifying deletion-based mutations...")
+
+  print("Identifying deletion-based mutations...")
   t0 = time.time()
   dels, _ = bm.identify_deletions_per_sample(msa_data,
                                             #  gisaid_meta,
@@ -125,15 +103,25 @@ if __name__=="__main__":
                                           #    test=is_test
                                             )
   dels_time = time.time() - t0
+
   # QC FILTER: remove seqs with >500 nt deletions
   # dels = dels.loc[dels['del_positions'].str.len()<500]
+  print(inserts.shape)
   print(subs.shape)
   print(dels.shape)
-  muts = pd.concat([subs, dels])
+  # muts = pd.concat([subs, dels])
+  muts = pd.concat([inserts, subs, dels])
   muts['is_synonymous'] = False
   muts.loc[muts['ref_aa']==muts['alt_aa'], 'is_synonymous'] = True
   print(muts.shape)
   # muts = muts.astype(str) TAKES FOREVER
   # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
-  muts.to_csv(out_fp, index=False)
+
+  # put columns into alphabetical order, because the ordering seems to be arbitrary,
+  # and this at least keeps them in some sort of comparable order
+  muts.sort_index(axis=1, inplace=True)
+  # muts.to_csv(out_fp, index=False)  # old version was CSV, so we'll keep using that; oh well
+  with lzma.open(out_fp, 'wt') as ofp:
+    muts.to_csv(ofp, sep='\t', quoting=csv.QUOTE_NONE, index=False)  # TSV version
+
   print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")
