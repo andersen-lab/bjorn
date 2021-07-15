@@ -90,11 +90,11 @@ def process_mutations(alignment_filepath, patient_zero, output_path, data_src='g
   # put columns into alphabetical order, because the ordering seems to be arbitrary,
   # and this at least keeps them in some sort of comparable order between runs
   muts.sort_index(axis=1, inplace=True)
-  # muts.to_csv(out_fp, index=False)  # old version was CSV, so we'll keep using that; oh well
-  with lzma.open(out_fp, 'wt') as ofp:
+  # muts.to_csv(output_path, index=False)  # old version was CSV, so we'll keep using that; oh well
+  with lzma.open(output_path, 'wt') as ofp:
     muts.to_csv(ofp, sep='\t', quoting=csv.QUOTE_NONE, index=False)  # TSV version
 
-  print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")
+  print(f"Mutations extracted from {alignment_filepath} and saved in {output_path}\n")
 
   # TODO should be earlier; how soon can this be closed?
   msa_data.close()
