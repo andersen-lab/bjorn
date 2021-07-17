@@ -9,7 +9,7 @@ import pandas as pd
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 from .bjorn_support import map_gene_to_pos
-import data
+from .data import GENE2POS
 
 
 
