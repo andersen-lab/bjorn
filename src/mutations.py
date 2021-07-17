@@ -8,8 +8,8 @@ import pandas as pd
 
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
-from bjorn_support import map_gene_to_pos
-import data as bd
+from .bjorn_support import map_gene_to_pos
+import data
 
 
 
@@ -147,7 +147,7 @@ def process_samples(x):
 
 def identify_replacements_per_sample(cns, 
                                      meta_fp=None,
-                                     gene2pos: dict=bd.GENE2POS,
+                                     gene2pos: dict=GENE2POS,
                                      data_src: str='gisaid',
                                      min_seq_len=20000,
                                      max_num_subs=5000,
@@ -251,15 +251,40 @@ def identify_replacements_per_sample(cns,
     return seqsdf, ref_seq
 
 
+# def identify_out_frame_replacements()
+
+
 def find_replacements(x, ref):
     "Support function for enumerating nucleotide substitutions"
+    # return [f'{i}:{n}' for i, n in enumerate(x) 
+    #         if n!=ref[i] and n!='-' and n!='n']
     return [f'{i}:{n}' for i, n in enumerate(x) 
-            if n!=ref[i] and n!='-' and n!='n']
+            if n!=ref[i] and n!='n']
+
+
+def get_ref_codon(x, ref_seq, gene2pos: dict):
+    "Support function for fetching the reference codon"
+    try:
+        ref_pos = gene2pos[x['gene']]['start']
+        codon_start = ref_pos + ((x['codon_num'] - 1) * 3)
+        return ref_seq[codon_start: codon_start+3].upper()
+    except:
+        return 'NA'
+
+
+def get_alt_codon(x, seqs: dict):
+    "Support function for fetching the alternative codon"
+    seq = seqs[x['idx']]
+    codon_start = x['codon_start']
+    return seq[codon_start:].replace('-', '')[:3].upper()
+    # return seq[codon_start:codon_start+3].upper()
+    # except:
+    #     return 'NA'
 
 
 def identify_deletions_per_sample(cns, 
                                   meta_fp=None, 
-                                  gene2pos: dict=bd.GENE2POS, 
+                                  gene2pos: dict=GENE2POS, 
                                   data_src='gisaid',
                                   min_del_len=1, 
                                   max_del_len=500,
@@ -375,7 +400,7 @@ def assign_deletion(x):
     
 def identify_insertions_per_sample(cns, 
                                    meta_fp=None, 
-                                   gene2pos: dict=bd.GENE2POS, 
+                                   gene2pos: dict=GENE2POS, 
                                    data_src='gisaid',
                                    min_ins_len=1, 
                                    start_pos=265,
@@ -518,26 +543,6 @@ def compute_codon_num(x, gene2pos: dict):
         return math.ceil((pos - ref_pos + 1) / 3)
     except:
         return 0
-
-
-def get_ref_codon(x, ref_seq, gene2pos: dict):
-    "Support function for fetching the reference codon"
-    try:
-        ref_pos = gene2pos[x['gene']]['start']
-        codon_start = ref_pos + ((x['codon_num'] - 1) * 3)
-        return ref_seq[codon_start: codon_start+3].upper()
-    except:
-        return 'NA'
-
-
-def get_alt_codon(x, seqs: dict):
-    "Support function for fetching the alternative codon"
-    try:
-        seq = seqs[x['idx']]
-        codon_start = x['codon_start']
-        return seq[codon_start:codon_start+3].upper()
-    except:
-        return 'NA'
 
 
 def get_alt_codon_old(x, seqs: dict, gene2pos: dict):
@@ -697,7 +702,7 @@ def get_dels_separated(x):
 def identify_replacements(cns, 
                           meta_fp,
                           patient_zero: str='NC_045512.2', 
-                          gene2pos: dict=bd.GENE2POS,
+                          gene2pos: dict=GENE2POS,
                           location: str=None,
                           data_src: str='alab'):
     """Returns dataframe of substitution-based mutations from a pre-loaded multiple sequence alignment (fasta),
@@ -756,7 +761,7 @@ def identify_deletions(cns,
                        meta_fp=None,
                        patient_zero: str='NC_045512.2',
                        location: str=None,
-                       gene2pos: dict=bd.GENE2POS,
+                       gene2pos: dict=GENE2POS,
                        min_del_len: int=2,
                        start_pos: int=265, 
                        end_pos: int=29674,
@@ -803,7 +808,7 @@ def identify_insertions(cns,
                         meta_fp: str,
                         data_src: str='alab',
                         patient_zero: str='NC_045512.2',
-                        gene2pos: dict=bd.GENE2POS,
+                        gene2pos: dict=GENE2POS,
                         min_ins_len: int=1,
                         start_pos: int=265, 
                         end_pos: int=29674) -> pd.DataFrame:
