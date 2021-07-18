@@ -8,8 +8,8 @@ import pandas as pd
 
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
-from .bjorn_support import map_gene_to_pos
-from .data import GENE2POS
+from bjorn_support import map_gene_to_pos
+from data import GENE2POS
 
 
 
@@ -193,35 +193,8 @@ def identify_replacements_per_sample(cns,
         .apply(lambda x: int(x.split(':')[0])))
         # filter out non-substitutions
         seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
-        print(f"Mapping Genes to mutations...")
-        # identify gene of each substitution
-        seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
-        seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
-        seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
-        # filter our substitutions in non-gene positions
-        seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
-        print(f"Computing codon numbers...")
-        # compute codon number of each substitution
-        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
-        seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
-        print(f"Fetching reference codon...")
-        # fetch the reference codon for each substitution
-        seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
-        seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
-        print(f"Fetching alternative codon...")
-        # fetch the alternative codon for each substitution
-        seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
-        del seqs
-        gc.collect();
-        print(f"Mapping amino acids...")
-        # fetch the reference and alternative amino acids
-        seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
-        seqsdf['alt_aa'] = seqsdf['alt_codon'].apply(get_aa)
-        # filter out substitutions with non-amino acid alternates (bad consensus calls)
-        seqsdf = seqsdf.loc[seqsdf['alt_aa']!='nan']
-        print("Naming substitutions")
-        seqsdf['mutation'] = seqsdf['gene'] + ':' + seqsdf['ref_aa'] + seqsdf['codon_num'].astype(str) + seqsdf['alt_aa']
-        seqsdf['type'] = 'substitution'
+        # compute information on each point mutation
+        seqsdf = compute_replacement_information(seqsdf, seqs, ref_seq=ref_seq)
         print(f"Fusing with metadata...")
         # load and join metadata
         if meta_fp:
@@ -251,15 +224,59 @@ def identify_replacements_per_sample(cns,
     return seqsdf, ref_seq
 
 
-# def identify_out_frame_replacements()
+def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
+                                    ref_seq,
+                                    mutation_type: str="",
+                                    gene2pos: dict=GENE2POS) -> pd.DataFrame:
+    # wide-to-long data manipulation
+    seqsdf = seqsdf.explode('replacements')
+    # initialize position column
+    seqsdf['pos'] = -1
+    # populate position column
+    seqsdf.loc[~seqsdf['replacements'].isna(), 'pos'] = (seqsdf.loc[~seqsdf['replacements'].isna(), 'replacements']
+    .apply(lambda x: int(x.split(':')[0])))
+    # filter out non-substitutions
+    seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
+    print(f"Mapping Genes to mutations...")
+    # identify gene of each substitution
+    seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
+    seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
+    seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
+    # filter our substitutions in non-gene positions
+    seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
+    print(f"Computing codon numbers...")
+    # compute codon number of each substitution
+    seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
+    seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
+    print(f"Fetching reference codon...")
+    # fetch the reference codon for each substitution
+    seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
+    seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
+    print(f"Fetching alternative codon...")
+    if mutation_type=='out-of-frame':
+        # fetch the alternative codon for each substitution
+        seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_oof_codon, args=(seqs,), axis=1)
+    else:
+        # fetch the alternative codon for each substitution
+        seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
+    del seqs
+    gc.collect();
+    print(f"Mapping amino acids...")
+    # fetch the reference and alternative amino acids
+    seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
+    seqsdf['alt_aa'] = seqsdf['alt_codon'].apply(get_aa)
+    # filter out substitutions with non-amino acid alternates (bad consensus calls)
+    seqsdf = seqsdf.loc[seqsdf['alt_aa']!='nan']
+    print("Naming substitutions")
+    seqsdf['mutation'] = seqsdf['gene'] + ':' + seqsdf['ref_aa'] + seqsdf['codon_num'].astype(str) + seqsdf['alt_aa']
+    seqsdf['type'] = 'substitution'
+    return seqsdf
 
 
 def find_replacements(x, ref):
     "Support function for enumerating nucleotide substitutions"
-    # return [f'{i}:{n}' for i, n in enumerate(x) 
-    #         if n!=ref[i] and n!='-' and n!='n']
     return [f'{i}:{n}' for i, n in enumerate(x) 
-            if n!=ref[i] and n!='n']
+            if n!=ref[i] and n!='-' and n!='n']
 
 
 def get_ref_codon(x, ref_seq, gene2pos: dict):
@@ -274,12 +291,22 @@ def get_ref_codon(x, ref_seq, gene2pos: dict):
 
 def get_alt_codon(x, seqs: dict):
     "Support function for fetching the alternative codon"
-    seq = seqs[x['idx']]
-    codon_start = x['codon_start']
-    return seq[codon_start:].replace('-', '')[:3].upper()
-    # return seq[codon_start:codon_start+3].upper()
-    # except:
-    #     return 'NA'
+    try:
+        seq = seqs[x['idx']]
+        codon_start = x['codon_start']
+        return seq[codon_start:codon_start+3].upper()
+    except:
+        return 'NA'
+
+
+def get_alt_oof_codon(x, seqs: dict):
+    "Support function for fetching the alternative codon"
+    try:
+        seq = seqs[x['idx']]
+        codon_start = x['codon_start']
+        return seq[codon_start:].replace('-', '')[:3].upper()   
+    except:
+        return 'NA'
 
 
 def identify_deletions_per_sample(cns, 
@@ -352,11 +379,15 @@ def identify_deletions_per_sample(cns,
         print("Naming deletions")
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
-        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', -2)+2)
+        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
         seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
         seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
+        seqsdf['deletion_start_position'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
+        seqsdf['deletion_start_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_start_number, axis=1)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
+        oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns)
+        seqsdf = pd.concat([seqsdf, oof_mutations])
         del seqs
         gc.collect();
         print(f"Fuse with metadata...")
@@ -381,16 +412,67 @@ def identify_deletions_per_sample(cns,
                 seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
                 # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
             else:
-                raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+                    raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     except:
         print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
         seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
 
 
+def identify_oof_replacements_per_sample(dels_df: pd.DataFrame, cns, 
+                                         patient_zero: str="NC_045512.2") -> pd.DataFrame:
+    seqs, ref_seq = process_cns_seqs(cns, patient_zero,
+                                     start_pos=0, end_pos=29674)
+    cols = ['idx', 'deletion_start_position', 'oof_backshift_signal']
+    dels_df['oof_backshift_signal'] = dels_df['deletion_start_codon'].apply(compute_out_of_frame_backshift)
+    oof_filter = (dels_df['is_frameshift']==False) & (dels_df['oof_backshift_signal']>0)
+    oof_df = dels_df.loc[oof_filter][cols].copy()
+    # compute length of each sequence
+    oof_df['seq_len'] = oof_df['idx'].apply(lambda x: len(seqs[x]))
+    oof_df['replacements'] = oof_df.apply(find_oof_replacements, args=(seqs,), axis=1)
+    oof_df = compute_replacement_information(oof_df, seqs, ref_seq, mutation_type='out-of-frame')
+    return oof_df
+
+
+def find_oof_replacements(x, seqs):
+    start_pos = x['deletion_start_position'] - x['oof_backshift_signal']
+    sub_seq = seqs[x['idx']][start_pos:].replace('-', '')[:3]
+    return [f'{start_pos+i}:{n}' for i, n in enumerate(sub_seq) if n!='n']
+
+
+def compute_out_of_frame_backshift(x):
+    backshift = np.round(np.modf(x)[0], 1)
+    if backshift==0.3:
+        return 1
+    elif backshift==0.7:
+        return 2
+    return 0
+
+
 def get_deletion(x, ref_seq):
     start, end = int(x.split(':')[0]), int(x.split(':')[1])
     return ref_seq[start+1:end+2]
+
+
+def assign_deletion_codon_coords(x):
+    """Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3))
+    deletion = x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3)) + '/' + str(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1)
+    return deletion
+
+def assign_deletion_start_number(x):
+    """Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return np.round(x['codon_num'] + (x['pos_in_codon']/3), 1)
+    return np.round(x['codon_num'] + (x['pos_in_codon']/3), 1)
+
+def assign_deletion_v2(x):
+    """Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return x['gene'] + ':DEL' + str(x['codon_num'])
+    deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + np.maximum(((x['del_len']//3) - 1), 1))
+    return deletion
 
 
 def assign_deletion(x):
@@ -658,20 +740,7 @@ def is_deletion_common(x):
     return x['del_positions_x']==x['del_positions_y']
 
 
-def assign_deletion_codon_coords(x):
-    """Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
-    if (x['pos_in_codon'] + x['del_len']) <= 3:
-        return x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3))
-    deletion = x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3)) + '/' + str(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1)
-    return deletion
 
-
-def assign_deletion_v2(x):
-    """Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
-    if (x['pos_in_codon'] + x['del_len']) <= 3:
-        return x['gene'] + ':DEL' + str(x['codon_num'])
-    deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + np.maximum(((x['del_len']//3) - 1), 1))
-    return deletion
 
 
 def assign_insertion_v2(x):
