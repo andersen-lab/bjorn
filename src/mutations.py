@@ -365,7 +365,7 @@ def identify_deletions_per_sample(cns,
         # filter our substitutions in non-gene positions
         seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
         print(f"Computing codon numbers...")
-        seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
+        # seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
         print(f"Fetching reference codon...")
         # fetch the reference codon for each substitution
         print(f"Mapping amino acids...")
@@ -380,10 +380,12 @@ def identify_deletions_per_sample(cns,
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
         seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
+        seqsdf['codon_num'] = np.ceil(((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3)).astype(int)
         seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
         seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
         seqsdf['deletion_start_position'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['deletion_start_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_start_number, axis=1)
+        seqsdf['deletion_end_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_end_number, axis=1)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
         oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns)
@@ -468,6 +470,12 @@ def assign_deletion_start_number(x):
     if (x['pos_in_codon'] + x['del_len']) <= 3:
         return np.round(x['codon_num'] + (x['pos_in_codon']/3), 1)
     return np.round(x['codon_num'] + (x['pos_in_codon']/3), 1)
+
+def assign_deletion_end_number(x):
+    """Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return np.round(x['codon_num'] + (x['del_len']/3), 1)
+    return np.round(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1, 1)
 
 def assign_deletion_v2(x):
     """Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
