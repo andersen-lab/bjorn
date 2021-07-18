@@ -387,7 +387,10 @@ def identify_deletions_per_sample(cns,
         seqsdf['deletion_start_position'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['deletion_start_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_start_number, axis=1)
         seqsdf['deletion_end_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_end_number, axis=1)
-        seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + seqsdf['deletion_start_codon'].astype(str) + '/' + seqsdf['deletion_end_codon'].astype(str)
+        # assign a searchable name for each deletion
+        seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + np.ceil(seqsdf['deletion_start_codon']).astype(int).astype(str) + '/' + np.floor(seqsdf['deletion_end_codon']).astype(int).astype(str)
+        # assign a correct name for each deletion
+        seqsdf['deletion_name'] = seqsdf['gene'] + ':' + 'DEL' + seqsdf['deletion_start_codon'].astype(str) + '/' + seqsdf['deletion_end_codon'].astype(str)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
         oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns)
