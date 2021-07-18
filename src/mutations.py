@@ -380,12 +380,14 @@ def identify_deletions_per_sample(cns,
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
         seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
+        # compute codon number of each substitution
         seqsdf['codon_num'] = np.ceil(((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3)).astype(int)
         seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
-        seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
+        # seqsdf['mutation'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_v2, axis=1)
         seqsdf['deletion_start_position'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['deletion_start_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_start_number, axis=1)
         seqsdf['deletion_end_codon'] = seqsdf[['pos_in_codon', 'codon_num', 'del_len']].apply(assign_deletion_end_number, axis=1)
+        seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + seqsdf['deletion_start_codon'].astype(str) + '/' + seqsdf['deletion_end_codon'].astype(str)
         seqsdf['deletion_codon_coords'] = seqsdf[['pos_in_codon', 'gene', 'codon_num', 'del_len']].apply(assign_deletion_codon_coords, axis=1)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
         oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns)
@@ -546,7 +548,9 @@ def identify_insertions_per_sample(cns,
         # fetch the reference and alternative amino acids
         seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
         # start position of the gene that each insert is found on
-        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', -2)+2)
+        seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
+        # compute codon number of each insertion
+        seqsdf['codon_num'] = np.ceil(((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3)).astype(int)
         # insert position in codon number
         seqsdf['pos_in_codon'] = (seqsdf['pos'] - seqsdf['gene_start_pos']) % 3
         # insert mutation name
