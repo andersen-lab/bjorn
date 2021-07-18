@@ -412,7 +412,7 @@ def identify_deletions_per_sample(cns,
                 seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='strain')
                 # seqsdf.loc[seqsdf['country']=='USA', 'country'] = 'United States of America'
             else:
-                    raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
+                raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     except:
         print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
         seqsdf = pd.DataFrame()
