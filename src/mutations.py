@@ -421,6 +421,8 @@ def identify_deletions_per_sample(cns,
 
 def identify_oof_replacements_per_sample(dels_df: pd.DataFrame, cns, 
                                          patient_zero: str="NC_045512.2") -> pd.DataFrame:
+    """Returns dataframe of all substitution-based mutations that occur upstream of out-of-frame deletions.
+    The data is NOT aggregated, meaning that there will be a record for each observed out-of-frame substitution for each sample"""
     seqs, ref_seq = process_cns_seqs(cns, patient_zero,
                                      start_pos=0, end_pos=29674)
     cols = ['idx', 'deletion_start_position', 'oof_backshift_signal']
