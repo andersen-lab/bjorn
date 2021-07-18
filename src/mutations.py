@@ -228,6 +228,8 @@ def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
                                     ref_seq,
                                     mutation_type: str="",
                                     gene2pos: dict=GENE2POS) -> pd.DataFrame:
+    """Computes higher-level information from raw replacement data. 
+    This includes annotating gene, codon number, reference and alternative codons/amino acids."""
     # wide-to-long data manipulation
     seqsdf = seqsdf.explode('replacements')
     # initialize position column
@@ -444,12 +446,15 @@ def identify_oof_replacements_per_sample(dels_df: pd.DataFrame, cns,
 
 
 def find_oof_replacements(x, seqs):
+    """Support functions to computing out-of-frame substitutions from sequences"""
     start_pos = x['deletion_start_position'] - x['oof_backshift_signal']
     sub_seq = seqs[x['idx']][start_pos:].replace('-', '')[:3]
     return [f'{start_pos+i}:{n}' for i, n in enumerate(sub_seq) if n!='n']
 
 
 def compute_out_of_frame_backshift(x):
+    """Support function to compute number of nucleotide positions
+    to move back before identifying an out-of-frame substitution"""
     backshift = np.round(np.modf(x)[0], 1)
     if backshift==0.3:
         return 1
