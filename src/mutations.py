@@ -795,9 +795,9 @@ def get_dels_separated(x):
 
 
 def identify_replacements(cns, 
-                          meta_fp,
+                          meta_fp=None,
                           patient_zero: str='NC_045512.2', 
-                          gene2pos: dict=GENE2POS,
+                          gene2pos: dict=bd.GENE2POS,
                           location: str=None,
                           data_src: str='alab'):
     """Returns dataframe of substitution-based mutations from a pre-loaded multiple sequence alignment (fasta),
@@ -832,9 +832,13 @@ def identify_replacements(cns,
                 )
                 .reset_index())
         subs['divisions'] = subs['division_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+        # subs['divisions'] = subs['divisions'].apply(process_list).astype(str)
         subs['division_counts'] = subs['division_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
-        subs['countries'] = subs['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))
+        # subs['division_counts'] = subs['division_counts'].apply(process_list).astype(str)
+        subs['countries'] = subs['country_counts'].apply(lambda x: x[0]).apply(lambda x: ','.join(x))#.astype(str)
+        # subs['countries'] = subs['countries'].apply(process_list).astype(str)
         subs['country_counts'] = subs['country_counts'].apply(lambda x: x[1]).apply(lambda x: ','.join(map(str, x)))
+        # subs['country_counts'] = subs['country_counts'].apply(process_list).astype(str)
     else:
         subs = (seqsdf.groupby(['type', 'mutation', 'gene', 
                                 'ref_codon', 'alt_codon', 
