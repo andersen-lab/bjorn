@@ -465,7 +465,7 @@ def compute_out_of_frame_backshift(x):
 
 def get_deletion(x, ref_seq):
     start, end = int(x.split(':')[0]), int(x.split(':')[1])
-    return ref_seq[start+1:end+2]
+    return ref_seq[start-1:end]
 
 
 def assign_deletion_codon_coords(x):
