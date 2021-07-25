@@ -797,7 +797,7 @@ def get_dels_separated(x):
 def identify_replacements(cns, 
                           meta_fp=None,
                           patient_zero: str='NC_045512.2', 
-                          gene2pos: dict=bd.GENE2POS,
+                          gene2pos: dict=GENE2POS,
                           location: str=None,
                           data_src: str='alab'):
     """Returns dataframe of substitution-based mutations from a pre-loaded multiple sequence alignment (fasta),
