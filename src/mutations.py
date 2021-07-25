@@ -891,7 +891,9 @@ def identify_deletions(cns,
                 )
                 .reset_index())
     else:
-        del_seqs = (seqsdf.groupby(['type', 'mutation', 'absolute_coords', 'is_frameshift', 'gene', 'indel_len', 'indel_seq', 'relative_coords', 'prev_5nts', 'next_5nts'])
+        del_seqs = (seqsdf.groupby(['type', 'mutation', 'absolute_coords', 'deletion_name',
+                                    'is_frameshift', 'gene', 'indel_len', 
+                                    'indel_seq', 'relative_coords', 'prev_5nts', 'next_5nts'])
                         .agg(
                             num_samples=('idx', 'nunique'),
                             samples=('idx', 'unique'),
