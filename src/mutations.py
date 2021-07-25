@@ -537,6 +537,10 @@ def identify_insertions_per_sample(cns,
         seqsdf['ins_len'] = seqsdf['ins_positions'].apply(len)
         # only consider insertions longer than 2nts
         seqsdf = seqsdf[seqsdf['ins_len'] >= min_ins_len]
+        # return empty dataframe if no samples remaining after filters
+        if seqsdf.shape[0]==0:
+            print(f"No insertions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+            return pd.DataFrame(), ref_seq
         # fetch coordinates of each insertion
         seqsdf['relative_coords'] = seqsdf['ins_positions'].apply(get_indel_coords)
         seqsdf['absolute_coords'] = seqsdf['relative_coords'].apply(adjust_coords, args=(start_pos,))
