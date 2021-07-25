@@ -896,7 +896,7 @@ def identify_deletions(cns,
 
 
 def identify_insertions(cns,
-                        meta_fp: str,
+                        meta_fp=None,
                         data_src: str='alab',
                         patient_zero: str='NC_045512.2',
                         gene2pos: dict=GENE2POS,
@@ -913,11 +913,10 @@ def identify_insertions(cns,
         if data_src=='alab':
             ins_seqs = (seqsdf.groupby(['type', 'mutation', 'absolute_coords', 'is_frameshift', 'gene', 'indel_len', 'relative_coords', 'prev_5nts', 'next_5nts'])
                                 .agg(samples=('idx', 'unique'),       # list of sample IDs with the deletion
-                                        num_samples=('ID', 'nunique'),
-                                        )
+                                     num_samples=('idx', 'nunique'),
+                                    )
                                 .reset_index()
                                 .sort_values('num_samples'))
-            
             ins_seqs['samples'] = ins_seqs['samples'].apply(process_samples).astype(str)
             return ins_seqs
         else:
@@ -929,5 +928,5 @@ def identify_insertions(cns,
             return ins_seqs[['type', 'mutation', 'absolute_coords', 'is_frameshift', 'gene', 'indel_len', 'relative_coords',
                             'pos', 'num_samples',
                             'prev_5nts', 'next_5nts', 'samples'
-                        ]]
+                            ]]
     return seqsdf
