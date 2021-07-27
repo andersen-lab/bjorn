@@ -194,5 +194,5 @@ rule download_sequences:
     threads: 1
     shell:
         """
-        curl -u {username}:{password} ***REMOVED*** | xz -d -T8 > {output}
+        curl -u {username}:{password} https://www.epicov.org/epi3/3p/scripps/export/provision.json.xz | xz -d -T8 > {output}
         """

@@ -41,7 +41,7 @@ corrections = bd.COUNTY_CORRECTIONS
 # Download GISAID API feed
 if not Path.isfile(Path(in_fp)):
     print(f"Downloading GISAID API feed...")
-    feed_cmd = f"curl -u {username}:{password} ***REMOVED*** | xz -d -T8 > {in_fp}"
+    feed_cmd = f"curl -u {username}:{password} https://www.epicov.org/epi3/3p/scripps/export/provision.json.xz | xz -d -T8 > {in_fp}"
     bs.run_command(feed_cmd)
     print(f"GISAID API feed saved in {in_fp}")
 else:
