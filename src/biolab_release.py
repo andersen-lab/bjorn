@@ -139,7 +139,7 @@ if __name__=="__main__":
     bs.run_command(transfer_results_cmd)
     results_dirname = out_dir.split('/')[-1]
     while True:
-        clean_msa_fp = f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean.fa"
+        clean_msa_fp = f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean.fasta"
         data = input(f"Please clean the alignment file and save as {clean_msa_fp} inside the msa folder")
         if not Path.isfile(Path(clean_msa_fp)):
             print("I was not able to find the file containing the cleaned alignment. Please ensure that it exists.")
