@@ -141,7 +141,7 @@ if __name__=="__main__":
     while True:
         clean_msa_fp_str = f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean.fasta"
         data = input(f"Please clean the alignment file and save as {clean_msa_fp_str} inside the msa folder")
-        clean_msa_filepaths = glob.glob(f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean")
+        clean_msa_filepaths = glob.glob(f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean*")
         if clean_msa_filepaths:
             clean_msa_fp = clean_msa_filepaths[0]
             aln_cmd = f"bash scripts/convert_to_unaligned_fasta.sh {clean_msa_fp} > {clean_msa_fp.replace('_aligned', '')}"
