@@ -139,15 +139,18 @@ if __name__=="__main__":
     bs.run_command(transfer_results_cmd)
     results_dirname = out_dir.split('/')[-1]
     while True:
-        clean_msa_fp = f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean.fasta"
-        data = input(f"Please clean the alignment file and save as {clean_msa_fp} inside the msa folder")
-        if not Path.isfile(Path(clean_msa_fp)):
-            print("I was not able to find the file containing the cleaned alignment. Please ensure that it exists.")
-            continue
-        else:
+        clean_msa_fp_str = f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean.fasta"
+        data = input(f"Please clean the alignment file and save as {clean_msa_fp_str} inside the msa folder")
+        clean_msa_filepaths = glob.glob(f"{results_hub}/{results_dirname}/msa/{date}_release_aligned_clean")
+        if clean_msa_filepaths:
+            clean_msa_fp = clean_msa_filepaths[0]
             aln_cmd = f"bash scripts/convert_to_unaligned_fasta.sh {clean_msa_fp} > {clean_msa_fp.replace('_aligned', '')}"
             bs.run_command((aln_cmd))
             break
+        else:
+            print("I was not able to find the file containing the cleaned alignment. Please ensure that it exists.")
+            continue
+            
     
     transfer_clean_fasta_cmd = f"cp {clean_msa_fp} {results_hub}/{results_dirname}/msa/."
     bs.run_command(transfer_clean_fasta_cmd)
