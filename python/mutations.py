@@ -468,16 +468,10 @@ def compute_out_of_frame_backshift(x):
 
 
 def get_deletion(x, ref_seq):
+    """Support function for locating deletions in a given sequence, relative 
+    to the reference sequence (NC045512.2)"""
     start, end = int(x.split(':')[0]), int(x.split(':')[1])
     return ref_seq[start+1:end+2]
-
-
-def assign_deletion_codon_coords(x):
-    """Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
-    if (x['pos_in_codon'] + x['del_len']) <= 3:
-        return x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3))
-    deletion = x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3)) + '/' + str(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1)
-    return deletion
 
 
 def assign_deletion_name(x):
@@ -503,8 +497,17 @@ def assign_deletion_end_number(x):
         return np.round(x['codon_num'] + (x['del_len']/3), 1)
     return np.round(x['codon_num'] + (x['pos_in_codon']/3)  + ((x['del_len']-1)/3), 1)
 
+
+def assign_deletion_codon_coords(x):
+    """DEPRECATED: Support function for assiging the specific codon coordinates (floats) for a given deletion e.g. 69.0/70.0"""
+    if (x['pos_in_codon'] + x['del_len']) <= 3:
+        return x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3))
+    deletion = x['gene'] + ':DEL' + str(x['codon_num'] + (x['pos_in_codon']/3)) + '/' + str(x['codon_num'] + (1 + (x['pos_in_codon']/3))  + (x['del_len']/3) - 1)
+    return deletion
+
+
 def assign_deletion_v2(x):
-    """Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
+    """DEPRECATED: Support function for assigning the non-specific codon coordinates (integers) for a given deletion e.g. 69/70"""
     if (x['pos_in_codon'] + x['del_len']) <= 3:
         return x['gene'] + ':DEL' + str(x['codon_num'])
     deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + np.maximum(((x['del_len']//3) - 1), 1))
@@ -512,6 +515,7 @@ def assign_deletion_v2(x):
 
 
 def assign_deletion(x):
+    """DEPRECATED: used for deletion naming purposes"""
     deletion = x['gene'] + ':DEL' + str(x['codon_num']) + '/' + str(x['codon_num'] + (x['del_len']/3) - 1)
     return deletion
 
