@@ -25,7 +25,7 @@ def open_fasta_xz(fasta_filepath, is_aligned=False):
     cns = SeqIO.parse(handle, 'fasta')
   # for record in cns:
   #   print(record.id)
-  return cns
+  return handle, cns
 
 
 ''' Modified to include insertions, and to write TSV instead of CSV. [fry 210713]
@@ -34,7 +34,7 @@ def process_mutations(alignment_filepath, patient_zero, output_path, data_src='g
   print(f"Loading alignment file at {alignment_filepath}")
   t0 = time.time()
   # msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
-  msa_data = open_fasta_xz(alignment_filepath, is_aligned=True)
+  msa_stream, msa_data = open_fasta_xz(alignment_filepath, is_aligned=True)
   msa_load_time = time.time() - t0
 
   print("Identifying insertions...")
@@ -97,7 +97,7 @@ def process_mutations(alignment_filepath, patient_zero, output_path, data_src='g
   print(f"Mutations extracted from {alignment_filepath} and saved in {output_path}\n")
 
   # TODO should be earlier; how soon can this be closed?
-  msa_data.close()
+  msa_stream.close()
 
 
 if __name__=="__main__":
