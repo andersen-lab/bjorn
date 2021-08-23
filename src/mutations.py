@@ -398,6 +398,9 @@ def identify_insertions_per_sample(cns,
                                columns=['sequence'])
                     .reset_index()
                     .rename(columns={'index': 'idx'}))
+        if seqsdf.size == 0:
+            print(f"No insertions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+            return seqsdf, ref_seq
         seqsdf['seq_len'] = seqsdf['sequence'].str.len()
         # identify contiguous insertions 
         seqsdf['ins_positions'] = seqsdf['sequence'].apply(find_insertions, args=(insert_positions,))
@@ -445,7 +448,7 @@ def identify_insertions_per_sample(cns,
             meta = pd.read_csv(meta_fp)
             seqsdf = pd.merge(seqsdf, meta, left_on='idx', right_on='fasta_hdr')
             # clean and process sample collection dates
-            seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown') 
+            seqsdf = seqsdf.loc[(seqsdf['collection_date']!='Unknown')
                         & (seqsdf['collection_date']!='1900-01-00')]
             seqsdf.loc[seqsdf['collection_date'].str.contains('/'), 'collection_date'] = seqsdf['collection_date'].apply(lambda x: x.split('/')[0])
             seqsdf['date'] = pd.to_datetime(seqsdf['collection_date'])
