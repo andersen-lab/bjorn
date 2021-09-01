@@ -286,7 +286,7 @@ dependencies:
   - pip:
     - amply==0.1.4
     - cached-property==1.5.2
-    - datafunk==0.0.8
+    - datafunk==0.1.0
     - datapackage==1.15.2
     - epiweeks==2.1.2
     - et-xmlfile==1.0.1
@@ -298,7 +298,7 @@ dependencies:
     - jsonpointer==2.0
     - linear-tsv==1.1.0
     - openpyxl==3.0.6
-    - pangolin==2.3.2
+    - pangolin==3.1.11
     - pulp==2.4
     - pycountry==20.7.3
     - pysam==0.16.0.1
