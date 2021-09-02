@@ -290,6 +290,7 @@ dependencies:
     - datapackage==1.15.2
     - epiweeks==2.1.2
     - et-xmlfile==1.0.1
+    - gsheets==0.6
     - ijson==3.1.3
     - isodate==0.6.0
     - jdcal==1.4.1
