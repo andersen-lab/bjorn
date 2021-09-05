@@ -20,8 +20,9 @@ def get_gsheet(file_key: str, worksheet_num: int):
     get from gsheet
     """
     gc = gspread.service_account()
-    sht1 = gc.open_by_key(key)
-    pass
+    worksheet = gc.open_by_key(key).get_worksheet(worksheet_num)
+    df = pd.DataFrame(worksheet.get_all_records())
+    return df
 
 def push_gsheet():
     """
