@@ -6,7 +6,7 @@ import argparse
 import pandas as pd
 from path import Path
 import bjorn_support as bs
-import data as bd
+from mappings import COUNTY_CORRECTIONS
 import numpy as np
 
 def convert_to_fasta(input_json, output_prefix, gadm_fp):
@@ -23,7 +23,6 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
         'covv_clade',
         'covv_subm_date'
     ]
-    corrections = bd.COUNTY_CORRECTIONS
     # Download GISAID API feed
     # load sequence data
     print(f"Loading JSON data from {input_json}...")
@@ -283,7 +282,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
     df['location_normed'] = df['location'].copy()
     houston_filter = (df['division']=='Texas') & (df['location']=='Houston')
     df.loc[houston_filter, 'location_normed'] = 'Harris County'
-    for key, val in corrections.items():
+    for key, val in COUNTY_CORRECTIONS.items():
         df.loc[:, 'location_normed'] = df['location_normed'].str.replace(key, val)
     df.loc[:, 'location_normed'] = df['location_normed'].str.replace('County', '').str.replace('county', '').str.replace(',', '')
     df.loc[:, 'location_normed'] = df['location_normed'].str.strip().apply(bs.check_state, args=(False,)).str.strip()
