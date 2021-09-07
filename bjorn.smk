@@ -1,8 +1,5 @@
 from datetime import datetime
 
-# load user parameters
-configfile: "test_config.json"
-
 username = config['gisaid_username']
 password = config['gisaid_password']
 out_dir = config['out_dir']
@@ -14,6 +11,7 @@ reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
 data_source = config['data_source']
 gadm_data = config["gadm_data"]
+cleanup = config["cleanup"]
 
 rule all:
     input:
@@ -56,8 +54,8 @@ rule clean:
     threads: 1 
     shell:
         """
-        rm -rf {params.out_dir}/chunks_*
-        rm -f {params.out_dir}/*api*.json*
+        cleanup && rm -rf {params.out_dir}/chunks_*
+        cleanup && rm -f {params.out_dir}/*api*.json*
         """
 
 rule build_meta:
