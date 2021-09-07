@@ -18,14 +18,14 @@ def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None
     """
     Concatenates a list of files into a combined fasta format
     """
-    subprocess.check_call(["cat", file_1, file_2, ">", combined_aligned_fasta])
+    subprocess.check_call(["cat", file_1, file_2, ">", combined_aligned_fasta], shell=True)
     return
 
 def unalign_fasta(combined_aligned_fasta: str, combined_unaligned_fasta: str) -> None:
     """
     Takes an aligned fasta and returns an unaligned fasta at the destination required
     """
-    subprocess.check_call(["awk", '{if($0 ~ "^>"){print $0;}else{gsub("-", "", $0);print $0;}}', combined_aligned_fasta, ">", combined_unaligned_fasta])
+    subprocess.check_call(["awk", '{if($0 ~ "^>"){print $0;}else{gsub("-", "", $0);print $0;}}', combined_aligned_fasta, ">", combined_unaligned_fasta], shell=True)
     return
 
 def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
@@ -40,14 +40,16 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
         combined_unaligned_fasta,
         ">",
         combined_unaligned_fasta+".tmp"
-        ]
+        ],
+        shell=True
     )
     os.chdir("consensus_sequences")
     subprocess.check_call(
         ["awk",
         '{if( $0 ~ /^>/ ){if(s!=""){close(s);}split($0, n, "/");s=n[3]".fasta";h=$0;}else {if(s!=""){print h > s;print $0 > s}}}', 
         "../" + combined_unaligned_fasta + ".tmp"
-        ]
+        ],
+        shell=True
     )
     return
 
