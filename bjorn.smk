@@ -4,7 +4,7 @@ username = config['gisaid_username']
 password = config['gisaid_password']
 out_dir = config['out_dir']
 include_hash = config['include_hash']
-current_datetime = config["current_datetime"] if config["current_datetime"] != False else datetime.now().strftime("%Y-%m-%d-%H-%M")
+current_datetime = config["current_datetime"] if config["current_datetime"] else datetime.now().strftime("%Y-%m-%d-%H-%M")
 chunk_size = int(config['chunk_size'])
 num_cpus = int(config['num_cpus'])
 reference_filepath = config['ref_fasta']
@@ -35,7 +35,7 @@ rule upload:
         out_dir = out_dir
     shell:
         """
-        src/cloud_upload.sh {params.out_dir} 
+        python/cloud_upload.sh {params.out_dir} 
         """
 
 rule clear:
@@ -103,7 +103,7 @@ rule merge_mutations_metadata:
         temp("{out_dir}/chunks_apijson_{current_datetime}/{sample}.json.gz")
     shell:
         """
-        src/merge_results.py -i {input.muts} -m {input.metadata} -o {output} -u None -n {params.min_date}  -g {params.geojson_prefix} -t {params.current_datetime}
+        python/merge_results.py -i {input.muts} -m {input.metadata} -o {output} -u None -n {params.min_date}  -g {params.geojson_prefix} -t {params.current_datetime}
         echo "" | gzip - >> {output} # Add new line as delimiter between chunks
         """
 
@@ -118,7 +118,7 @@ rule run_bjorn:
     threads: 1
     shell:
         """
-        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -d {params.data_source} -o {output}
+        python/msa_2_mutations.py -i {input} -r {params.patient_zero} -d {params.data_source} -o {output}
         """
 
 rule run_data2funk:
@@ -162,7 +162,7 @@ rule convert_to_fasta:
     threads: 1
     shell:
         """
-        src/json2fasta.py -i {input} -o {params.output_prefix} -g {params.gadm_data}
+        python/json2fasta.py -i {input} -o {params.output_prefix} -g {params.gadm_data}
         cat {output.fasta} {params.reference_filepath} > {params.tmp}
         mv {params.tmp} {output.fasta}
         """
