@@ -18,8 +18,11 @@ def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None
     """
     Concatenates a list of files into a combined fasta format
     """
-    call_args = ['cat', file_1, file_2, '>', combined_aligned_fasta]
-    subprocess.check_call(call_args)
+    with open(combined_aligned_fasta, 'w') as outfile:
+        for fname in [file_1, file_2]:
+            with open(fname) as infile:
+                for line in infile:
+                    outfile.write(line)
     return
 
 def unalign_fasta(combined_aligned_fasta: str, combined_unaligned_fasta: str) -> None:
