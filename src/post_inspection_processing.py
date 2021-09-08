@@ -65,7 +65,14 @@ if __name__=="__main__":
             ).split("_")[:2] + ["combined.fa"]
         )
     )
-    #combined_unaligned_fasta = "_".join(sys.argv[1].split("_")[:1] + ["unaligned_combined.fa"])
+    combined_unaligned_fasta = os.path.join(
+        os.path.dirname(sys.argv[1]),
+        "_".join(
+        os.path.basename(
+            os.path.normpath(sys.argv[1])
+            ).split("_")[:1] + ["unaligned_combined.fa"]
+        )
+    )
     concat_fastas(sys.argv[1], sys.argv[2], combined_aligned_fasta)
-    #unalign_fasta(combined_aligned_fasta, combined_unaligned_fasta)
+    unalign_fasta(combined_aligned_fasta, combined_unaligned_fasta)
     #multifasta_to_fasta(combined_unaligned_fasta)
