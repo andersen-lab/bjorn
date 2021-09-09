@@ -55,21 +55,24 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
     if not os.path.exists(cons_dir):
         os.mkdir(cons_dir)
     # generate a separated fasta file for each sequence
+    file_name = ""
     header = ""
     lines = []
     with open(combined_unaligned_fasta, 'r') as infile:
         for line in infile:
             if line[0] == ">" and header == "":
-                header = get_fasta_true_name(line)
+                file_name = get_fasta_true_name(line)
+                header = line
             elif line[0] != ">" and header != "":
                 lines.append(line)
             elif line[0] == ">" and header != "":
                 # write out the previous sequence to disk
-                file_path = os.path.join(base_dir, "consensus_sequences", header[1:] + ".fa")
+                file_path = os.path.join(base_dir, "consensus_sequences", file_name + ".fasta")
                 with open(file_path, 'w') as outfile:
                     outfile.write(header + "\n")
                     outfile.write("".join(lines))
-                header = get_fasta_true_name(line)
+                file_name = get_fasta_true_name(line)
+                header = ""
                 lines = []
     return
 
