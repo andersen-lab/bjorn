@@ -20,7 +20,7 @@ def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None
     """
     with open(combined_aligned_fasta, 'w') as outfile:
         for fname in [file_1, file_2]:
-            with open(fname) as infile:
+            with open(fname, 'r') as infile:
                 for line in infile:
                     outfile.write(line)
     return
@@ -28,8 +28,21 @@ def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None
 def unalign_fasta(combined_aligned_fasta: str, combined_unaligned_fasta: str) -> None:
     """
     Takes an aligned fasta and returns an unaligned fasta at the destination required
+
+    Original awk code:
+    #!/bin/bash
+    fasta=$1
+    awk '{if($0 ~ "^>"){print $0;}else{gsub("-", "", $0);print $0;}}' $fasta
     """
-    subprocess.check_call(["awk", '{if($0 ~ "^>"){print $0;}else{gsub("-", "", $0);print $0;}}', combined_aligned_fasta, ">", combined_unaligned_fasta])
+    # if the line starts with a > (fasta header) print that line
+    # else substitute "-" with nothing
+    with open(combined_unaligned_fasta, 'w') as outfile:
+        with open(combined_aligned_fasta, 'r') as infile:
+            for line in infile:
+                if infile[0] == ">":
+                    outfile.write(line)
+                else:
+                    outfile.write(line.replace("-", ""))
     return
 
 def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
@@ -75,4 +88,4 @@ if __name__=="__main__":
     )
     concat_fastas(sys.argv[1], sys.argv[2], combined_aligned_fasta)
     unalign_fasta(combined_aligned_fasta, combined_unaligned_fasta)
-    #multifasta_to_fasta(combined_unaligned_fasta)
+    #multifasta_to_fasta(combined_unaligned_fasta)  
