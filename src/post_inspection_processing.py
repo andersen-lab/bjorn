@@ -1,4 +1,5 @@
 """
+#TODO: Expand on function header
 Replaces 
 Combine msa/*_white.fa and *_inspect.fa
 # Convert aligned to unaligned fasta
@@ -17,6 +18,7 @@ from typing import List
 def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None:
     """
     Concatenates a list of files into a combined fasta format
+    #TODO: Expand on function header
     """
     with open(combined_aligned_fasta, 'w') as outfile:
         for fname in [file_1, file_2]:
@@ -28,11 +30,7 @@ def concat_fastas(file_1: str, file_2: str, combined_aligned_fasta: str) -> None
 def unalign_fasta(combined_aligned_fasta: str, combined_unaligned_fasta: str) -> None:
     """
     Takes an aligned fasta and returns an unaligned fasta at the destination required
-
-    Original awk code:
-    #!/bin/bash
-    fasta=$1
-    awk '{if($0 ~ "^>"){print $0;}else{gsub("-", "", $0);print $0;}}' $fasta
+    #TODO: Expand on function header
     """
     # if the line starts with a > (fasta header) print that line
     # else substitute "-" with nothing
@@ -49,23 +47,28 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
     """
     Takes a combined fasta and splits it into separate files, then copying
     back the fasta file to the main repo
+    #TODO: Expand on function header
     """
-    os.mkdir("consensus_sequences")
-    subprocess.check_call(
-        ["awk",
-        '/^>/ {printf("\n%s\n",$0);next; } { printf("%s",$0);}  END {printf("\n");}',
-        combined_unaligned_fasta,
-        ">",
-        combined_unaligned_fasta+".tmp"
-        ],
-    )
-    os.chdir("consensus_sequences")
-    subprocess.check_call(
-        ["awk",
-        '{if( $0 ~ /^>/ ){if(s!=""){close(s);}split($0, n, "/");s=n[3]".fasta";h=$0;}else {if(s!=""){print h > s;print $0 > s}}}', 
-        "../" + combined_unaligned_fasta + ".tmp"
-        ],
-    )
+    # create new directory for consensus sequences
+    base_dir = os.path.dirname(combined_unaligned_fasta)
+    os.mkdir(os.path.join(base_dir, "consensus_sequences"))
+    # generate a separated fasta file for each sequence
+    header = ""
+    lines = []
+    with open(combined_unaligned_fasta, 'r') as infile:
+        for line in infile:
+            if line[0] == ">" and header == "":
+                header = line
+            elif line[0] != ">" and header != "":
+                lines.append(line)
+            elif line[0] == ">" and header != "":
+                # write out the previous sequence to disk
+                file_path = os.path.join(base_dir, "consensus_sequences", header[1:] + ".fa")
+                with open(file_path, 'w') as outfile:
+                    outfile.write(header)
+                    outfile.write("".join(lines))
+                header = line
+                lines = []
     return
 
 if __name__=="__main__":
@@ -83,9 +86,10 @@ if __name__=="__main__":
         "_".join(
         os.path.basename(
             os.path.normpath(sys.argv[1])
-            ).split("_")[:1] + ["unaligned_combined.fa"]
+            ).split("_")[:2] + ["unaligned_combined.fa"]
         )
     )
+    # concat, unalign, and multifasta to fasta consensus sequences
     concat_fastas(sys.argv[1], sys.argv[2], combined_aligned_fasta)
     unalign_fasta(combined_aligned_fasta, combined_unaligned_fasta)
-    #multifasta_to_fasta(combined_unaligned_fasta)  
+    multifasta_to_fasta(combined_unaligned_fasta)  
