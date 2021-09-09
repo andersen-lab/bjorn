@@ -58,7 +58,7 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
     with open(combined_unaligned_fasta, 'r') as infile:
         for line in infile:
             if line[0] == ">" and header == "":
-                header = line
+                header = get_fasta_true_name(line)
             elif line[0] != ">" and header != "":
                 lines.append(line)
             elif line[0] == ">" and header != "":
@@ -67,9 +67,19 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
                 with open(file_path, 'w') as outfile:
                     outfile.write(header)
                     outfile.write("".join(lines))
-                header = line
+                header = get_fasta_true_name(line)
                 lines = []
     return
+
+def get_fasta_true_name(header: str) -> str:
+    """
+    Take a header line which is supposed to be a fasta name and then get the true name
+    without any '/'
+    """
+    if '/' in header:
+        return header.split('/')[2]
+    else:
+        return header
 
 if __name__=="__main__":
     # generate filenames
