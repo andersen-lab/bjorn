@@ -39,7 +39,7 @@ def unalign_fasta(combined_aligned_fasta: str, combined_unaligned_fasta: str) ->
     with open(combined_unaligned_fasta, 'w') as outfile:
         with open(combined_aligned_fasta, 'r') as infile:
             for line in infile:
-                if infile[0] == ">":
+                if line[0] == ">":
                     outfile.write(line)
                 else:
                     outfile.write(line.replace("-", ""))
