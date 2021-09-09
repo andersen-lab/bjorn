@@ -67,7 +67,7 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
                 # write out the previous sequence to disk
                 file_path = os.path.join(base_dir, "consensus_sequences", header[1:] + ".fa")
                 with open(file_path, 'w') as outfile:
-                    outfile.write(header)
+                    outfile.write(header + "\n")
                     outfile.write("".join(lines))
                 header = get_fasta_true_name(line)
                 lines = []
