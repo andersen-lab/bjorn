@@ -51,7 +51,9 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
     """
     # create new directory for consensus sequences
     base_dir = os.path.dirname(combined_unaligned_fasta)
-    os.mkdir(os.path.join(base_dir, "consensus_sequences"))
+    cons_dir = os.path.join(base_dir, "consensus_sequences")
+    if not os.path.exists(cons_dir):
+        os.mkdir(cons_dir)
     # generate a separated fasta file for each sequence
     header = ""
     lines = []
