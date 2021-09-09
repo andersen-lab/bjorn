@@ -69,8 +69,7 @@ def multifasta_to_fasta(combined_unaligned_fasta: str) -> None:
                 # write out the previous sequence to disk
                 file_path = os.path.join(base_dir, "consensus_sequences", file_name + ".fasta")
                 with open(file_path, 'w') as outfile:
-                    outfile.write(header + "\n")
-                    outfile.write("".join(lines))
+                    outfile.writelines([header, "".join(lines)])
                 file_name = get_fasta_true_name(line)
                 header = ""
                 lines = []
@@ -84,7 +83,7 @@ def get_fasta_true_name(header: str) -> str:
     if '/' in header:
         return header.split('/')[2]
     else:
-        return header
+        return header[1:]
 
 if __name__=="__main__":
     # generate filenames
@@ -93,7 +92,7 @@ if __name__=="__main__":
         "_".join(
         os.path.basename(
             os.path.normpath(sys.argv[1])
-            ).split("_")[:2] + ["combined.fa"]
+            ).split("_")[:2] + ["aligned_combined.fa"]
         )
     )
     combined_unaligned_fasta = os.path.join(
