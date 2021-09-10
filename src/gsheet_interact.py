@@ -6,6 +6,7 @@ import pandas as pd
 import gspread
 from configparser import ConfigParser
 from typing import Dict
+import sys
 
 def _get_config(config_file_path: str = "../bjorn.ini") -> Dict[str, str]:
     """
@@ -39,3 +40,7 @@ def _push_gsheet():
     push data to gsheet
     """
     pass
+
+if __name__=="__main__":
+    data = gisaid_interactor(sys.argv[1])
+    data.to_csv(sys.argv[2])
