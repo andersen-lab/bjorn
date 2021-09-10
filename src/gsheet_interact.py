@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from typing import Dict
 import sys
 
-def _get_config(config_file_path: str = "../bjorn.ini") -> Dict[str, str]:
+def _get_config(config_file_path: str) -> Dict[str, str]:
     """
     gets the config file and loads the paths of relevant information
     """
@@ -18,7 +18,7 @@ def _get_config(config_file_path: str = "../bjorn.ini") -> Dict[str, str]:
             "gisaid_wksht_num": int(config["gsheets"]["gisaid_wksht_num"]),
             "gsheet_key_path": config["gsheets"]["gsheet_key_path"]}
 
-def gisaid_interactor(config_file_path: str = "../bjorn.ini") -> pd.DataFrame:
+def gisaid_interactor(config_file_path: str) -> pd.DataFrame:
     """
     Interact with a metadata file and get the appropriate results
     Split this out into separate file when we're done
@@ -29,7 +29,7 @@ def gisaid_interactor(config_file_path: str = "../bjorn.ini") -> pd.DataFrame:
 
 def _get_gsheet(file_key: str, worksheet_num: int, service_account_json: str) -> pd.DataFrame:
     """
-    get from gsheet
+    get from gsheetrm met   
     """
     gc = gspread.service_account(filename = service_account_json)
     worksheet = gc.open_by_key(file_key).get_worksheet(worksheet_num)
@@ -43,4 +43,4 @@ def _push_gsheet():
 
 if __name__=="__main__":
     data = gisaid_interactor(sys.argv[1])
-    data.to_csv(sys.argv[2])
+    data.to_csv(sys.argv[2], index=False)
