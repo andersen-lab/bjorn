@@ -23,7 +23,7 @@ def gisaid_interactor(config_file_path: str = "../bjorn.ini") -> pd.DataFrame:
     Interact with a metadata file and get the appropriate results
     Split this out into separate file when we're done
     """
-    config = _get_config(config_file_path: str)
+    config = _get_config(config_file_path)
     metadata = _get_gsheet(config['gisaid_key'], config['gisaid_wksht_num'], config['gsheet_key_path'])
     return metadata
 
