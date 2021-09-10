@@ -4,27 +4,37 @@ Interact with gsheets for automation sake
 
 import pandas as pd
 import gspread
+from configparser import ConfigParser
+from typing import Dict
 
-def gisaid_interactor():
+def _get_config(config_file_path: str = "../bjorn.ini") -> Dict[str, str]:
+    """
+    gets the config file and loads the paths of relevant information
+    """
+    config = ConfigParser()
+    config.read(config_file_path)
+    return {"gisaid_key": config["gsheets"]["gisaid_key"],
+            "gisaid_wksht_num": int(config["gsheets"]["gisaid_wksht_num"]),
+            "gsheet_key_path": config["gsheets"]["gsheet_key_path"]}
+
+def gisaid_interactor(config_file_path: str = "../bjorn.ini") -> pd.DataFrame:
     """
     Interact with a metadata file and get the appropriate results
     Split this out into separate file when we're done
     """
-    gisaid_key = "1alCHJC5WZEzS8wKCzM_-CgvOO67K3piJ5wKhOQ9KXOM"
-    gisaid_wksht_num = 1
-    metadata = get_gsheet(gisaid_key, gisaid_wksht_num)
+    config = _get_config(config_file_path: str)
+    metadata = _get_gsheet(config['gisaid_key'], config['gisaid_wksht_num'], config['gsheet_key_path'])
     return metadata
 
-def get_gsheet(file_key: str, worksheet_num: int):
+def _get_gsheet(file_key: str, worksheet_num: int, service_account_json: str) -> pd.DataFrame:
     """
     get from gsheet
     """
-    gc = gspread.service_account()
-    worksheet = gc.open_by_key(key).get_worksheet(worksheet_num)
-    df = pd.DataFrame(worksheet.get_all_records())
-    return df
+    gc = gspread.service_account(filename = service_account_json)
+    worksheet = gc.open_by_key(file_key).get_worksheet(worksheet_num)
+    return pd.DataFrame(worksheet.get_all_records())
 
-def push_gsheet():
+def _push_gsheet():
     """
     push data to gsheet
     """

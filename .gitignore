@@ -117,4 +117,7 @@ dmypy.json
 .DS_Store
 
 # Secure config files
-.ini
+bjorn.ini
+
+# Metadata downloads
+data/*.csv
