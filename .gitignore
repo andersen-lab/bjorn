@@ -121,3 +121,5 @@ bjorn.ini
 
 # Metadata downloads
 data/*.csv
+data/*.txt
+data/wastewater/
