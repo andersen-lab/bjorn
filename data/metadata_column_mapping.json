@@ -1,0 +1,26 @@
+{
+    "wastewater": {
+        "sample_name": "Original sampleID",
+        "sample_title": "SEARCH SampleID",
+        "collection_data": "Collection date",
+        "geo_loc_name": "Location",
+        "isolation_source": "Additional host information",
+        "ww_population": "Additional location information",
+        "collected_by": "Authors",
+        "sequenced_by": "Submitting lab"
+    },
+    "normal": {
+        "sample_name": "Original sampleID",
+        "sample_title": "SEARCH SampleID",
+        "collected_by": "Authors",
+        "collection_date": "Collection date",
+        "geo_loc_name": "Location",
+        "isolate": "Additional host information",
+        "isolation_source": "Additional location information",
+        "collection_method": "Specimen source",
+        "date_of_sars_cov_2_vaccination": "Last vaccinated",
+        "gisaid_accession": "gisaid_accession",
+        "gisaid_virus_name": "Virus name",
+        "sequenced_by": "Submitting lab"
+    }
+}
