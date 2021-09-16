@@ -1,6 +1,6 @@
 {
     "wastewater": {
-        "bioproject_accession": "",
+        "bioproject_accession": "PRJNA612578",
         "organism": "SARS-CoV-2",
         "ww_sample_duration": "0",
         "ww_sample_matrix": "not provided",
@@ -9,9 +9,9 @@
         "ww_surv_target_1_known_present": "yes"
     },
     "normal": {
-        "bioproject_accession": "",
+        "bioproject_accession": "PRJNA612578",
         "organism": "SARS-CoV-2",
         "host": "Homo Sapiens",
-        "host_disease": "COVID-19",
+        "host_disease": "COVID-19"
     }
 }
