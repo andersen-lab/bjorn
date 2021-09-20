@@ -9,7 +9,7 @@ import json
 
 import pandas as pd
 
-from gsheet_interact import gisaid_interactor
+#from gsheet_interact import gisaid_interactor
 
 def merge_metadata(repo_metadata: pd.DataFrame, online_metadata: pd.DataFrame) -> pd.DataFrame:
     """
@@ -32,14 +32,26 @@ def convert_metadata(
     """
     # load the config file
     if wastewater:
-        column_mapping = json.loads(column_config_file)["wastewater"]
-        constant_mapping = json.loads(constant_config_file)["wastewater"]
+        with open(column_config_file, 'r') as infile:
+            column_mapping = json.load(infile)['wastewater']
+        with open(constant_config_file, 'r') as infile:
+            constant_mapping = json.load(infile)["wastewater"]
     else:
-        column_mapping = json.loads(column_config_file)["normal"]
-        constant_mapping = json.loads(constant_config_file)["normal"]
-    
+        with open(column_config_file, 'r') as infile:
+            column_mapping = json.load(infile)["normal"]
+        with open(constant_config_file, 'r') as infile:
+            constant_mapping = json.load(infile)["normal"]
+
+    #TODO: Fix author and originating lab fields
+    #TODO: Convert date back to timestamp
+    #TODO: Convert location to have ':' based entry
     # convert columns
-    pass
+    converted_metadata = pd.DataFrame()
+    for key in column_mapping:
+        converted_metadata[key] = metadata[column_mapping[key]]
+    for key in constant_mapping:
+        converted_metadata[key] = constant_mapping[key]
+    return converted_metadata
 
 
 def batch_by_author(metadata: pd.DataFrame) -> List[pd.DataFrame]:
