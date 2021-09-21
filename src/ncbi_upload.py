@@ -5,6 +5,7 @@ Use these utils to upload sequences to NCBI
 import os
 import shutil
 from typing import Collection, Dict, List
+import time
 import json
 
 import pandas as pd
@@ -43,7 +44,7 @@ def convert_metadata(
         with open(constant_config_file, 'r') as infile:
             constant_mapping = json.load(infile)["normal"]
 
-    # convert columns
+    # convert columns as per config file
     converted_metadata = pd.DataFrame()
     for key in column_mapping:
         converted_metadata[key] = metadata[column_mapping[key]]
@@ -52,36 +53,45 @@ def convert_metadata(
     
     # fix author and originating lab fields
     # split the dataframe by if it has both fields, one, or the other
+    has_both_fields = converted_metadata[(~converted_metadata["collected_by_1"].isna()) & (~converted_metadata["collected_by_2"].isna())]
+    has_both_fields["collected_by"] = has_both_fields["collected_by_1"] + " with the help of " + has_both_fields["collected_by_2"]
+    
+    # has the first field and not the second
+    has_first_field = converted_metadata[(~converted_metadata["collected_by_1"].isna()) & (converted_metadata["collected_by_2"].isna())]
+    has_first_field["collected_by"] = has_first_field["collected_by_1"]
+    
+    # has the second field and not the first
+    has_second_field = converted_metadata[(converted_metadata["collected_by_1"].isna()) & (~converted_metadata["collected_by_2"].isna())]
+    has_second_field["collected_by"] = has_first_field["collected_by_2"]
 
-    # add them both together if both fields have text
-    converted_metadata["collected_by"] = converted_metadata["collected_by_1"] + " with the help of " + converted_metadata["collected_by_2"]
-    # if only collected_by_1
-    converted_metadata["collected_by"] = converted_metadata["collected_by_1"]
-    # if only collected_by_2
-    converted_metadata["collected_by"] = converted_metadata["collected_by_2"]
-    # if neither?
-    # throw an error
+    # if neither
+    has_neither_field = converted_metadata[(converted_metadata["collected_by_1"].isna()) & (converted_metadata["collected_by_2"].isna())]
+    has_neither_field["collected_by"] = "Unknown"
+
+    # combine the 4 dataframes above 
+    converted_metadata_2 = pd.concat([has_both_fields, has_first_field, has_second_field, has_neither_field])
 
     # convert location to have ':' based entry
-    converted_metadata["location"] = converted_metadata["location"].str.replace("/", ":")
+    converted_metadata_2["location"] = converted_metadata_2["location"].str.replace("/", ":")
+
+    #TODO: Last remaining feature
+    # convert vaccination text to timestamp
+    converted_metadata_2["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata_2["collection_date"], converted_metadata_2["last_vaccinated_raw"])
     
-    # convert date back to timestamp
-    # map months -> 30 days
-    # map weeks -> 7 days
-    # return timestamp replacement using the collected_by_date
-    converted_metadata["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata["collection_date"], converted_metadata["last_vaccinated_raw"])
-    
-    #TODO: Drop defunct columns
-    converted_metadata = converted_metadata.drop(columns=["collected_by_1", "collected_by_2", "last_vaccinated_raw"])
+    # drop defunct columns
+    converted_metadata_3 = converted_metadata_2.drop(columns=["collected_by_1", "collected_by_2", "last_vaccinated_raw"])
 
-    return converted_metadata
+    return converted_metadata_3
 
 
-def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) -> str:
+def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) -> pd.Series:
     """
     Take a text field which says how many weeks or months ago someone was vaccinated and transform that into a timestamp
     and then render that timestamp as text
     """
+    #TODO: Needs to handle errors in the collection_date
+    #TODO: Needs to handle errors in vaccination date
+    collection_timestamps = time.mktime(time.strptime(collection_date, '%d-%m-%Y'))
     pass
 
 
