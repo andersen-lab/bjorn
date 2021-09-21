@@ -26,6 +26,7 @@ def convert_metadata(
     metadata: pd.DataFrame,  
     column_config_file: str,
     constant_config_file: str,
+    author_conversion_file: str,
     wastewater: bool = False,
 ) -> pd.DataFrame:
     """
@@ -52,6 +53,12 @@ def convert_metadata(
         converted_metadata[key] = constant_mapping[key]
     
     # fix author and originating lab fields
+    # map old author names to the new version of those names
+    author_conversions = pd.read_csv(author_conversion_file)
+    converted_metadata = converted_metadata.merge(author_conversions, how="left", left_on="collected_by_1", right_on="authors_original")
+    converted_metadata = converted_metadata.drop(columns=["collected_by_1", "authors_original"])
+    converted_metadata = convert_metadata.rename(columns={"authors_new": "collected_by_1"})
+
     # split the dataframe by if it has both fields, one, or the other
     has_both_fields = converted_metadata[(~converted_metadata["collected_by_1"].isna()) & (~converted_metadata["collected_by_2"].isna())]
     has_both_fields["collected_by"] = has_both_fields["collected_by_1"] + " with the help of " + has_both_fields["collected_by_2"]
@@ -62,7 +69,7 @@ def convert_metadata(
     
     # has the second field and not the first
     has_second_field = converted_metadata[(converted_metadata["collected_by_1"].isna()) & (~converted_metadata["collected_by_2"].isna())]
-    has_second_field["collected_by"] = has_first_field["collected_by_2"]
+    has_second_field["collected_by"] = has_second_field["collected_by_2"]
 
     # if neither
     has_neither_field = converted_metadata[(converted_metadata["collected_by_1"].isna()) & (converted_metadata["collected_by_2"].isna())]
@@ -71,15 +78,14 @@ def convert_metadata(
     # combine the 4 dataframes above 
     converted_metadata_2 = pd.concat([has_both_fields, has_first_field, has_second_field, has_neither_field])
 
-    # convert location to have ':' based entry
-    converted_metadata_2["location"] = converted_metadata_2["location"].str.replace("/", ":")
+    # convert location to have ':' based separation
+    converted_metadata_2["geo_loc_name"] = converted_metadata_2["geo_loc_name"].str.replace("/", ":")
 
-    #TODO: Last remaining feature
     # convert vaccination text to timestamp
-    converted_metadata_2["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata_2["collection_date"], converted_metadata_2["last_vaccinated_raw"])
+    # converted_metadata_2["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata_2["collection_date"], converted_metadata_2["last_vaccinated_raw"])
     
     # drop defunct columns
-    converted_metadata_3 = converted_metadata_2.drop(columns=["collected_by_1", "collected_by_2", "last_vaccinated_raw"])
+    converted_metadata_3 = converted_metadata_2.drop(columns=["collected_by_1", "collected_by_2"])
 
     return converted_metadata_3
 
@@ -99,92 +105,5 @@ def batch_by_author(metadata: pd.DataFrame) -> List[pd.DataFrame]:
     """
     Takes the given metadata and returns it as a list of dataframes, each with one set of
     authors
-    """
-    pass
-
-
-def separate_wastewater(
-    wastewater_sample_list_path: str,
-    all_sequences_location: str,
-    separated_location: str,
-) -> None:
-    """
-    Pull out the relevant wastewater sequences for separate processing
-    """
-    # load the list of samples from a data file
-    with open(wastewater_sample_list_path, "r") as infile:
-        lines = infile.readlines()
-        wastewater_samples_list = [line.rstrip() for line in lines]
-
-    # in the location specified, search for these files and extract them into a separate location
-    if not os.path.exists(separated_location):
-        os.mkdir(separated_location)
-
-    for sequence_file in wastewater_samples_list:
-        shutil.copy(
-            os.path.join(all_sequences_location, sequence_file), separated_location
-        )
-
-    return
-
-def separate_normal(
-    normal_sample_list_path: str,
-    all_sequences_location: str,
-    separated_location: str
-) -> None:
-    """
-    Pull out the relevant normal sequences for separate processing
-    """
-    # load the list of samples from a data file
-    with open(normal_sample_list_path, "r") as infile:
-        lines = infile.readlines()
-        normal_samples_list = [line.rstrip() for line in lines]
-
-    # in the location specified, search for these files and extract them into a separate location
-    if not os.path.exists(separated_location):
-        os.mkdir(separated_location)
-
-    for sequence_file in normal_samples_list:
-        shutil.copy(
-            os.path.join(all_sequences_location, sequence_file), separated_location
-        )
-
-    return 
-
-
-def extract_sequences():
-    """
-    Not quite sure how this would work exactly, but it would need to compare what
-    we have already uploaded vs what we have left to upload and then return a
-    relevant sheet of the associated metadata with those sequences and then sequences
-    / bam files themselves.
-    """
-    pass
-
-
-def extract_bam_files():
-    """
-    Same as above - maybe this is separate from bam files and sequences?
-    """
-    pass
-
-
-def generate_bucket_list():
-    """
-    We're going to need someway to query our google bucket and see
-    what new sequences still need to go? Not sure what the ncbi portal looks like from this aspect
-    so tough to know what we need to automate for.
-    """
-    pass
-
-
-def map_biosample_ids(
-    metadata: pd.DataFrame, biosample_data: pd.DataFrame, sequences: str, bam_files: str
-) -> None:
-    """
-    Need to take the biosample data, our metadata, and use all of that to map the sequences and the bam file for upload
-    This should ideally happen after batching by author, but doesn't matter a ton?
-    This would create a folder structure in a centralized place that we could upload from
-    Potentially could interact with gcp to restructe the folders in our storage buckets to make this easy
     """
     pass
