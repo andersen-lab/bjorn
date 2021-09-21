@@ -4,7 +4,7 @@ Use these utils to upload sequences to NCBI
 
 import os
 import shutil
-from typing import Dict, List
+from typing import Collection, Dict, List
 import json
 
 import pandas as pd
@@ -16,6 +16,7 @@ def merge_metadata(repo_metadata: pd.DataFrame, online_metadata: pd.DataFrame) -
     Takes the online metadata and remerges it with that published in the HCoV-19 repo
     to create a combined file with all needed columns
     """
+    #TODO: Add code here to get the gsheets from online and do this in google cloud instead
     merged_data = repo_metadata.merge(online_metadata, how="left", left_on="fasta_hdr", right_on="Virus name")
     return merged_data
 
@@ -42,16 +43,46 @@ def convert_metadata(
         with open(constant_config_file, 'r') as infile:
             constant_mapping = json.load(infile)["normal"]
 
-    #TODO: Fix author and originating lab fields
-    #TODO: Convert date back to timestamp
-    #TODO: Convert location to have ':' based entry
     # convert columns
     converted_metadata = pd.DataFrame()
     for key in column_mapping:
         converted_metadata[key] = metadata[column_mapping[key]]
     for key in constant_mapping:
         converted_metadata[key] = constant_mapping[key]
+    
+    # fix author and originating lab fields
+    # split the dataframe by if it has both fields, one, or the other
+
+    # add them both together if both fields have text
+    converted_metadata["collected_by"] = converted_metadata["collected_by_1"] + " with the help of " + converted_metadata["collected_by_2"]
+    # if only collected_by_1
+    converted_metadata["collected_by"] = converted_metadata["collected_by_1"]
+    # if only collected_by_2
+    converted_metadata["collected_by"] = converted_metadata["collected_by_2"]
+    # if neither?
+    # throw an error
+
+    # convert location to have ':' based entry
+    converted_metadata["location"] = converted_metadata["location"].str.replace("/", ":")
+    
+    # convert date back to timestamp
+    # map months -> 30 days
+    # map weeks -> 7 days
+    # return timestamp replacement using the collected_by_date
+    converted_metadata["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata["collection_date"], converted_metadata["last_vaccinated_raw"])
+    
+    #TODO: Drop defunct columns
+    converted_metadata = converted_metadata.drop(columns=["collected_by_1", "collected_by_2", "last_vaccinated_raw"])
+
     return converted_metadata
+
+
+def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) -> str:
+    """
+    Take a text field which says how many weeks or months ago someone was vaccinated and transform that into a timestamp
+    and then render that timestamp as text
+    """
+    pass
 
 
 def batch_by_author(metadata: pd.DataFrame) -> List[pd.DataFrame]:

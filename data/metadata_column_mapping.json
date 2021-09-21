@@ -5,12 +5,13 @@
         "geo_loc_name": "location",
         "isolation_source": "Additional host information",
         "ww_population": "Additional location information",
-        "collected_by": "authors",
-        "sequenced_by": "originating_lab"
+        "collected_by_1": "authors",
+        "collected_by_2": "originating_lab"
     },
     "normal": {
         "sample_name": "ID",
-        "collected_by": "authors",
+        "collected_by_1": "authors",
+        "collected_by_2": "originating_lab",
         "collection_date": "collection_date",
         "geo_loc_name": "location",
         "isolate": "Additional host information",
@@ -18,6 +19,6 @@
         "collection_method": "Specimen source",
         "gisaid_accession": "gisaid_accession",
         "gisaid_virus_name": "fasta_hdr",
-        "sequenced_by": "originating_lab"
+        "last_vaccinated_raw": "Last vaccinated"
     }
 }
