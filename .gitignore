@@ -123,3 +123,6 @@ bjorn.ini
 data/*.csv
 data/*.txt
 data/wastewater/
+data/ncbi_upload/*.csv
+data/ncbi_upload/*.txt
+*.fasta
