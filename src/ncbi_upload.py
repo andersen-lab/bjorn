@@ -2,11 +2,11 @@
 Use these utils to upload sequences to NCBI
 """
 
+import datetime
+import json
 import os
 import shutil
-from typing import Collection, Dict, List
-import time
-import json
+from typing import Collection, Dict, List, Tuple
 
 import pandas as pd
 
@@ -57,7 +57,7 @@ def convert_metadata(
     author_conversions = pd.read_csv(author_conversion_file)
     converted_metadata = converted_metadata.merge(author_conversions, how="left", left_on="collected_by_1", right_on="authors_original")
     converted_metadata = converted_metadata.drop(columns=["collected_by_1", "authors_original"])
-    converted_metadata = convert_metadata.rename(columns={"authors_new": "collected_by_1"})
+    converted_metadata = converted_metadata.rename(columns={"authors_new": "collected_by_1"})
 
     # split the dataframe by if it has both fields, one, or the other
     has_both_fields = converted_metadata[(~converted_metadata["collected_by_1"].isna()) & (~converted_metadata["collected_by_2"].isna())]
@@ -81,24 +81,63 @@ def convert_metadata(
     # convert location to have ':' based separation
     converted_metadata_2["geo_loc_name"] = converted_metadata_2["geo_loc_name"].str.replace("/", ":")
 
-    # convert vaccination text to timestamp
-    # converted_metadata_2["last_vaccinated"] = _convert_str_date_to_timestamp(converted_metadata_2["collection_date"], converted_metadata_2["last_vaccinated_raw"])
-    
     # drop defunct columns
     converted_metadata_3 = converted_metadata_2.drop(columns=["collected_by_1", "collected_by_2"])
 
     return converted_metadata_3
 
+def recover_vaccine_date(metadata: pd.DataFrame) -> pd.DataFrame:
+    """
+    Use this separate function to get the actual date out so we can clean up the merged file for errors that would break this
+    """
+    needs_to_be_vaccine_timestamped = metadata[metadata["last_vaccinated_raw"].str.contains("~", na=False)]
+    needs_to_be_vaccine_timestamped["date_of_sars_cov_2_vaccination"], needs_to_be_vaccine_timestamped["vaccine_received"] = _convert_str_date_to_timestamp(needs_to_be_vaccine_timestamped["last_vaccinated_raw"], needs_to_be_vaccine_timestamped["collection_date"])
+    needs_to_be_vaccine_timestamped["date_of_sars_cov_2_vaccination"] = needs_to_be_vaccine_timestamped["date_of_sars_cov_2_vaccination"].dt.strftime('%Y-%m-%d')
+    does_not_need_to_be_vaccine_timestamped = metadata[~metadata["last_vaccinated_raw"].str.contains("~", na=False)]
+    timestamped_metadata = pd.concat([needs_to_be_vaccine_timestamped, does_not_need_to_be_vaccine_timestamped])
+    #timestamped_metadata = timestamped_metadata.drop(columns=["last_vaccinated_raw"])
+    return timestamped_metadata
 
-def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) -> pd.Series:
+def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) -> Tuple[pd.Series, pd.Series]:
     """
     Take a text field which says how many weeks or months ago someone was vaccinated and transform that into a timestamp
     and then render that timestamp as text
     """
-    #TODO: Needs to handle errors in the collection_date
-    #TODO: Needs to handle errors in vaccination date
-    collection_timestamps = time.mktime(time.strptime(collection_date, '%d-%m-%Y'))
-    pass
+    # make pairs out of all the values
+    collection_timestamps = pd.to_datetime(collection_date).to_list()
+
+    split_series = text.str.split(" ")
+    # number of weeks or months
+    time_change_numeral = [float(item[0].replace("~", "")) for item in split_series]
+
+    # the weeks or months
+    period = [item[1] for item in split_series]
+    
+    # first or second dose
+    dose = [item[3] for item in split_series]
+
+    # vaccine type 
+    vaccine = [item[4] if item[4] != "&" else "Johnson & Johnson" for item in split_series]
+    
+    list_of_vaccine_dates = []
+    for entry in zip(collection_timestamps, time_change_numeral, period, dose, vaccine):
+        
+        # get if week or months
+        if "week" in entry[2]:
+            multiplier = 7
+        else:
+            multiplier = 30
+        
+        # get vaccine date
+        if entry[3] == "second":
+            vaccine_date = entry[0] - pd.Timedelta(days=(entry[1]*multiplier)+30)
+        else:
+            vaccine_date = entry[0] - pd.Timedelta(days=entry[1]*multiplier)    
+        
+        list_of_vaccine_dates.append(vaccine_date)
+        
+    return list_of_vaccine_dates, vaccine
+
 
 
 def batch_by_author(metadata: pd.DataFrame) -> List[pd.DataFrame]:
