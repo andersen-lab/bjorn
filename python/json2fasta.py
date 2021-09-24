@@ -47,7 +47,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
     print(f"Total number of sequences: {num_ids}")
     print("Excluding non human hosts")
     non_human_host = ["tiger", "leopard", "monkey", "snowleopard", "hamster", "gorilla", "mouse", "otter", "pangolin", "bat", "dog", "lion", "cat", "mink"] # If non human host, typically virus name will have the structure: <nonhuman host>/Country/...
-    human_host_cond = df["covv_virus_name"].apply(lambda x: x.split("/")[0] not in non_human_host)
+    human_host_cond = df["covv_virus_name"].apply(lambda x: x.split("/")[0].lower() not in non_human_host)
     df = df[human_host_cond]
     print(f"Cleaning metadata")
     df.rename(columns={
