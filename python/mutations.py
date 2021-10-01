@@ -117,17 +117,22 @@ def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
     print(f"Computing codon numbers...")
     # compute codon number of each substitution
     seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
-    seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
+    if mutation_type=='out-of-frame':
+        # compute codon number based on nucleotide position numbering used for deletions (incl. out-of-frame substitutions)
+        seqsdf['codon_num'] = np.floor(((seqsdf['pos'] - seqsdf['gene_start_pos'] - 1) / 3) + 1).astype(int)
+    else:
+        # compute codon number based on nucleotide position numbering used for substitutions 
+        seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
     print(f"Fetching reference codon...")
     # fetch the reference codon for each substitution
     seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
     seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
     print(f"Fetching alternative codon...")
     if mutation_type=='out-of-frame':
-        # fetch the alternative codon for each substitution
+        # fetch the alternative codon for each substitution for out-of-frame form
         seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_oof_codon, args=(seqs,), axis=1)
     else:
-        # fetch the alternative codon for each substitution
+        # fetch the alternative codon for each substitution for original form
         seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
     del seqs
     gc.collect();
