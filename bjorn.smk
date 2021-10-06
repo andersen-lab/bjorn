@@ -12,79 +12,57 @@ patient_zero = config['patient_zero']
 data_source = config['data_source']
 gadm_data = config["gadm_data"]
 cleanup = config["cleanup"]
+geojson_prefix = config["geojson_prefix"]
+min_date = config["min_date"]
 
 rule all:
     input:
-        meta="{out_dir}/api_metadata_latest.json".format(out_dir = out_dir),
-        data="{out_dir}/_api_data_{current_datetime}.json.gz".format(out_dir = out_dir, current_datetime=current_datetime),
-    output:
-        "{out_dir}/api_data_latest.json.gz".format(out_dir = out_dir)
-    params:
-        out_dir = out_dir
+        meta=f"{out_dir}/api_metadata_latest.json",
+        data=f"{out_dir}/_api_data_{current_datetime}.json.gz"
     shell:
         """
-        rm -rf {params.out_dir}/chunks_*
-        ln -f {input.data} {params.out_dir}/api_data_latest.json.gz
-        """
-
-rule upload:
-    input:
-        meta="{out_dir}/api_metadata_latest.json".format(out_dir = out_dir),
-        data="{out_dir}/api_data_latest.json.gz".format(out_dir = out_dir)
-    params:
-        out_dir = out_dir
-    shell:
-        """
-        src/cloud_upload.sh {params.out_dir} 
+        rm -f {out_dir}/api_metadata_latest.json
+        ln -f {input.data} {out_dir}/api_data_latest.json.gz
         """
 
 rule clear:
-    params:
-        out_dir = out_dir
-    threads: 1
     shell:
         """
-        rm -f {params.out_dir}/api_data_latest.json.gz
-        rm -f {params.out_dir}/api_metadata_latest.json
+        rm -f {out_dir}/api_data_latest.json.gz
+        rm -f {out_dir}/api_metadata_latest.json
         """
 
 rule clean:
-    params:
-        out_dir = out_dir
-    threads: 1 
     shell:
         """
-        cleanup && rm -rf {params.out_dir}/chunks_*
-        cleanup && rm -f {params.out_dir}/*api*.json*
+        rm -rf {out_dir}/chunks_*
+        rm -f {out_dir}/*api*.json*
         """
 
 rule build_meta:
     input:
-        "{out_dir}/_api_data_{current_datetime}.json.gz".format(out_dir = out_dir, current_datetime = current_datetime)
+        f"{out_dir}/_api_data_{current_datetime}.json.gz"
     output:
         "{out_dir}/api_metadata_latest.json"
-    params:
-        out_dir = out_dir,
-        include_hash = include_hash
-    threads: 1 
+    threads: 1
     shell:
         """
         echo "{{ \\""date_modified\\"": \\""{current_datetime}\\"", \
                  \\""records\\"": $(gunzip -c {input} | wc -l) " \
-$( {params.include_hash} && echo \
+$( {include_hash} && echo \
                ",\\""hash\\"": \\""$(gunzip -c {input} | jq -cs 'sort|.[]' | md5sum | cut  -d' ' -f1)\\"" " \
 ) \
-             "}}" | jq -c '.' > {params.out_dir}/_api_metadata_{current_datetime}.json
-        cat {params.out_dir}/_api_metadata_{current_datetime}.json
-        ln -f {params.out_dir}/_api_metadata_{current_datetime}.json {output}
+             "}}" | jq -c '.' > {out_dir}/_api_metadata_{current_datetime}.json
+        cat {out_dir}/_api_metadata_{current_datetime}.json
+        ln -f {out_dir}/_api_metadata_{current_datetime}.json {output}
         """
 
 rule merge_json:
     input:
-        dynamic("{out_dir}/chunks_apijson_{current_datetime}/{{sample}}.json.gz".format(out_dir = out_dir, current_datetime = current_datetime))
+        dynamic(f"{out_dir}/chunks_apijson_{current_datetime}/{{sample}}.json.gz")
     output:
         "{out_dir}/_api_data_{current_datetime}.json.gz"
-    threads: 1 
+    threads: 1
     shell:
         """
         cat {input} > {output}
@@ -92,105 +70,76 @@ rule merge_json:
 
 rule merge_mutations_metadata:
     input:
-        muts="{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv",
-        metadata="{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz"
-    threads: 1
-    params:
-        current_datetime=current_datetime,
-        geojson_prefix=config["geojson_prefix"],
-        min_date = config["min_date"]
+        meta="{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz",
+        data="{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv"
     output:
         temp("{out_dir}/chunks_apijson_{current_datetime}/{sample}.json.gz")
+    threads: 1
     shell:
         """
-        src/merge_results.py -i {input.muts} -m {input.metadata} -o {output} -u None -n {params.min_date}  -g {params.geojson_prefix} -t {params.current_datetime}
+        python/merge_results.py -i {input.data} -m {input.meta} -o {output} -u None -n {min_date}  -g {geojson_prefix} -t {current_datetime}
         echo "" | gzip - >> {output} # Add new line as delimiter between chunks
         """
 
 rule run_bjorn:
     input:
         "{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta"
-    params:
-        patient_zero=patient_zero,
-        data_source=data_source
     output:
         temp("{out_dir}/chunks_muts_{current_datetime}/{sample}.mutations.csv")
     threads: 1
     shell:
         """
-        src/msa_2_mutations.py -i {input} -r {params.patient_zero} -d {params.data_source} -o {output}
+        python/msa_2_mutations.py -i {input} -r {patient_zero} -d {data_source} -o {output}
         """
 
 rule run_data2funk:
     input:
         "{out_dir}/chunks_sam_{current_datetime}/{sample}.sam"
-    params:
-        reference_filepath=reference_filepath,
     output:
         temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
-    threads: 1 
+    threads: 1
     shell:
         """
-        datafunk sam_2_fasta -s {input} -r {params.reference_filepath} -o {output} --pad --log-inserts
+        datafunk sam_2_fasta -s {input} -r {reference_filepath} -o {output} --pad --log-inserts
         """
 
 rule run_minimap2:
     input:
         "{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"
-    params:
-        num_cpus=num_cpus,
-        reference_filepath=reference_filepath
     output:
         temp("{out_dir}/chunks_sam_{current_datetime}/{sample}.sam")
     threads: num_cpus
     shell:
         """
-        minimap2 -a -x asm5 -t {params.num_cpus} {params.reference_filepath} {input} -o {output}
+        minimap2 -a -x asm5 -t {num_cpus} {reference_filepath} {input} -o {output}
         """
 
-rule convert_to_fasta:
-    input:
-        "{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
-    output:
-        fasta=temp("{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"),
-        metadata=temp("{out_dir}/chunks_fasta_{current_datetime}/{sample}.tsv.gz")
-    params:
-        tmp="{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta.tmp",
-        reference_filepath=reference_filepath,
-        gadm_data = gadm_data,
-        output_prefix="{out_dir}/chunks_fasta_{current_datetime}/{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)
-    threads: 1
-    shell:
-        """
-        src/json2fasta.py -i {input} -o {params.output_prefix} -g {params.gadm_data}
-        cat {output.fasta} {params.reference_filepath} > {params.tmp}
-        mv {params.tmp} {output.fasta}
-        """
-
-rule chunk_json:
-    input:
-        "{out_dir}/provision_{current_datetime}.json".format(gisaid_feed = config['gisaid_feed'], out_dir = out_dir, current_datetime = current_datetime)
-    params:
-        chunk_dir = "{out_dir}/chunks_json_{current_datetime}".format(current_datetime = current_datetime, out_dir = out_dir),
-        chunk_prefix = "chunk_json_{current_datetime}.".format(current_datetime = current_datetime),
-        chunk_size = chunk_size
-    threads: 1
-    output:
-        temp(dynamic("{out_dir}/chunks_json_{current_datetime}/chunk_json_{{sample}}".format(out_dir = out_dir, current_datetime = current_datetime)))
-    shell:
-        """
-        split --verbose -l{params.chunk_size} -d -a 5 {input} {params.chunk_dir}/{params.chunk_prefix}
-        """
-
-rule download_sequences:
-    output:
-        temp("{out_dir}/provision_{current_datetime}.json")
-    params:
-        current_datetime = current_datetime,
-        username = username,
-        password = password
-    threads: 1
-    shell:
-        """
-        curl -u {username}:{password} ***REMOVED*** | xz -d -T8 > {output}
-        """
+fasta_output_prefix = out_dir + "/chunks_fasta_" + current_datetime 
+if data_source == "gisaid_feed":
+    rule pull_gisaid_sequences:
+        output:
+            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
+            data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta"))
+        threads: 2*num_cpus
+        shell:
+            """
+            curl -u {username}:{password} ***REMOVED*** | xz -d -T{num_cpus} |
+                    parallel --pipe --tmpdir /dev/shm/bjorn --block 30M -j{num_cpus} \
+                        'python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}'
+            """
+elif data_source == "alab_release":
+    rule clone_alab_sequences:
+        output:
+            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
+            data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta"))
+        threads: 1
+        shell:
+            """
+            # git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
+            # copy to output, filter?
+            # append reference sequence
+            # line metadata up with the format expected by merge_results.py
+            """
+else:
+    print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
+    sys.exit()

@@ -3,13 +3,14 @@ import gc
 import re
 import json
 import argparse
+import sys
 import pandas as pd
 from path import Path
 import bjorn_support as bs
 from mappings import COUNTY_CORRECTIONS
 import numpy as np
 
-def convert_to_fasta(input_json, output_prefix, gadm_fp):
+def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
     output_fasta = "{}.fasta".format(output_prefix)
     output_metadata = "{}.tsv.gz".format(output_prefix)
     metacols = [
@@ -26,7 +27,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
     # Download GISAID API feed
     # load sequence data
     print(f"Loading JSON data from {input_json}...")
-    data = [json.loads(line) for line in open(input_json, 'r')]
+    data = [json.loads(line) for line in input_json]
     print(f"Total number of sequences in chunk: {len(data)}")
     # generate fasta file containing all sequences
     print(f"Converting to dict...")
@@ -37,6 +38,9 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp):
     }
     print(f"Converting to FASTA {output_fasta}...")
     bs.dict2fasta(seqs_dict, output_fasta)
+    with open(ref_fp, "r") as ref_seq:
+        with open(output_fasta, "a") as fasta_file:
+            fasta_file.write(ref_seq.read())
     print(f"FASTA output generated and saved in {output_fasta}")
     # generate tsv file containing processed metadata
     # load raw metadata into dataframe
@@ -397,7 +401,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--inputjson",
                             type=str,
-                            required=True,
+                            default=sys.stdin,
                             help="Input JSON")
     parser.add_argument("-o", "--outputprefix",
                             type=str,
@@ -407,9 +411,14 @@ if __name__=="__main__":
                             type=str,
                             required=True,
                             help="GADM")
+    parser.add_argument("-r", "--reference",
+                            type=str,
+                            required=True,
+                            help="Reference Sequence")
     args = parser.parse_args()
     input_json = args.inputjson
     output_prefix = args.outputprefix
     gadm_fp = args.gadm
-    result = convert_to_fasta(input_json, output_prefix, gadm_fp)
+    ref_fp = args.reference
+    result = convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp)
     assert result==0, "ERROR: downloading GISAID data incomplete. Please inspect log."
