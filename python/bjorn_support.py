@@ -130,12 +130,11 @@ def batch_iterator(iterator, chunk_size):
             yield chunk
 
 
-def dict2fasta(seqs: dict, fasta_fp: str, wrap=80):
-    with open(fasta_fp, 'w') as f:
-        for gid, gseq in seqs.items():
-            f.write('>{}\n'.format(gid))
-            for i in range(0, len(gseq), wrap):
-                f.write('{}\n'.format(gseq[i:i + wrap])) 
+def dict2fasta(seqs: dict, f: str, wrap=80):
+    for gid, gseq in seqs.items():
+        f.write('>{}\n'.format(gid))
+        for i in range(0, len(gseq), wrap):
+            f.write('{}\n'.format(gseq[i:i + wrap])) 
     return 0
 
 
