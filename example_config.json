@@ -12,6 +12,8 @@
     "ref_fasta": "data/NC045512.fasta",
     "num_cpus": "4",
     "data_source": "gisaid_feed",
+    "is_test": "true",
+    "test_data": "bjorn_tools/testdata.jsonl.gz",
     "patient_zero": "NC_045512.2",
     "unknown_value": "None",
     "min_date": "2020-01-25",
@@ -24,5 +26,6 @@
     "geojson_prefix": "data/",
     "current_datetime": "2021-06-23-00-16",
     "gisaid_username": "username",
-    "gisaid_password": "password"
+    "gisaid_password": "password",
+    "cleanup": "false",
   }

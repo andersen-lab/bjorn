@@ -37,10 +37,10 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
         regex.sub('', sample['sequence'].replace('\n', '')) for sample in data
     }
     print(f"Converting to FASTA {output_fasta}...")
-    bs.dict2fasta(seqs_dict, output_fasta)
-    with open(ref_fp, "r") as ref_seq:
-        with open(output_fasta, "a") as fasta_file:
+    with open(output_fasta, "w") as fasta_file:
+        with open(ref_fp, "r") as ref_seq:
             fasta_file.write(ref_seq.read())
+        bs.dict2fasta(seqs_dict, fasta_file)
     print(f"FASTA output generated and saved in {output_fasta}")
     # generate tsv file containing processed metadata
     # load raw metadata into dataframe
@@ -49,10 +49,6 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
     assert df['covv_accession_id'].shape[0]==df['covv_accession_id'].unique().shape[0], f'ERROR: gisaid accession ids not unique'
     num_ids = df['covv_accession_id'].unique().shape[0]
     print(f"Total number of sequences: {num_ids}")
-    print("Excluding non human hosts")
-    non_human_host = ["tiger", "leopard", "monkey", "snowleopard", "hamster", "gorilla", "mouse", "otter", "pangolin", "bat", "dog", "lion", "cat", "mink"] # If non human host, typically virus name will have the structure: <nonhuman host>/Country/...
-    human_host_cond = df["covv_virus_name"].apply(lambda x: x.split("/")[0].lower() not in non_human_host)
-    df = df[human_host_cond]
     print(f"Cleaning metadata")
     df.rename(columns={
         'covv_virus_name': 'strain',
@@ -89,14 +85,15 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
     if max_region_columns >= 4:
         df['location'] = res['location'].str.strip()
     print(f"Admin0 standardization...")
+    df['country'].fillna('None', inplace=True)
     df['country_normed'] = df['country'].copy()
     df['country_normed'].fillna('None', inplace=True)
     df.loc[df['country_normed'].str.lower() == 'usa',
            'country_normed'] = 'United States'
     df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains(
-        'Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
-    df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains(
-        'Democratic')), 'country_normed'] = 'Republic of Congo'
+        'emocratic')), 'country_normed'] = 'Democratic Republic of the Congo'
+    df.loc[(df['country'].str.contains('Congo')) & ~(df['country'].str.contains(
+        'emocratic')), 'country_normed'] = 'Republic of Congo'
     df.loc[df['country_normed'].str.contains(
         'Eswatini'), 'country_normed'] = "Swaziland"
     df.loc[df['country_normed'].str.contains(

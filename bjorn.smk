@@ -14,6 +14,8 @@ gadm_data = config["gadm_data"]
 cleanup = config["cleanup"]
 geojson_prefix = config["geojson_prefix"]
 min_date = config["min_date"]
+test_data = config["test_data"]
+is_test = config["is_test"]
 
 rule all:
     input:
@@ -123,7 +125,8 @@ if data_source == "gisaid_feed":
         threads: 2*num_cpus
         shell:
             """
-            curl -u {username}:{password} ***REMOVED*** | xz -d -T{num_cpus} |
+            mkdir -p /dev/shm/bjorn
+            (({is_test} && gunzip -c {test_data}) || (curl -u {username}:{password} ***REMOVED*** | xz -d -T{num_cpus})) |
                     parallel --pipe --tmpdir /dev/shm/bjorn --block 30M -j{num_cpus} \
                         'python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}'
             """
