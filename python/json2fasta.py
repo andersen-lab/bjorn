@@ -17,6 +17,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
         'covv_virus_name',
         'covsurver_prot_mutations',
         'covv_location',
+        'covv_host',
         'covv_lineage',
         'covv_collection_date',
         'covv_accession_id',
@@ -50,9 +51,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
     num_ids = df['covv_accession_id'].unique().shape[0]
     print(f"Total number of sequences: {num_ids}")
     print("Excluding non human hosts")
-    non_human_host = ["tiger", "leopard", "monkey", "snowleopard", "hamster", "gorilla", "mouse", "otter", "pangolin", "bat", "dog", "lion", "cat", "mink"] # If non human host, typically virus name will have the structure: <nonhuman host>/Country/...
-    human_host_cond = df["covv_virus_name"].apply(lambda x: x.split("/")[0].lower() not in non_human_host)
-    df = df[human_host_cond]
+    df = df[df['covv_host'].str.lower() == "human"]
     print(f"Cleaning metadata")
     df.rename(columns={
         'covv_virus_name': 'strain',
@@ -89,13 +88,14 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
     if max_region_columns >= 4:
         df['location'] = res['location'].str.strip()
     print(f"Admin0 standardization...")
+    df['country'].fillna('None', inplace=True)
     df['country_normed'] = df['country'].copy()
     df['country_normed'].fillna('None', inplace=True)
     df.loc[df['country_normed'].str.lower() == 'usa',
            'country_normed'] = 'United States'
     df.loc[(df['country'].str.contains('Congo')) & (df['country'].str.contains(
         'Democratic')), 'country_normed'] = 'Democratic Republic of the Congo'
-    df.loc[(df['country'].str.contains('Congo')) & (~df['country'].str.contains(
+    df.loc[(df['country'].str.contains('Congo')) & ~(df['country'].str.contains(
         'Democratic')), 'country_normed'] = 'Republic of Congo'
     df.loc[df['country_normed'].str.contains(
         'Eswatini'), 'country_normed'] = "Swaziland"
