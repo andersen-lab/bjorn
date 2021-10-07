@@ -1,4 +1,6 @@
 from datetime import datetime
+configfile: "/home/chrissy/bjorn/example_config.json"
+
 
 username = config['gisaid_username']
 password = config['gisaid_password']
@@ -11,7 +13,6 @@ reference_filepath = config['ref_fasta']
 patient_zero = config['patient_zero']
 data_source = config['data_source']
 gadm_data = config["gadm_data"]
-cleanup = config["cleanup"]
 geojson_prefix = config["geojson_prefix"]
 min_date = config["min_date"]
 
@@ -135,10 +136,11 @@ elif data_source == "alab_release":
         threads: 1
         shell:
             """
-            # git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
-            # copy to output, filter?
-            # append reference sequence
-            # line metadata up with the format expected by merge_results.py
+            echo {fasta_output_prefix}
+            git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
+            mv HCoV-19-Genomics/consensus_sequences/*.fasta {fasta_output_prefix} 
+            python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix}
+            cat {reference_filepath} >> {fasta_output_prefix}/*.fasta
             """
 else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
