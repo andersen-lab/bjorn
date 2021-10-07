@@ -85,9 +85,9 @@ meta_df['country'] = c
 meta_df['division'] = d
 meta_df['location'] = l
 #putting in filler columns to make sure it doesn't crash
-meta_df['country_normed'] = ['']*len(meta_df)
-meta_df['division_normed'] = ['']*len(meta_df)
-meta_df['location_normed'] = ['']*len(meta_df)
+meta_df['country_normed'] = c
+meta_df['division_normed'] = d
+meta_df['location_normed'] = l
 meta_df['date_submitted'] = ['']*len(meta_df)
 meta_df['pangolin_lineage'] = ['']*len(meta_df)
 meta_df['pangolin_version'] = ['']*len(meta_df)
