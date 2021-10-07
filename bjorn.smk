@@ -1,5 +1,4 @@
 from datetime import datetime
-configfile: "/home/chrissy/bjorn/example_config.json"
 
 
 username = config['gisaid_username']
@@ -140,7 +139,7 @@ elif data_source == "alab_release":
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
             mv HCoV-19-Genomics/consensus_sequences/*.fasta {fasta_output_prefix} 
             python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix}
-            cat {reference_filepath} >> {fasta_output_prefix}/*.fasta
+            cat {reference_filepath}  >> {fasta_output_prefix}/*.fasta
             """
 else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
