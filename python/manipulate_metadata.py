@@ -94,7 +94,7 @@ meta_df['country'] = c
 meta_df['division'] = d
 meta_df['location'] = l
 
-meta_df.rename(columns={'collection_date':'datae_collected', \
+meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id'}, inplace=True)
 
 for i,fasta in enumerate(all_fasta):
