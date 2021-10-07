@@ -17,14 +17,6 @@ parser.add_argument("-o", "--outfp",
                         help="Output filepath")
 
 
-#lets load our predfined terms
-with open('./data/gadm_countries.json','r') as jfile:
-    cdata = json.load(jfile)
-with open('./data/gadm_divisions.json', 'r') as jfile:
-    ddata = json.load(jfile)
-with open('./data/gadm_locations.json', 'r') as jfile:
-    ldata = json.load(jfile)
-
 args = parser.parse_args()
 metadata_filepath = args.inputmetadata
 output_filepath = args.outfp
@@ -75,14 +67,13 @@ for index, row in meta_df.iterrows():
     division = ""
     location = ""
     location_list = row['location'].split('/')[1:]
-    for geo in location_list:
-        if geo in cdata:
-            country = geo
-        elif geo in ddata:
-            division = geo
-        elif geo in ldata:
-            location = geo
-    
+    if len(location_list) > 2:
+        country = location_list[0]
+        division = location_list[1]
+        location = location_list[2]
+    elif len(location_list) == 2:
+        country = location_list[0]
+        location = location_list[1]
     c.append(country)
     d.append(division)
     l.append(location)
