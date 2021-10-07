@@ -84,7 +84,14 @@ meta_df.drop(['location', 'zipcode', 'authors', 'originating_lab', 'ID','gb_acce
 meta_df['country'] = c
 meta_df['division'] = d
 meta_df['location'] = l
-
+#putting in filler columns to make sure it doesn't crash
+meta_df['country_normed'] = ['']*len(meta_df)
+meta_df['division_normed'] = ['']*len(meta_df)
+meta_df['location_normed'] = ['']*len(meta_df)
+meta_df['date_submitted'] = ['']*len(meta_df)
+meta_df['pangolin_lineage'] = ['']*len(meta_df)
+meta_df['pangolin_version'] = ['']*len(meta_df)
+meta_df['clade'] = ['']*len(meta_df)
 meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id'}, inplace=True)
 
