@@ -79,6 +79,7 @@ if __name__=="__main__":
     intro = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Instructions')
     cov = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Coverage')
     meta = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Submissions', skiprows=1)
+    meta = meta.dropna(subset=["FASTA filename"])
     qc_filter = (cov['pct_coverage']>min_coverage) & (cov['avg_depth']>min_depth)
     accepted_samples = cov.loc[qc_filter, 'Biolab Trans. #'].tolist()
     meta['sample_id'] = meta['FASTA filename'].apply(lambda x : x.split('.')[0]).astype(int)
