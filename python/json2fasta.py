@@ -17,6 +17,7 @@ def convert_to_fasta(input_json, output_prefix, gadm_fp, ref_fp):
         'covv_virus_name',
         'covsurver_prot_mutations',
         'covv_location',
+        'covv_host',
         'covv_lineage',
         'covv_collection_date',
         'covv_accession_id',
