@@ -1,15 +1,20 @@
 {
     "wastewater": {
         "sample_name": "ID",
+        "alternative_ID": "alternative_ID",
         "collection_data": "collection_date",
         "geo_loc_name": "location",
         "isolation_source": "Additional host information",
         "ww_population": "Additional location information",
         "collected_by_1": "authors",
-        "collected_by_2": "originating_lab"
+        "collected_by_2": "originating_lab",
+        "sequence_uploaded": "sequence_uploaded",
+        "bam_uploaded": "bam_uploaded", 
+        "wastewater": "wasterwater"
     },
     "normal": {
         "sample_name": "ID",
+        "alternative_ID": "alternative_ID",
         "collected_by_1": "authors",
         "collected_by_2": "originating_lab",
         "collection_date": "collection_date",
@@ -19,6 +24,9 @@
         "collection_method": "Specimen source",
         "gisaid_accession": "gisaid_accession",
         "gisaid_virus_name": "fasta_hdr",
-        "last_vaccinated_raw": "Last vaccinated"
+        "last_vaccinated_raw": "Last vaccinated",
+        "sequence_uploaded": "sequence_uploaded",
+        "bam_uploaded": "bam_uploaded", 
+        "wastewater": "wastewater"
     }
 }

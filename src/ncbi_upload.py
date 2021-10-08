@@ -1,8 +1,9 @@
 """
-Use these utils to upload sequences to NCBI
+Use these utils to prepare sequences for ncbi upload, and ncbi_batch_push to actually upload them
 """
 
 import datetime
+import glob
 import json
 import os
 import shutil
@@ -10,17 +11,73 @@ from typing import Collection, Dict, List, Tuple
 
 import pandas as pd
 
-#from gsheet_interact import gisaid_interactor
+from gsheet_interact import gisaid_interactor
 
-def merge_metadata(repo_metadata: pd.DataFrame, online_metadata: pd.DataFrame) -> pd.DataFrame:
+def merge_metadata(repo_metadata_path: str, online_metadata_config: str, online_metadata_old_path: str) -> pd.DataFrame:
     """
     Takes the online metadata and remerges it with that published in the HCoV-19 repo
     to create a combined file with all needed columns
     """
-    #TODO: Add code here to get the gsheets from online and do this in google cloud instead
-    merged_data = repo_metadata.merge(online_metadata, how="left", left_on="fasta_hdr", right_on="Virus name")
-    return merged_data
+    # load the repo metadata
+    repo_metadata_df = pd.read_csv(repo_metadata_path)
 
+    # load the old online metadata file
+    online_metadata_old_df = pd.read_csv(online_metadata_old_path)
+
+    # load the new online metadata file
+    online_metadata_new_df = gisaid_interactor(online_metadata_config).rename(columns={"Original sampleID": "Sample ID"})
+
+    # combine the old and new online metadata after renaming a column
+    combined_online_metadata = pd.concat([online_metadata_old_df, online_metadata_new_df])
+
+    # merge the online and repo based metadata
+    merged_combined_metadata = repo_metadata_df.merge(combined_online_metadata, how="left", left_on="fasta_hdr", right_on="Virus name")
+
+    return merged_combined_metadata
+
+def generate_alternative_id(metadata: pd.DataFrame) -> pd.DataFrame:
+    """
+    Get an alternate id to match the samples on
+    """
+    metadata["fasta_hdr"] = metadata["fasta_hdr"].fillna("")
+    metadata["alternative_ID"] = [item[2] if len(item) > 1 else "" for item in list(metadata["fasta_hdr"].str.split("/"))]
+    missing_alternative_id = metadata[(metadata["alternative_ID"] == "") | (metadata["fasta_hdr"].str.contains('ALSR'))]
+    has_alternative_id = metadata[(metadata["alternative_ID"] != "") & (~metadata["fasta_hdr"].str.contains('ALSR'))]
+    missing_alternative_id["alternative_ID"] = missing_alternative_id["ID"]
+
+    return pd.concat([missing_alternative_id, has_alternative_id])
+
+def generate_metadata_status(sra_submissions_path: str, genbank_submissions_path: str, wastewater_path: str, consensus_folder_path: str) -> pd.DataFrame:
+    """
+    Takes the current sra, genbank submissions and then the consensus folder path to assess the status of uploading
+    files to various locations
+    """
+    #TODO: Make this pull the current submissions in an automated way from ncbi
+
+    # load wastewater files
+    with open(wastewater_path, "r") as infile:
+        lines = infile.readlines()
+        wastewater_samples_list = [line.split("/")[1].split(".")[0] for line in lines]
+
+    # load sra submissions
+    uploaded_bam_files = pd.read_csv(sra_submissions_path)["Library Name"].to_list()
+
+    # load genbank submissions
+    with open(genbank_submissions_path, 'r') as infile:
+        lines = infile.readlines()
+        lines_blanked = [line if "Severe" in line else 1000 for line in lines]
+        relevant_lines = list(filter((1000).__ne__, lines_blanked))
+    uploaded_sequences = [line.split(" ")[8].split("/")[3] for line in relevant_lines]
+
+    # get the list of files in the HCoV-19-Genomics Repo
+    all_names = [file.split("/")[6].split(".")[0] for file in glob.glob(os.path.join(consensus_folder_path, "*.fasta"))]
+
+    # generate the mapping dict
+    mapping_dict = {file: {"sequence_uploaded": "Yes" if file in uploaded_sequences else "No",
+                       "bam_uploaded": "Yes" if file in uploaded_bam_files else "No",
+                       "wastewater": "Yes" if file in wastewater_samples_list else "No",} for file in all_names}
+
+    return pd.DataFrame.from_dict(mapping_dict, orient='index')
 
 def convert_metadata(
     metadata: pd.DataFrame,  
@@ -139,10 +196,19 @@ def _convert_str_date_to_timestamp(text: pd.Series, collection_date: pd.Series) 
     return list_of_vaccine_dates, vaccine
 
 
+if __name__ == "__main__":
+    # get the latest metadata and merge
+    repo_metadata_path = "/Users/karthikramesh/src/HCoV-19-Genomics/metadata.csv"
+    online_metadata_config = "bjorn.ini"
+    online_metadata_old_path = "data/ncbi_upload/COVID_sequencing_summary [March 2020 - March 2021] - GISAID.csv"
+    merged_combined_metadata = merge_metadata(repo_metadata_path, online_metadata_config, online_metadata_old_path)
 
-def batch_by_author(metadata: pd.DataFrame) -> List[pd.DataFrame]:
-    """
-    Takes the given metadata and returns it as a list of dataframes, each with one set of
-    authors
-    """
-    pass
+    # generate the status info for these sequences
+
+    # generate the alternate id info for these files
+
+    # merge the info to get status & metadata together
+
+    # use params to generate the set of sequences that need to be uploaded
+
+    # dump out the dataframe of sequences that need to be uploaded
