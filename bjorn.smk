@@ -124,10 +124,11 @@ if data_source == "gisaid_feed":
         threads: 2*num_cpus
         shell:
             """
-            mkdir -p /dev/shm/bjorn
+            mkdir -p /dev/shm/bjorn;
             (({is_test} && gunzip -c {test_data}) || (curl -u {username}:{password} ***REMOVED*** | xz -d -T{num_cpus})) |
                     parallel --pipe --tmpdir /dev/shm/bjorn --block 30M -j{num_cpus} \
-                        'python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}'
+                        'jq -cr "select((.covv_host|ascii_downcase == \\"human\\") and (.sequence|length > 8192) and ((.sequence|split(\\"N\\")|length) < (.sequence|length * 0.75)))" | \
+                            python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}'
             """
 elif data_source == "alab_release":
     rule clone_alab_sequences:
