@@ -5,10 +5,14 @@ password = config['gisaid_password']
 out_dir = config['out_dir']
 include_hash = config['include_hash']
 current_datetime = config["current_datetime"] if config["current_datetime"] != False else datetime.now().strftime("%Y-%m-%d-%H-%M")
-chunk_size = int(config['chunk_size'])
-num_cpus = int(config['num_cpus'])
-reference_filepath = config['ref_fasta']
-patient_zero = config['patient_zero']
+chunk_size = config['chunk_size']
+min_length = int(config['min_length'])
+max_unknown_pct = float(config['max_unknown_pct'])
+max_task_cpus = int(config['max_task_cpus'])
+max_cpus = int(config['max_cpus'])
+rem_cpus = max_cpus - max_task_cpus
+reference_filepath = "./pangolin/pangolin/data/reference.fasta"
+patient_zero = "outgroup_A"
 data_source = config['data_source']
 gadm_data = config["gadm_data"]
 geojson_prefix = config["geojson_prefix"]
@@ -18,44 +22,35 @@ is_test = config["is_test"]
 
 rule all:
     input:
-        meta=f"{out_dir}/api_metadata_latest.json",
-        data=f"{out_dir}/_api_data_{current_datetime}.json.gz"
+        meta=rules.build_meta.output,
+        data=rules.merge_json.output
+    output:
+        meta=config["output_fp"],
+        data=config["output_meta"]
     shell:
         """
-        rm -f {out_dir}/api_metadata_latest.json
-        ln -f {input.data} {out_dir}/api_data_latest.json.gz
+        ln -f {input.meta} {output.meta}
+        ln -f {input.data} {output.data}
         """
 
 rule clear:
     shell:
         """
-        rm -f {out_dir}/api_data_latest.json.gz
-        rm -f {out_dir}/api_metadata_latest.json
-        """
-
-rule clean:
-    shell:
-        """
-        rm -rf {out_dir}/chunks_*
-        rm -f {out_dir}/*api*.json*
+        rm -f rules.all.output.meta
+        rm -f rules.all.output.data
         """
 
 rule build_meta:
     input:
-        f"{out_dir}/_api_data_{current_datetime}.json.gz"
+        rules.merge_json.output
     output:
-        "{out_dir}/api_metadata_latest.json"
-    threads: 1
+        f"{out_dir}/_api_metadata_{current_datetime}.json"
+    threads: max_task_cpus
     shell:
         """
-        echo "{{ \\""date_modified\\"": \\""{current_datetime}\\"", \
-                 \\""records\\"": $(gunzip -c {input} | wc -l) " \
-$( {include_hash} && echo \
-               ",\\""hash\\"": \\""$(gunzip -c {input} | jq -cs 'sort|.[]' | md5sum | cut  -d' ' -f1)\\"" " \
-) \
-             "}}" | jq -c '.' > {out_dir}/_api_metadata_{current_datetime}.json
-        cat {out_dir}/_api_metadata_{current_datetime}.json
-        ln -f {out_dir}/_api_metadata_{current_datetime}.json {output}
+        echo "[{current_datetime}, $(pigz -j{max_task_cpus} -dc {input} | wc -l) ]" |
+            jq '{date_modified: .[0], records: .[1]}' > {output}
+        cat {output}
         """
 
 rule merge_json:
@@ -93,27 +88,36 @@ rule run_bjorn:
         python/msa_2_mutations.py -i {input} -r {patient_zero} -d {data_source} -o {output}
         """
 
-rule run_data2funk:
-    input:
-        "{out_dir}/chunks_sam_{current_datetime}/{sample}.sam"
-    output:
-        temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
-    threads: 1
-    shell:
-        """
-        datafunk sam_2_fasta -s {input} -r {reference_filepath} -o {output} --pad --log-inserts
-        """
+module pangolin:
+    snakefile: "pangolin/pangolin/scripts/pangolearn.smk" 
 
-rule run_minimap2:
+use rule align_to_reference from pangolin as pangalign
     input:
-        "{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"
+        fasta = "{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"
     output:
-        temp("{out_dir}/chunks_sam_{current_datetime}/{sample}.sam")
-    threads: num_cpus
-    shell:
-        """
-        minimap2 -a -x asm5 -t {num_cpus} {reference_filepath} {input} -o {output}
-        """
+        fasta = temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
+
+#rule run_data2funk:
+#    input:
+#        "{out_dir}/chunks_sam_{current_datetime}/{sample}.sam"
+#    output:
+#        temp("{out_dir}/chunks_msa_{current_datetime}/{sample}.aligned.fasta")
+#    threads: 1
+#    shell:
+#        """
+#        datafunk sam_2_fasta -s {input} -r {reference_filepath} -o {output} --pad --log-inserts
+#        """
+#
+#rule run_minimap2:
+#    input:
+#        "{out_dir}/chunks_fasta_{current_datetime}/{sample}.fasta"
+#    output:
+#        temp("{out_dir}/chunks_sam_{current_datetime}/{sample}.sam")
+#    threads: max_task_cpus
+#    shell:
+#        """
+#        minimap2 -a -x asm5 -t {max_task_cpus} {reference_filepath} {input} -o {output}
+#        """
 
 fasta_output_prefix = out_dir + "/chunks_fasta_" + current_datetime 
 if data_source == "gisaid_feed":
@@ -121,14 +125,14 @@ if data_source == "gisaid_feed":
         output:
             meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
             data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta"))
-        threads: 2*num_cpus
+        threads: max_cpus
         shell:
             """
             mkdir -p /dev/shm/bjorn;
-            (({is_test} && gunzip -c {test_data}) || (curl -u {username}:{password} ***REMOVED*** | xz -d -T{num_cpus})) |
-                    parallel --pipe --tmpdir /dev/shm/bjorn --block 30M -j{num_cpus} \
-                        'jq -cr "select((.covv_host|ascii_downcase == \\"human\\") and (.sequence|length > 8192) and ((.sequence|split(\\"N\\")|length) < (.sequence|length * 0.75)))" | \
-                            python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}'
+            (({is_test} && gunzip -c {test_data}) || (curl -u {username}:{password} ***REMOVED*** | xz -d -T{max_task_cpus})) |
+                    parallel --pipe --tmpdir /dev/shm/bjorn --block {chunk_size} -j{rem_cpus} \
+                        'jq -cr "select((.covv_host|ascii_downcase == \\"human\\") and (.sequence|length > {min_length}) and ((.sequence|split(\\"N\\")|length) < (.sequence|length * {max_unknown_pct})))" | \
+                            python/json2fasta.py -o {fasta_output_prefix}/{{#}} -g {gadm_data} -r {reference_filepath}' || true
             """
 elif data_source == "alab_release":
     rule clone_alab_sequences:
