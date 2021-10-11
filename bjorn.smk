@@ -67,10 +67,11 @@ elif data_source == "alab_release":
             """
             echo {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
-            cp HCoV-19-Genomics/consensus_sequences/*.fasta {fasta_output_prefix} 
+            gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
+            mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
             python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix}
             for file in {fasta_output_prefix}/*.fasta;do
-                cat {reference_fp} >> "$file"
+                cat {reference_fp} | gzip -c >> "$file"
             done
             """
 else:
