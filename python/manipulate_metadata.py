@@ -101,4 +101,4 @@ for i,fasta in enumerate(all_fasta):
     temp_df = meta_df[meta_df['fasta'] == fasta]
     temp_df.drop(['fasta'], axis=1, inplace=True)
     temp_df['strain'] = first_line
-    temp_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %fasta), "\t", compression='gzip')
+    temp_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %fasta), "\t")

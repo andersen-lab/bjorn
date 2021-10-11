@@ -82,3 +82,4 @@ if __name__=="__main__":
   # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
   muts.to_csv(out_fp, index=False)
   print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")
+  sys.exit(0)
