@@ -272,7 +272,7 @@ def identify_deletions_per_sample(cns,
         # assign a searchable name for each deletion
         seqsdf['mutation'] = seqsdf['gene'] + ':' + 'DEL' + np.ceil(seqsdf['deletion_start_codon']).astype(int).astype(str) + '/' + np.floor(seqsdf['deletion_end_codon']).astype(int).astype(str)
         seqsdf['is_frameshift'] = seqsdf['del_len'].apply(is_frameshift)
-        oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns)
+        oof_mutations = identify_oof_replacements_per_sample(seqsdf.copy(), cns, patient_zero)
         seqsdf = pd.concat([seqsdf, oof_mutations])
         del seqs
         gc.collect();
