@@ -358,14 +358,13 @@ meta['location_id'] = meta['tmp_info2'].apply(lambda x: locations.get(x, unknown
 meta['date_modified'] = date_modified
 meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'country_id', 'division_id', 'location_id']
 
-print(meta_info)
 
 muts = pd.read_csv(input_mut, dtype=str)
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
 # ignore mutations found in non-coding regions
 muts = muts.loc[~(muts['gene']=='Non-coding region')]
 # fuse with metadata
-print(f"Fusing with metadata...")
+print(f"Fusing muts with metadata...")
 # concat with pd
 muts = pd.merge(muts, meta, left_on='idx', right_on='strain')
 muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
@@ -384,8 +383,6 @@ muts_info = [
     'change_length_nt', 'is_frameshift',
     'deletion_codon_coords'
 ]
-
-print(muts)
 
 # GENERATE JSON DATA MODEL
 (
