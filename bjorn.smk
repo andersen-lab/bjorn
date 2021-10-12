@@ -71,7 +71,7 @@ elif data_source == "alab_release":
             mkdir -p {work_dir}/parallel
             mkdir -p {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
-            gzip -rk HCoV-19-Genomics/consensus_sequences/CA-SEARCH-10321*.fasta
+            gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
             
             #select out the files we want
             #INPUT=HCoV-19-Genomics/metadata.csv
@@ -90,15 +90,12 @@ elif data_source == "alab_release":
             mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
             
             #parallel process from here on out in chunks
-            find {fasta_prefix_output} -type f -name "*.fasta.gz" | \
-            parallel --pipe --tmpdir {work_dir}/parallel -l {chunk_size} -j4 python/manipulate_metadata.py \
-                -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {}
+            find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
+            parallel --tmpdir {work_dir}/parallel -l {chunk_size} -j4 python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}}
             
             for file in {fasta_output_prefix}/*.fasta.gz;do
                 cat {reference_fp} | gzip -c >> "$file"
-            done 
-         
- 
+            done  
             """
 else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
