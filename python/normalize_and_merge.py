@@ -372,7 +372,7 @@ meta['location_id'] = meta['tmp_info2'].apply(lambda x: locations.get(x, unknown
 #meta['location'] = meta['location_id'].apply(lambda x: x[1][0]).str.lower()
 #meta['location_id'] = meta['location_id'].apply(lambda x: x[1][1]).str.lower()
 meta['date_modified'] = date_modified
-meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'country_id', 'division_id', 'location_id', 'locstring', 'date_modified']
+meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'country_id', 'division_id', 'location_id', 'date_modified']
 
 muts = pd.read_csv(input_mut, dtype=str)
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
