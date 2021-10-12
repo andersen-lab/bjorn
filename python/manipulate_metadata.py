@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import gzip
 import json
 import argparse
 import pandas as pd
@@ -25,7 +26,7 @@ meta_df = pd.read_csv(metadata_filepath)
 meta_fasta = meta_df['fasta_hdr'].tolist()
 
 #get all .fasta files names
-all_fasta = [os.path.splitext(filename)[0] for filename in os.listdir(output_filepath) if os.path.splitext(filename)[1] == '.fasta']
+all_fasta = [os.path.splitext(filename)[0] for filename in os.listdir(output_filepath) if os.path.splitext(filename)[1] == '.gz']
 
 match_indices = [-1] * len(all_fasta)
 #first pass is looking for exact match between fileaname and metadata id
@@ -66,7 +67,7 @@ for index, row in meta_df.iterrows():
     country = ""
     division = ""
     location = ""
-    location_list = row['location'].split('/')[1:]
+    location_list = str(row['location']).split('/')[1:]
     if len(location_list) > 2:
         country = location_list[0]
         division = location_list[1]
@@ -96,9 +97,9 @@ meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id'}, inplace=True)
 
 for i,fasta in enumerate(all_fasta):
-    with open(os.path.join(output_filepath, fasta+'.fasta'), "r") as file:
+    with gzip.open(os.path.join(output_filepath, fasta +'.gz'), "r") as file:
         first_line = str(file.readline()).strip().replace('>','')
     temp_df = meta_df[meta_df['fasta'] == fasta]
     temp_df.drop(['fasta'], axis=1, inplace=True)
     temp_df['strain'] = first_line
-    temp_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %fasta), "\t")
+    temp_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %fasta.replace(".fasta","")), "\t")
