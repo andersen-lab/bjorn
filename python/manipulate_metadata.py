@@ -16,6 +16,11 @@ parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
                         help="Output filepath")
+parser.add_argument("-f", "--filenames",
+                        required=True,
+                        nargs='+',
+                        help="Filenames of interest")
+
 
 
 args = parser.parse_args()
@@ -24,9 +29,10 @@ output_filepath = args.outfp
 #read in the overall metadata file 
 meta_df = pd.read_csv(metadata_filepath)
 meta_fasta = meta_df['fasta_hdr'].tolist()
+all_filenames = args.filenames
 
 #get all .fasta files names
-all_fasta = [os.path.splitext(filename)[0] for filename in os.listdir(output_filepath) if os.path.splitext(filename)[1] == '.gz']
+all_fasta = [os.path.basename(os.path.splitext(filename)[0]).replace('.fasta','') for filename in all_filenames]
 
 match_indices = [-1] * len(all_fasta)
 #first pass is looking for exact match between fileaname and metadata id
@@ -97,7 +103,7 @@ meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id'}, inplace=True)
 
 for i,fasta in enumerate(all_fasta):
-    with gzip.open(os.path.join(output_filepath, fasta +'.gz'), "r") as file:
+    with gzip.open(os.path.join(output_filepath,fasta +'.fasta.gz'), "r") as file:
         first_line = str(file.readline()).strip().replace('>','')
     temp_df = meta_df[meta_df['fasta'] == fasta]
     temp_df.drop(['fasta'], axis=1, inplace=True)
