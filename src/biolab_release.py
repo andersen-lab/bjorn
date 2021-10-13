@@ -119,7 +119,7 @@ if __name__=="__main__":
                                 # meta_fp=meta_fp,
                                 patient_zero=patient_zero)
     # save substitution results to file
-    substitutions.to_csv(out_dir/'replacements.csv', index=False)
+    substitutions.to_csv(out_dir/'substitutions.csv', index=False)
     # identify deletions
     deletions = bm.identify_deletions(msa_data,
                                     # meta_fp=meta_fp,
