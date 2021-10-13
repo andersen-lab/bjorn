@@ -1,6 +1,9 @@
 name: bjorndev
 channels:
   - defaults
+  - anaconda
+  - bioconda
+  - conda-forge
 dependencies:
   - pandas=1.1.5
   - gofasta
@@ -15,4 +18,4 @@ dependencies:
   - biopython=1.74
   - gdbm
   - fuzzywuzzy
-prefix: /home/emory/.conda/envs/bjorndev
+prefix: /home/chrissy/miniconda3/envs/bjorndev
