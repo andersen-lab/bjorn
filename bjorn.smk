@@ -1,5 +1,5 @@
 from datetime import datetime
-
+configfile:"example_config.json"
 username = config['gisaid_username']
 password = config['gisaid_password']
 work_dir = config['work_dir']
@@ -20,7 +20,8 @@ is_manual_in = config["is_manual_in"]
 gisaid_uri = config["gisaid_uri"]
 unknown_value = config["unknown_value"]
 
-fasta_output_prefix = work_dir + "/chunks_fasta_" + current_datetime 
+fasta_output_prefix = work_dir + "/chunks_fasta_" + current_datetime
+
 if data_source == "gisaid_feed":
     rule pull_gisaid_sequences:
         output:
@@ -61,32 +62,55 @@ if data_source == "gisaid_feed":
 elif data_source == "alab_release":
     rule clone_alab_sequences:
         output:
-            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv")),
-            data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta"))
+            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
+            data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
         threads: 1
         shell:
             """
             echo {fasta_output_prefix}
+            mkdir -p {work_dir}
+            mkdir -p {work_dir}/parallel
+            mkdir -p {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
             gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
+            
+            #select out the files we want
+            #INPUT=HCoV-19-Genomics/metadata.csv
+            #OLDIFS=$IFS
+            #IFS=','
+            #while read flname dob ssn tel status
+            #do
+            #    echo "Name : $flname"
+            #    echo "DOB : $dob"
+            #    echo "SSN : $ssn"
+            #    echo "Telephone : $tel"
+            #    echo "Status : $status"
+            #done < $INPUT
+            #IFS=$OLDIFS
+            
             mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
-            python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix}
-            for file in {fasta_output_prefix}/*.fasta;do
+            
+            #parallel process from here on out in chunks
+            find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
+            parallel --tmpdir {work_dir}/parallel -l {chunk_size} -j4 python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}}
+            
+            for file in {fasta_output_prefix}/*.fasta.gz;do
                 cat {reference_fp} | gzip -c >> "$file"
-            done
+            done  
             """
 else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
     sys.exit()
 
 rule align_to_reference:
-   input:
-       f"{fasta_output_prefix}/{{sample}}.fasta.gz"
-   output:
-       temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
-   threads: max_task_cpus
-   shell:
+    input:
+        f"{fasta_output_prefix}/{{sample}}.fasta.gz"
+    output:
+        f"{fasta_output_prefix}/{{sample}}.mutations.csv"
+    threads: max_task_cpus
+    shell:
         """
+        echo "Here"
         minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} <(gzip -dc {input}) |
             gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
             python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
@@ -94,7 +118,7 @@ rule align_to_reference:
 
 rule merge_mutations_metadata:
     input:
-        meta=f"{fasta_output_prefix}/{{sample}}.tsv",
+        meta=f"{fasta_output_prefix}/{{sample}}.tsv.gz",
         data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
     output:
         temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
@@ -138,7 +162,6 @@ rule clear:
         rm -f rules.all.output.meta
         rm -f rules.all.output.data
         """
-
 rule all:
     input:
         meta=rules.build_meta.output,
@@ -151,3 +174,4 @@ rule all:
         cp {input.meta} {output.meta}
         cp {input.data} {output.data}
         """
+
