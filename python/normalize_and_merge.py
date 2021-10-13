@@ -55,7 +55,13 @@ date_modified = '-'.join(current_datetime.split('-')[:3]) + '-' + ':'.join(curre
 max_date = '-'.join(current_datetime.split('-')[:3])
 longstring = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-meta = pd.read_csv(input_metadata, sep='\t')
+try:
+    meta = pd.read_csv(input_metadata, sep='\t')
+    if len(meta.index) == 0:
+        raise "empty dataframe"
+except Exception as e:
+    pd.DataFrame().to_json(out_fp, orient='records', lines=True)
+    sys.exit(0)
 # normalize date information
 meta['tmp'] = meta['date_collected'].str.split('-')
 meta = meta[meta['tmp'].str.len()>=2]
@@ -255,7 +261,7 @@ meta.loc[(meta['country']=='sweden')
 meta.loc[(meta['division']=='puerto rico'), 'country'] = 'puerto rico'
 meta.loc[(meta['country']=='puerto rico'), 'division'] = meta.loc[(meta['country']=='puerto rico'), 'location'].fillna(unknown_val+longstring)
 
-print(f'admin2 standardization (u.s. only)')
+print(f'admin2 standardization')
 meta.loc[meta['location'].isna(), 'location'] = unknown_val+longstring
 houston_filter = (meta['division']=='texas') & (meta['location']=='houston')
 meta.loc[houston_filter, 'location'] = 'harris county'
@@ -355,24 +361,25 @@ meta['country_id'] = meta['country'].apply(lambda x: sorted([ (fuzz.ratio(key, x
 meta.loc[meta['country_id'].apply(lambda x: x[0]) < 80, 'country_id'] = unknown_val
 meta.loc[meta['country_id'] != unknown_val, 'country'] = meta.loc[meta['country_id'] != unknown_val, 'country_id'].apply(lambda x: x[1][0]).str.lower()
 meta.loc[meta['country_id'] != unknown_val, 'country_id'] = meta.loc[meta['country_id'] != unknown_val, 'country_id'].apply(lambda x: x[1][1]).str.upper()
-#meta['country'] = meta['country_id'].apply(lambda x: x[1][0]).str.lower()
-#meta['country_id'] = meta['country_id'].apply(lambda x: x[1][1]).str.upper()
+meta.loc[meta['country_id'] == unknown_val.upper(), 'country_id'] = unknown_val
 meta['tmp_info1'] = meta['country'] + '-' + meta['division']
 meta['division_id'] = meta['tmp_info1'].apply(lambda x: sorted([ (int(x.split('-')[0] in key) * fuzz.ratio(key, x), (key, id)) for key, id in divisions.items() ])[-1])
 meta.loc[meta['division'] == unknown_val, 'division'] = unknown_val+longstring
 meta.loc[meta['division_id'].apply(lambda x: x[0]) < 80, 'division_id'] = unknown_val
 meta.loc[meta['division_id'] != unknown_val, 'division'] = meta.loc[meta['division_id'] != unknown_val, 'division_id'].apply(lambda x: x[1][0].split("-")[1]).str.lower()
 meta.loc[meta['division_id'] != unknown_val, 'division_id'] = meta.loc[meta['division_id'] != unknown_val, 'division_id'].apply(lambda x: x[1][1]).str.upper()
-#meta['division'] = meta['division_id'].apply(lambda x: x[1][0]).str.lower()
-#meta['division_id'] = meta['division_id'].apply(lambda x: x[1][1]).str.upper()
+meta.loc[meta['division_id'] == unknown_val.upper(), 'division_id'] = unknown_val
 meta['tmp_info2'] = meta['country'] + '-' + meta['division'] + '-' + meta['location']
 meta['location_id'] = meta['tmp_info2'].apply(lambda x: locations.get(x, unknown_val)).astype(str)
-#meta['location_id'] = meta['tmp_info2'].apply(lambda x: sorted([ (fuzz.ratio(key, x), (key, id)) for key, id in locations.items() ])[-1])
-#meta.loc[meta['location_id'].apply(lambda x: x[0]) < 60, 'location_id'] = unknown_val
-#meta['location'] = meta['location_id'].apply(lambda x: x[1][0]).str.lower()
-#meta['location_id'] = meta['location_id'].apply(lambda x: x[1][1]).str.lower()
 meta['date_modified'] = date_modified
-meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'country_id', 'division_id', 'location_id', 'locstring', 'date_modified']
+meta['locstring'] = meta['locstring'].str.split("/")
+meta['country'] = meta['locstring'].apply(lambda x: x[1] if len(x) >= 2 else unknown_val).str.strip()
+meta['division'] = meta['locstring'].apply(lambda x: x[2] if len(x) >= 3 else unknown_val).str.strip()
+meta['location'] = meta['locstring'].apply(lambda x: x[3] if len(x) >= 4 else unknown_val).str.strip()
+meta['country_lower'] = meta['country'].str.lower()
+meta['division_lower'] = meta['division'].str.lower()
+meta['location_lower'] = meta['location'].str.lower()
+meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'date_submitted', 'date_modified', 'country_id', 'division_id', 'location_id', 'country', 'division', 'location', 'country_lower', 'division_lower', 'location_lower']
 
 muts = pd.read_csv(input_mut, dtype=str)
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
@@ -381,16 +388,6 @@ muts = muts.loc[~(muts['gene']=='Non-coding region')]
 # fuse with metadata
 print(f"Fusing muts with metadata...")
 # concat with pd
-muts.set_index('idx')
-meta.set_index('strain')
-muts = muts.join(meta)
-muts = muts.drop_duplicates(subset=['accession_id', 'mutation'])
-# If deletions not in chunk add columns
-del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
-muts_columns = muts.columns.tolist()
-for i in del_columns:
-    if i not in muts_columns:
-        muts[i] = np.nan
 muts_info = [
     'type', 'mutation', 'gene',
     'ref_codon', 'pos', 'alt_codon',
@@ -400,16 +397,17 @@ muts_info = [
     'change_length_nt', 'is_frameshift',
     'deletion_codon_coords'
 ]
+# If deletions not in chunk add columns
+del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
+muts_columns = muts.columns.tolist()
+for i in del_columns:
+    if i not in muts_columns:
+        muts[i] = np.nan
+pd.set_option('display.max_colwidth', None)
+muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
+muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
 
-# GENERATE JSON DATA MODEL
-(
-    muts.groupby(meta_info, as_index=True)
-             .apply(lambda x: x[muts_info].to_dict('records'))
-             .reset_index()
-             .rename(columns={0:'mutations'})
-             .to_json(
-                 out_fp,
-                 orient='records',
-                 lines = True
-             )
- )
+muts = muts.rename(columns={'idx': 'strain'})
+muts['strain'] = muts['strain'].str.strip()
+meta['strain'] = meta['strain'].str.strip()
+pd.merge(meta[meta_info], muts, on='strain', how='inner').to_json(out_fp, orient='records', lines=True)
