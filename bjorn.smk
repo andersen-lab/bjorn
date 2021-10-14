@@ -34,16 +34,16 @@ if data_source == "gisaid_feed":
             mkdir -p {work_dir}/parallel;
             mkdir -p {fasta_output_prefix};
             ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T4) ) ||
-              (gunzip -c {gisaid_data} ) ) |
+              (cat {gisaid_data} ) ) |
                     parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j4 \
                         'jq -cr " \
                             select( ( .covv_host|ascii_downcase == \\"human\\" ) \
                                 and ( .sequence|length > {min_length} ) \
                                 and ( ( .sequence|length * {max_unknown_pct} ) > (.sequence|split(\\"N\\")|length ) ) ) | \
-                            {{  strain: .covv_virus_name, \
+                            {{  strain: .covv_virus_name|gsub(\\" \\";\\"\\"), \
                                 loc: .covv_location|split(\\"/\\"), \
                                 date: .covv_collection_date, \
-                                odate: .covv_submission_date,
+                                odate: .covv_subm_date,
                                 lin: .covv_lineage, \
                                 id: .covv_accession_id, \
                                 seq: .sequence|split(\\"\\n\\")|join(\\"\\") }} | \
@@ -111,14 +111,14 @@ rule align_to_reference:
     shell:
         """
         echo "Here"
-        minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} <(gzip -dc {input}) |
+        minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
             gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
             python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
         """
 
 rule merge_mutations_metadata:
     input:
-        meta=f"{fasta_output_prefix}/{{sample}}.tsv.gz",
+        meta=f"{fasta_output_prefix}/{{sample}}.tsv",
         data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
     output:
         temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
