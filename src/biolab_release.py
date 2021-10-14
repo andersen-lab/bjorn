@@ -1,4 +1,5 @@
 import pandas as pd
+from pandas.core.algorithms import mode
 from path import Path
 from shutil import copy, move
 from Bio import SeqIO, AlignIO, Phylo
@@ -71,14 +72,14 @@ if __name__=="__main__":
     transfer_fasta_cmd = f"cp {fasta_hub}/* {seqs_dir}/."
     bs.run_command(transfer_fasta_cmd)
     print(f"Transferring metadata from Windows to Linux subsystem")
-    transfer_meta_cmd = f"cp {meta_hub}/* {out_dir}/{date}_gisaid_metadata_release.xls"
+    transfer_meta_cmd = f"cp {meta_hub}/* {out_dir}/{date}_gisaid_metadata_release.xlsx"
     bs.run_command(transfer_meta_cmd)
     accepted_seqs_dir = Path(out_dir/'fa_accepted')
     if not Path.isdir(accepted_seqs_dir):
         Path.mkdir(accepted_seqs_dir);
-    intro = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Instructions')
-    cov = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Coverage')
-    meta = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xls', sheet_name='Submissions', skiprows=1)
+    intro = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', sheet_name='Instructions')
+    cov = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', sheet_name='Coverage')
+    meta = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', sheet_name='Submissions', skiprows=1)
     meta = meta.dropna(subset=["FASTA filename"])
     qc_filter = (cov['pct_coverage']>min_coverage) & (cov['avg_depth']>min_depth)
     accepted_samples = cov.loc[qc_filter, 'Biolab Trans. #'].tolist()
@@ -88,6 +89,13 @@ if __name__=="__main__":
     meta[['Gender', 'Patient age', 'Patient status']] = 'N/A'
     meta['Submitter'] = submitter
     meta.to_csv(f'{out_dir}/{date}_gisaid_metadata_raw.csv', index=False)
+    # adjust meta_full so we can write the complete info and avoid the need for a manual copy paste
+    meta_header = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', sheet_name='Submissions').loc[[0]]
+    new_cols = {x: y for x, y in zip(meta.columns, meta_header.columns)}
+    meta_out = meta_header.append(meta.rename(columns=new_cols))
+    with pd.ExcelWriter(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', mode="a", if_sheet_exists='replace') as writer:
+        meta_out.to_excel(writer, sheet_name="Submissions", index=False)
+    # continue with script
     for sample_filename in accepted_sample_filenames:
         copy(f'{seqs_dir}/{sample_filename}', accepted_seqs_dir)
     # copy(ref_path, accepted_seqs_dir)
