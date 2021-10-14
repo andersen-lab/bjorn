@@ -93,7 +93,7 @@ if __name__=="__main__":
     meta_header = pd.read_excel(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', sheet_name='Submissions').loc[[0]]
     new_cols = {x: y for x, y in zip(meta.columns, meta_header.columns)}
     meta_out = meta_header.append(meta.rename(columns=new_cols))
-    with pd.ExcelWriter(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', mode="a", if_sheet_exists='replace') as writer:
+    with pd.ExcelWriter(f'{out_dir}/{date}_gisaid_metadata_release.xlsx', mode="a", date_format='YYYY-MM-DD', datetime_format='YYYY-MM-DD', if_sheet_exists='replace') as writer:
         meta_out.to_excel(writer, sheet_name="Submissions", index=False)
     # continue with script
     for sample_filename in accepted_sample_filenames:
