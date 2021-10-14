@@ -342,8 +342,6 @@ meta.loc[meta['location'].str.contains('st.clair'), 'location'] = 'saint clair'
 meta.loc[meta['location'].str.contains('tarra'), 'location'] = 'tarrant'
 meta.loc[meta['location'].str.contains('wall'), 'location'] = 'waller'
 meta.loc[meta['location'].str.contains('wichi'), 'location'] = 'wichita'
-# todo: france, russia, china, israel, south korea
-meta.loc[meta['country'] == 'usa', 'country'] = 'united states'
 
 # final cleaning (missing values)
 meta.loc[meta['location']=='unk', 'location'] = unknown_val+longstring
@@ -376,6 +374,7 @@ meta['locstring'] = meta['locstring'].str.split("/")
 meta['country'] = meta['locstring'].apply(lambda x: x[1] if len(x) >= 2 else unknown_val).str.strip()
 meta['division'] = meta['locstring'].apply(lambda x: x[2] if len(x) >= 3 else unknown_val).str.strip()
 meta['location'] = meta['locstring'].apply(lambda x: x[3] if len(x) >= 4 else unknown_val).str.strip()
+meta.loc[meta['country'] == 'USA', 'country'] = 'United States'
 meta['country_lower'] = meta['country'].str.lower()
 meta['division_lower'] = meta['division'].str.lower()
 meta['location_lower'] = meta['location'].str.lower()
@@ -403,11 +402,10 @@ muts_columns = muts.columns.tolist()
 for i in del_columns:
     if i not in muts_columns:
         muts[i] = np.nan
-pd.set_option('display.max_colwidth', None)
 muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
 muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
 
 muts = muts.rename(columns={'idx': 'strain'})
 muts['strain'] = muts['strain'].str.strip()
 meta['strain'] = meta['strain'].str.strip()
-pd.merge(meta[meta_info], muts, on='strain', how='inner').to_json(out_fp, orient='records', lines=True)
+pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
