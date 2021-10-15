@@ -106,7 +106,7 @@ rule align_to_reference:
     input:
         f"{fasta_output_prefix}/{{sample}}.fasta.gz"
     output:
-        f"{fasta_output_prefix}/{{sample}}.mutations.csv"
+        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
     threads: max_task_cpus
     shell:
         """
@@ -137,7 +137,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        cat {input} > {output}
+        gunzip -c {input} | parallel --pipe --tmpfile {workdir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
         """
 
 rule build_meta:

@@ -4,7 +4,7 @@
     "work_dir": "/dev/shm/bjorn",
     "output_data_fp": "bjornout/new_api_data.json",
     "output_meta_fp": "bjornout/new_genomics_metadata.json",
-    "max_task_cpus": "3",
+    "max_task_cpus": "4",
     "data_source": "alab_release",
     "is_manual_in": "false",
     "gisaid_data": "testdata.jsonl.gz",
