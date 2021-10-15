@@ -73,7 +73,7 @@ elif data_source == "alab_release":
             mkdir -p {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
             gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
-            
+
             #select out the files we want
             #INPUT=HCoV-19-Genomics/metadata.csv
             #OLDIFS=$IFS
@@ -87,16 +87,16 @@ elif data_source == "alab_release":
             #    echo "Status : $status"
             #done < $INPUT
             #IFS=$OLDIFS
-            
-            mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
-            
+
+            mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix}
+
             #parallel process from here on out in chunks
             find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
             parallel --tmpdir {work_dir}/parallel -l {chunk_size} -j4 python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}}
-            
+
             for file in {fasta_output_prefix}/*.fasta.gz;do
                 cat {reference_fp} | gzip -c >> "$file"
-            done  
+            done
             """
 else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
@@ -137,7 +137,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        gunzip -c {input} | parallel --pipe --tmpfile {workdir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
+        gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
         """
 
 rule build_meta:
@@ -158,7 +158,7 @@ rule clear:
         """
         rm -rf {fasta_output_prefix}
         rm -f {rules.build_meta.output}
-        rm -f {rules.merge_json.output} 
+        rm -f {rules.merge_json.output}
         rm -f rules.all.output.meta
         rm -f rules.all.output.data
         """
