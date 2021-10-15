@@ -355,6 +355,7 @@ with open('{}/gadm_divisions.json'.format(geojson_prefix)) as f:
 with open('{}/gadm_locations.json'.format(geojson_prefix)) as f:
     locations = json.load(f)
 
+meta.loc[meta['country'] == 'usa', 'country'] = 'united states'
 meta['country_id'] = meta['country'].apply(lambda x: sorted([ (fuzz.ratio(key, x), (key, id)) for key, id in countries.items() ])[-1])
 meta.loc[meta['country_id'].apply(lambda x: x[0]) < 80, 'country_id'] = unknown_val
 meta.loc[meta['country_id'] != unknown_val, 'country'] = meta.loc[meta['country_id'] != unknown_val, 'country_id'].apply(lambda x: x[1][0]).str.lower()
@@ -369,6 +370,7 @@ meta.loc[meta['division_id'] != unknown_val, 'division_id'] = meta.loc[meta['div
 meta.loc[meta['division_id'] == unknown_val.upper(), 'division_id'] = unknown_val
 meta['tmp_info2'] = meta['country'] + '-' + meta['division'] + '-' + meta['location']
 meta['location_id'] = meta['tmp_info2'].apply(lambda x: locations.get(x, unknown_val)).astype(str)
+
 meta['date_modified'] = date_modified
 meta['locstring'] = meta['locstring'].str.split("/")
 meta['country'] = meta['locstring'].apply(lambda x: x[1] if len(x) >= 2 else unknown_val).str.strip()
