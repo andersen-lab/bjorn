@@ -10,7 +10,7 @@ from path import Path
 import bjorn_support as bs
 from mappings import COUNTY_CORRECTIONS
 import numpy as np
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 # COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
@@ -53,7 +53,6 @@ geojson_prefix = args.geojson
 current_datetime = args.currentdate
 date_modified = '-'.join(current_datetime.split('-')[:3]) + '-' + ':'.join(current_datetime.split('-')[3:])
 max_date = '-'.join(current_datetime.split('-')[:3])
-longstring = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 try:
     meta = pd.read_csv(input_metadata, sep='\t')
@@ -62,6 +61,18 @@ try:
 except Exception as e:
     pd.DataFrame().to_json(out_fp, orient='records', lines=True)
     sys.exit(0)
+
+#parse apart our expected geolocs
+countries_std_file = open(os.path.join(geojson_prefix, "gadm_countries.json"),'r')
+divisions_std_file = open(os.path.join(geojson_prefix, "gadm_divisions.json"),'r')
+locations_std_file = open(os.path.join(geojson_prefix, "gadm_locations.json"), 'r')
+
+countries_std = json.load(countries_std_file)
+divisions_std = json.load(divisions_std_file)
+locations_std = json.load(locations_std_file)
+std_locs = [countries_std, divisions_std, locations_std]
+
+
 # normalize date information
 meta['tmp'] = meta['date_collected'].str.split('-')
 meta = meta[meta['tmp'].str.len()>=2]
@@ -70,47 +81,51 @@ meta['date_collected'] = pd.to_datetime(meta['date_collected'], errors='coerce')
 meta['date_collected'] = meta['date_collected'].astype(str)
 meta = meta[meta['date_collected'] <= max_date]
 meta = meta[meta['date_collected'] > min_date]
-# normalize geo information
-meta['country'].fillna(unknown_val+longstring, inplace=True)
-meta.loc[:, 'country'] = meta['country'].str.strip()
-meta.loc[meta['country'].str.len() <= 1, 'country'] = unknown_val+longstring
-meta.loc[(meta['country'].str.contains('congo')) & (meta['country'].str.contains(
-    'democratic')), 'country'] = 'democratic republic of the congo'
-meta.loc[(meta['country'].str.contains('congo')) & ~(meta['country'].str.contains(
-    'democratic')), 'country'] = 'republic of congo'
-meta.loc[meta['country'].str.contains(
-    'eswatini'), 'country'] = "swaziland"
-meta.loc[meta['country'].str.contains(
-    'bonaire'), 'country'] = "bonaire, sint eustatius and saba"
-meta.loc[meta['country'].str.contains(
-    'sint eustatius'), 'country'] = "bonaire, sint eustatius and saba"
-meta.loc[meta['country'].str.contains('cote divoire'), 'country'] = "côte d'ivoire"
-meta.loc[meta['country'].str.contains("cote d'ivoire"), 'country'] = "côte d'ivoire"
-meta.loc[meta['country'].str.contains("méxico"), 'country'] = "mexico"
-meta.loc[meta['country'].str.contains('north macedonia'), 'country'] = "macedonia"
-meta.loc[meta['country'].str.contains('curacao'), 'country'] = "curaçao"
-meta.loc[meta['country'].str.contains('saint martin'), 'country'] = "saint-martin"
-meta.loc[meta['country'].str.contains('trinidad'), 'country'] = 'trinidad and tobago'
-meta.loc[meta['country'].str.contains('czech republic'), 'country'] = 'czech republic'
-meta.loc[meta['country'].str.contains('st eustatius'), 'country'] = 'netherlands'
-meta.loc[meta['country'].str.contains('saint barthelemy'), 'country'] = 'saint-barthélemy'
-meta.loc[meta['country'].str.contains('palestine'), 'country'] = "palestina"
-meta.loc[meta['country'].str.contains("germany /"), 'country'] = "germany"
-meta.loc[meta['country'].str.contains("france /nouvelle-aquitaine"), 'division'] = "nouvelle-aquitaine"
-meta.loc[meta['country']=="france /nouvelle-aquitaine", 'country'] = "france"
-meta.loc[meta['country'].str.contains("france /nouvelle-aquitaine/ limoges"), 'division'] = "nouvelle-aquitaine"
-meta.loc[meta['country'].str.contains("france /nouvelle-aquitaine/ limoges"), 'location'] = "limoges"
-meta.loc[meta['country']=="france /nouvelle-aquitaine/ limoges", 'country'] = "france"
-meta.loc[meta['country']=="kenya /", 'country'] = "kenya"
-meta.loc[meta['country']=="switzerland/ schwyz", 'division'] = "schwyz"
-meta.loc[meta['country']=="switzerland/ schwyz", 'country'] = "switzerland"
-meta.loc[meta['country']=="usa /wisconsin", 'division'] = "wisconsin"
-meta.loc[meta['country']=="usa /wisconsin", 'country'] = "united states"
-meta.loc[meta['country']=="jonavos apskritis", 'country'] = "lithuania"
-meta.loc[meta['country']=="thailand /singburi", 'division'] = "singburi"
-meta.loc[meta['country']=="thailand /singburi", 'country'] = "thailand"
-meta.loc[meta['country']=="norway /", 'country'] = "norway"
-meta.loc[meta['country']=="morocoo", 'country'] = "morocco"
+
+#make an empy list for the data to be held in
+std_loc = [[0]*3]*len(meta) 
+for index, row in meta.iterrows():
+    locstring = row['locstring'] 
+    loc_list = locstring.split("/")
+
+    #we have a continent in the string
+    if len(loc_list) == 4:
+        loc_list = loc_list[1:]    
+     
+    #we have the country and either division or location
+    if len(loc_list) == 2:    
+        sys.exit(0)
+    #we have country, division and location
+    if len(loc_list) == 3:
+        for i,loc in enumerate(loc_list):
+            high_ratio = 0
+            high_string = ''
+            compare_dict = std_locs[i]
+            for key in compare_dict.keys():
+                #for divisions we may have countries attached
+                if i == 1:
+                    country = key.split('-')[0]
+                    if country.lower() != std_loc[index][0].lower():
+                        continue
+                #for locations we may have countries attached
+                if i == 2:
+                    country = key.split('-')[0]
+                    if country.lower() != std_loc[index][0].lower():
+                        continue
+                ratio = fuzz.ratio(key.lower(),loc.lower())
+                if ratio > high_ratio:
+                    high_ratio = ratio
+                    high_string = key
+            for value in compare_dict.values():
+                ratio = fuzz.ratio(value.lower(),loc.lower())
+                if ratio > high_ratio:
+                    high_ratio = ratio
+                    high_string = list(compare_dict.keys())[list(compare_dict.values()).index(value)]
+            std_loc[index][i] = high_string
+    print(loc_list, std_loc[index])        
+loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
+meta = pd.concat([meta,loc_df], axis=1)
+print(meta)
 
 print(f'admin1 standardization...')
 meta.loc[meta['division'].isna(), 'division'] = unknown_val+longstring
