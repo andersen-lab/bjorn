@@ -396,7 +396,10 @@ muts_info = [
     'ref_aa', 'codon_num', 'alt_aa',
     'absolute_coords',
     'change_length_nt', 'is_frameshift',
-    'deletion_codon_coords'
+    'deletion_codon_coords',
+    'del_len',
+    'replacements',
+    'del_positions'
 ]
 # If deletions not in chunk add columns
 del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
