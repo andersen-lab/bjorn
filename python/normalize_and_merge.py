@@ -394,9 +394,6 @@ muts_info = [
     'ref_codon', 'pos', 'alt_codon',
     'is_synonymous',
     'ref_aa', 'codon_num', 'alt_aa',
-    'absolute_coords',
-    'change_length_nt', 'is_frameshift',
-    'deletion_codon_coords',
     'del_len',
     'replacements',
     'del_positions'
@@ -404,7 +401,8 @@ muts_info = [
 # If deletions not in chunk add columns
 del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
 muts_columns = muts.columns.tolist()
-for i in del_columns:
+muts_info.extend(del_columns)
+for i in muts_info:
     if i not in muts_columns:
         muts[i] = np.nan
 muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
