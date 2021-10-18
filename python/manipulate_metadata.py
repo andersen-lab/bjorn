@@ -51,38 +51,16 @@ meta_df = meta_df[meta_df['fasta_hdr'].isin(strains)]
 c = []
 d = []
 l = []
-#manipulate metadata for geo locations accordingly
-for index, row in meta_df.iterrows():
-    country = ""
-    division = ""
-    location = ""
-    location_list = str(row['location']).split('/')[1:]
-    if len(location_list) > 2:
-        country = location_list[0]
-        division = location_list[1]
-        location = location_list[2]
-    elif len(location_list) == 2:
-        country = location_list[0]
-        location = location_list[1]
-    c.append(country)
-    d.append(division)
-    l.append(location)
+
 #drop and add columns
-meta_df.drop(['location', 'zipcode', 'authors', 'originating_lab', 'ID','gb_accession', \
+meta_df.drop(['zipcode', 'authors', 'originating_lab', 'ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth'], axis=1, inplace=True)
-meta_df['country'] = c
-meta_df['division'] = d
-meta_df['location'] = l
-#putting in filler columns to make sure it doesn't crash
-meta_df['country_normed'] = c
-meta_df['division_normed'] = d
-meta_df['location_normed'] = l
 meta_df['date_submitted'] = ['']*len(meta_df)
 meta_df['pangolin_lineage'] = ['']*len(meta_df)
 meta_df['pangolin_version'] = ['']*len(meta_df)
 meta_df['clade'] = ['']*len(meta_df)
 meta_df.rename(columns={'collection_date':'date_collected', \
-    'gisaid_accession':'accession_id', 'fasta_hdr':'strain'}, inplace=True)
+    'gisaid_accession':'accession_id', 'fasta_hdr':'strain', 'location':'locstring'}, inplace=True)
 print(meta_df.columns)
 meta_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %job_num), "\t")
 #concatenate all these things together
