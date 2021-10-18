@@ -33,9 +33,9 @@ if data_source == "gisaid_feed":
             mkdir -p {work_dir};
             mkdir -p {work_dir}/parallel;
             mkdir -p {fasta_output_prefix};
-            ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T4) ) ||
+            ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T8) ) ||
               (cat {gisaid_data} ) ) |
-                    parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j4 \
+                    parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j8 \
                         'jq -cr " \
                             select( ( .covv_host|ascii_downcase == \\"human\\" ) \
                                 and ( .sequence|length > {min_length} ) \
@@ -110,7 +110,6 @@ rule align_to_reference:
     threads: max_task_cpus
     shell:
         """
-        echo "Here"
         minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
             gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
             python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
@@ -137,7 +136,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        gunzip -c {input} | parallel --pipe --tmpfile {workdir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
+        gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr '.' | gzip > {output}
         """
 
 rule build_meta:
