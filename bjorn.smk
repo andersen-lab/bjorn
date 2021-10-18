@@ -124,7 +124,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        gunzip -c {input} | parallel --pipe --tmpfile {work_dir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
+        gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
         """
 
 rule build_meta:
