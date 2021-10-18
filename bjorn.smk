@@ -73,26 +73,13 @@ elif data_source == "alab_release":
             mkdir -p {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
             gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
-            
-            #select out the files we want
-            #INPUT=HCoV-19-Genomics/metadata.csv
-            #OLDIFS=$IFS
-            #IFS=','
-            #while read flname dob ssn tel status
-            #do
-            #    echo "Name : $flname"
-            #    echo "DOB : $dob"
-            #    echo "SSN : $ssn"
-            #    echo "Telephone : $tel"
-            #    echo "Status : $status"
-            #done < $INPUT
-            #IFS=$OLDIFS
-            
+                       
             mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
             
             #parallel process from here on out in chunks
             find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
-            parallel --tmpdir {work_dir}/parallel -l {chunk_size} -j4 python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}}
+            parallel --tmpdir {work_dir}/parallel -l1000 -j4 \
+            "python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}} -j {{#}}"
             
             for file in {fasta_output_prefix}/*.fasta.gz;do
                 cat {reference_fp} | gzip -c >> "$file"
@@ -118,7 +105,7 @@ rule align_to_reference:
 
 rule merge_mutations_metadata:
     input:
-        meta=f"{fasta_output_prefix}/{{sample}}.tsv",
+        meta=f"{fasta_output_prefix}/{{sample}}.tsv.gz",
         data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
     output:
         temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
@@ -137,7 +124,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        gunzip -c {input} | parallel --pipe --tmpfile {workdir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
+        gunzip -c {input} | parallel --pipe --tmpfile {work_dir}/parallel -j {max_task_cpus} --quote jq -cr '.' > {output}
         """
 
 rule build_meta:
