@@ -91,9 +91,13 @@ country_index_location = 0
 
 #we just use this loop to find out which string is the country, then go from there
 for index, row in meta.iterrows():
-    locstring = row['locstring'] 
+    locstring = str(row['locstring']) 
     loc_list = locstring.split("/")
-
+    if len(loc_list) == 0:
+        std_loc[index][0] = unknown_val
+        std_loc[index][1] = unknown_val
+        std_loc[index][2] = unknown_val
+        continue
     #we find the country first
     compare_dict = std_locs[0]
     high_ratio = 0
@@ -117,7 +121,14 @@ for index, row in meta.iterrows():
     high_string = ''
     div_or_loc = 0
     #next we figure out if we have a division or location in the next slot
-    next_string = loc_list[country_index_location+1]
+    try:
+        next_string = loc_list[country_index_location+1]
+    except:
+        std_loc[index][0] = country_string
+        std_loc[index][1] = unknown_val
+        std_loc[index][2] = unknown_val
+        continue
+
     for i,compare_dict in enumerate(std_locs[1:]): 
         for key in compare_dict.keys():
             #make sure the country prefix matches what we already have
@@ -146,12 +157,21 @@ for index, row in meta.iterrows():
         std_loc[index][2] = high_string
         continue
 
-    #we have a location and division
+    #we have a location, we suspect we have a division
     else:
         high_ratio = 0
         location_string = ''
         compare_dict = std_locs[2]
-        next_string = loc_list[country_index_location+2]
+        
+        #we have a division but no location
+        try:
+            next_string = loc_list[country_index_location+2]
+        except:
+            std_loc[index][0] = country_string
+            std_loc[index][1] = high_string
+            std_loc[index][2] = unknown_val
+            continue
+            
         for key in compare_dict.keys():
             #make sure the country prefix matches what we already have
             country_key = re.split("-", key)[0]
@@ -172,11 +192,14 @@ for index, row in meta.iterrows():
             if ratio > high_ratio:
                 high_ratio = ratio
                 location_string = list(compare_dict.keys())[list(compare_dict.values()).index(value)]
-
-        std_loc[index][0] = country_string
-        std_loc[index][1] = high_string
-        std_loc[index][2] = location_string
-            
+        try: 
+            #we found both a division and location
+            std_loc[index][0] = country_string
+            std_loc[index][1] = high_string
+            std_loc[index][2] = location_string
+        except:
+            print(index, print(len(std_loc)), print(len(meta)))
+            sys.exit(0)
 
 loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
 meta = pd.concat([meta,loc_df], axis=1)
@@ -193,7 +216,7 @@ meta.replace({"location_id": std_locs[2]}, inplace=True)
 meta['country_lower'] = meta['country'].str.lower()
 meta['division_lower'] = meta['division'].str.lower()
 meta['location_lower'] = meta['location'].str.lower()
-print(meta)
+meta.fillna(unknown_val, inplace=True)
 
 meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'date_submitted', 'date_modified', 'country_id', 'division_id', 'location_id', 'country', 'division', 'location', 'country_lower', 'division_lower', 'location_lower']
 

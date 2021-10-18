@@ -61,7 +61,7 @@ meta_df['pangolin_version'] = ['']*len(meta_df)
 meta_df['clade'] = ['']*len(meta_df)
 meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id', 'fasta_hdr':'strain', 'location':'locstring'}, inplace=True)
-print(meta_df.columns)
+
 meta_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %job_num), "\t")
 #concatenate all these things together
 all_fasta_files = [os.path.join(output_filepath, fasta+'.fasta.gz') for fasta in all_fasta]
