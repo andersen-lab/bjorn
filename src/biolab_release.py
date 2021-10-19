@@ -120,12 +120,14 @@ if __name__=="__main__":
                                         # meta_fp=meta_fp, 
                                         patient_zero=patient_zero, 
                                         min_ins_len=1)
+    insertions["samples"] = pd.Series(", ".join(sorted(item)) for item in insertions["samples"].str.split(","))
     # save insertion results to file
     insertions.to_csv(out_dir/'insertions.csv', index=False)
     # identify substitution mutations
     substitutions = bm.identify_replacements(msa_data,
                                 # meta_fp=meta_fp,
                                 patient_zero=patient_zero)
+    substitutions["samples"] = pd.Series(", ".join(sorted(item)) for item in substitutions["samples"].str.split(","))
     # save substitution results to file
     substitutions.to_csv(out_dir/'substitutions.csv', index=False)
     # identify deletions
@@ -133,6 +135,7 @@ if __name__=="__main__":
                                     # meta_fp=meta_fp,
                                     patient_zero=patient_zero,
                                     min_del_len=1)
+    deletions["samples"] = pd.Series(", ".join(sorted(item)) for item in deletions["samples"].str.split(","))
     # save deletion results to file
     deletions.to_csv(out_dir/'deletions.csv', index=False)
     # identify samples with suspicious INDELs and/or substitutions
@@ -141,6 +144,7 @@ if __name__=="__main__":
                                                                         pd.DataFrame(),
                                                                         nonconcerning_genes,
                                                                         nonconcerning_mutations)
+    sus_muts["samples"] = pd.Series(", ".join(sorted(item)) for item in sus_muts["samples"].str.split(","))
     sus_muts.to_csv(out_dir/'suspicious_mutations.csv', index=False)
     print(msa_fp)
     print(f"Transferring metadata from Windows to Linux subsystem")
