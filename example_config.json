@@ -13,7 +13,7 @@
     "chunk_size": "64M",
     "geojson_prefix": "data",
     "current_datetime": false,
-    "gisaid_uri": "https://www.epicov.org/epi3/3p/scripps/export/provision.json.xz",
+    "gisaid_uri": "***REMOVED***",
     "gisaid_username": "username",
     "gisaid_password": "password",
     "min_length": 24576,
