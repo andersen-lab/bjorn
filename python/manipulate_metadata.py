@@ -1,9 +1,12 @@
 #!/usr/bin/env python
+import re
 import os
+import sys
 import gzip
 import json
 import argparse
 import pandas as pd
+from rapidfuzz import fuzz
 
 parser = argparse.ArgumentParser()
 
@@ -40,14 +43,48 @@ all_fasta = [os.path.basename(os.path.splitext(filename)[0]).replace('.fasta',''
 
 #get all header strains
 job_num =args.jobid
-strains = ['None'] * len(all_fasta)
+
+#our ideal match is on strain, else we'll match on filename
+strains=[]
 for i,fasta in enumerate(all_fasta):
     with gzip.open(os.path.join(output_filepath,fasta +'.fasta.gz'), "r") as file:
         first_line = file.readline().decode("utf-8").strip().replace('>','')
-    strains[i] = str(first_line).strip()
+    strains.append(str(first_line).strip())
 
-meta_df = meta_df[meta_df['fasta_hdr'].isin(strains)]
+fasta_hdr = meta_df['fasta_hdr'].tolist()
 
+#these are the fasta files who's hdrs aren't in the metadata file
+missing_fasta = [fasta for (strain,fasta) in zip(strains,all_fasta) if strain not in fasta_hdr]
+keep_indices = []
+scores = []
+for fasta in missing_fasta:
+    high_score = 0
+    high_index = 0
+    fasta = str(fasta)
+    for index, row in meta_df.iterrows():
+        row_val = str(row['ID'])
+        score = fuzz.token_set_ratio(row_val, fasta)
+        #we need the score to be the highest and more than 97% match
+        if float(score) > high_score and float(score) > 97:
+            high_score = float(score)
+            high_index = index
+            print(score, high_score, row['ID'], high_index, str(fasta))
+    
+    #we didn't find a good match
+    if float(high_score) < 97:
+        continue
+    keep_indices.append(high_index)
+    scores.append(high_score)
+drop_indices = [value for value in list(range(0,len(meta_df))) if value not in keep_indices]
+temp_df = meta_df[meta_df['fasta_hdr'].isin(strains)]
+temp_df_2 = meta_df.drop(meta_df.index[drop_indices])
+meta_df = pd.concat([temp_df, temp_df_2], axis=0)
+if len(meta_df) != 1000:
+    print("temp_df", len(temp_df))
+    print("keep_indices", len(keep_indices), keep_indices)
+    print("temp_df_2", len(temp_df_2))
+    print("missing fasta", missing_fasta)
+sys.exit(0)
 c = []
 d = []
 l = []
