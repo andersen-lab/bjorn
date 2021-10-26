@@ -102,9 +102,9 @@ data['date_modified'] = date_modified
 # TODO: handle locstring off-by-one errors
 
 data['locstring'] = data['locstring'].str.split("/")
-data['country'] = data['locstring'].apply(lambda x: x[1] if len(x) >= 2 else unknown_val).str.strip().lower()
-data['division'] = data['locstring'].apply(lambda x: x[2] if len(x) >= 3 else unknown_val).str.strip().lower()
-data['location'] = data['locstring'].apply(lambda x: x[3] if len(x) >= 4 else unknown_val).str.strip().lower()
+data['country'] = data['locstring'].apply(lambda x: x[1] if len(x) >= 2 else '').str.strip().str.lower().str.replace('\.', '')
+data['division'] = data['locstring'].apply(lambda x: x[2] if len(x) >= 3 else '').str.strip().str.lower().str.replace('\.', '')
+data['location'] = data['locstring'].apply(lambda x: x[3] if len(x) >= 4 else '').str.strip().str.lower().str.replace('\.', '')
 data['country'].fillna('', inplace=True)
 data.loc[:, 'country'] = data['country'].str.strip()
 data.loc[data['country'].str.len() <= 1, 'country'] = ''
@@ -117,6 +117,11 @@ data.loc[data['location'].isna(), 'location'] = ''
 # TODO: apply NextStrain replacements file
 
 data.loc[data['country'] == 'usa', 'country'] = 'united states'
+def norm_territories(x):
+    if x.country in ['puerto rico', 'guam', 'us virgin islands', 'northern mariana islands', 'american samoa']:
+        (x.country, x.division, x.location) = ('united states', x.country, x.division)
+    return x
+data = data.apply(norm_territories, axis=1)
 data.loc[(data['country'].str.contains('congo')) & (data['country'].str.contains(
     'democratic')), 'country'] = 'democratic republic of the congo'
 data.loc[(data['country'].str.contains('congo')) & ~(data['country'].str.contains(
@@ -168,7 +173,7 @@ data.loc[data['division'].str.contains('waadt'), 'division'] = 'vaud'
 data.loc[data['division'].str.contains('wallis'), 'division'] = 'valais'
 for key, val in COUNTY_CORRECTIONS.items():
     data.loc[:, 'location'] = data['location'].str.replace(key, val)
-data.loc[:, 'location'] = data['location'].str.replace('county', '').replace('parish', '').replace(',', '')
+data.loc[:, 'location'] = data['location'].str.replace('county', '').str.replace('parish', '').str.replace(',', '')
 data.loc[:, 'location'] = data['location'].str.strip().apply(bs.check_state, args=(False,)).strip()
 data.loc[data['location'].str.len() <= 1, 'location'] = ''
 data.loc[data['location']=='unk', 'location'] = ''
@@ -178,17 +183,20 @@ data.fillna('', inplace=True)
 with open('{}/gadm_transformed.jsonl'.format(geojson_prefix)) as f:
     countries = [json.loads(line) for line in f]
 get_geo = lambda b, y: (b[y[2]-1] if 'alias' in b[y[2]] else b[y[2]]) if not y is None else None
-s = lambda a, b, **params: 100 if a is '' and b is '' else (75 if a is '' or b is '' else fuzz.partial_ratio(a, b, **params))
-data.loc[:, 'country_match'] = data['country'].apply(lambda x: g(countries, process.extractOne(x, [country['name'] for country in countries], scorer=s)))
+s = lambda f, r: lambda a, b, **params: 100 if a is '' and b is '' else (r if a is '' or b is '' else f(a, b, **params))
+data.loc[:, 'country_match'] = data['country'].apply(lambda x: g(countries, process.extractOne(x, [country['name'] for country in countries], scorer=s(fuzz.ratio, 80))))
 data = data.dropna(axis=0, subset=['country_match'])
-data.loc[:, 'division_match'] = data.apply(lambda x: g(x.country_match['sub'], process.extractOne(x.division, [division['name'] for division in x.country_match['sub']], scorer=s)), axis=1)
-data.loc[:, 'location_match'] = data.apply(lambda x: g(x.division_match['sub'], process.extractOne(x.location, [location['name'] for location in x.division_match['sub']], scorer=s)), axis=1)
+data.loc[:, 'division_match'] = data.apply(lambda x: g(x.country_match['sub'], process.extractOne(x.division, [division['name'] for division in x.country_match['sub']], scorer=s(fuzz.ratio, 70))), axis=1)
+data.loc[:, 'location_match'] = data.apply(lambda x: g(x.division_match['sub'], process.extractOne(x.location, [location['name'] for location in x.division_match['sub']], scorer=s(fuzz.partial_ratio, 60))), axis=1)
 data.loc[:, 'country'] = data['country_match'].apply(lambda x: x['name'])
 data.loc[:, 'country_id'] = data['country_match'].apply(lambda x: x['id'])
 data.loc[:, 'division'] = data['division_match'].apply(lambda x: x['name'])
 data.loc[:, 'division_id'] = data['division_match'].apply(lambda x: x['id'])
 data.loc[:, 'location'] = data['location_match'].apply(lambda x: x['name'])
 data.loc[:, 'location_id'] = data['location_match'].apply(lambda x: x['id'])
+data.loc[data['country_id'] == '', 'country_id'] = unknown_val
+data.loc[data['location_id'] == '', 'location_id'] = unknown_val
+data.loc[data['division_id'] == '', 'division_id'] = unknown_val
 data = data.drop(['country_match', 'division_match', 'location_match'], axis=1)
 
 # TODO: asciify these
