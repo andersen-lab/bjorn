@@ -22,9 +22,9 @@ muts_info = ['type', 'mutation', 'gene', 'ref_codon', 'pos', 'alt_codon', 'is_sy
     'ref_aa', 'codon_num', 'alt_aa', 'absolute_coords', 'change_length_nt', 'is_frameshift','deletion_codon_coords']
 
 #start of functions to support
-def parse_json(json_filepath: str):
+def parse_jsonl(json_filepath: str):
     """
-    Load and parse .json file in read mode.    
+    Load and parse .jsonl file in read mode.    
 
     Parameters
     ----------
@@ -33,12 +33,14 @@ def parse_json(json_filepath: str):
 
     Returns
     -------
-    json_data : dict
-        The loaded json dictionary
-    """
-    with open(json_filepath, 'r') as jfile:
-        json_data = json.load(jfile)        
+    json_data : list
+        A list of dictionaries.
 
+    """
+    json_data = []
+    with open(json_filepath, 'r') as jfile:
+        for line in jfile:
+            json_data.append(json.loads(line))
     return(json_data)
 
 def nextstrain_replacement(nextstrain_filepath: str, meta: pd.DataFrame):
@@ -125,6 +127,8 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
     meta : pd.DataFrame
         The metadata dataframe.
     """
+    unknown_val = 'unkn'
+
     #make an empy list for the data to be held in
     std_loc = [[0]*3]*len(meta) 
 
@@ -135,33 +139,40 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
     for index, row in meta.iterrows():
         locstring = str(row['locstring']) 
         loc_list = locstring.split("/")
+        print(loc_list)
+        #in the event that we have no normal splits
         if len(loc_list) == 0:
             std_loc[index][0] = unknown_val
             std_loc[index][1] = unknown_val
             std_loc[index][2] = unknown_val
             continue
+        
         #we find the country first
         compare_dict = std_locs[0]
         high_ratio = 0
         country_string = ''
         
         for i,loc in enumerate(loc_list): 
-            for key in compare_dict.keys():
-                ratio = fuzz.ratio(key.lower(),loc.lower())
+            #we look for the country in 'name' category
+            for country in std_locs:
+                country_name = country['name'] 
+                ratio = fuzz.ratio(country_name.lower(),loc.lower()) 
                 if ratio > high_ratio:
                     high_ratio = ratio
-                    country_string = key
+                    country_string = country_name
                     country_index_location = i
-            for value in compare_dict.values():
-                ratio = fuzz.ratio(value.lower(),loc.lower())
+            #we look for the country in 'id' category
+            for country in std_locs:
+                country_id = country['id']
+                ratio = fuzz.ratio(country_id.lower(),loc.lower())
                 if ratio > high_ratio:
                     high_ratio = ratio
-                    country_string = list(compare_dict.keys())[list(compare_dict.values()).index(value)]
+                    country_string = country['name']
                     country_index_location = i   
      
         high_ratio = 0 
         high_string = ''
-        div_or_loc = 0
+
         #next we figure out if we have a division or location in the next slot
         try:
             next_string = loc_list[country_index_location+1]
@@ -170,80 +181,82 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
             std_loc[index][1] = unknown_val
             std_loc[index][2] = unknown_val
             continue
+        
+        #we go back and get the sub divisions for the country
+        for country in std_locs:
+            if country['name'] == country_string:
+                division_list = country['sub']
 
-        for i,compare_dict in enumerate(std_locs[1:]): 
-            for key in compare_dict.keys():
-                #make sure the country prefix matches what we already have
-                country_key = re.split("-", key)[0]
-                if country_key.lower() not in country_string.lower():
-                    continue
-                #get rid of any country level information
-                key = re.split("-",key)[1:]
-                key = " ".join(key)
-                ratio = fuzz.ratio(key.lower(),next_string.lower())
-                if ratio > high_ratio:
-                    high_ratio = ratio
-                    high_string = key
-                    div_or_loc = i
-            for value in compare_dict.values():
-                ratio = fuzz.ratio(value.lower(),next_string.lower())
-                if ratio > high_ratio:
-                    high_ratio = ratio
-                    high_string = list(compare_dict.keys())[list(compare_dict.values()).index(value)]
-                    div_or_loc = i
-
-        #we don't have a division only a location
-        if div_or_loc == 1:
-            std_loc[index][0] = country_string
-            std_loc[index][1] = unknown_val
-            std_loc[index][2] = high_string
-            continue
-
-        #we have a location, we suspect we have a division
+        #we go through all the sub divisions to see if we can match one highly enough
+        for i, division in enumerate(division_list): 
+            division_name = division['name']
+            division_id = division['id']
+            ratio = fuzz.ratio(division_name.lower(),next_string.lower())
+            if ratio > high_ratio and ratio > 90:
+                high_ratio = ratio
+                high_string = division_name
+            ratio = fuzz.ratio(division_id.lower(), next_string.lower())
+            if ratio > high_ratio and ratio > 90:
+                high_ratio = ratio
+                high_string = division_name
+        
+        location_list = []
+        #we didn't find a division, maybe the next string is a location
+        if high_string == '':
+            division_string = unknown_val
+            for country in std_locs:
+                if country['name'] == country_string:
+                    division_list = country['sub']
+                    for div in division_list:
+                        location_list.extend(div['sub'])
+        
+        #we found a division
         else:
-            high_ratio = 0
-            location_string = ''
-            compare_dict = std_locs[2]
-            
-            #we have a division but no location
+            division_string = high_string
+            for country in std_locs:
+                if country['name'] == country_string:
+                    division_list = country['sub']
+                    for div in division_list:
+                        if div['name'] == division_string:
+                            location_list = div['sub']
+         
+
             try:
                 next_string = loc_list[country_index_location+2]
+            #their is no next string
             except:
                 std_loc[index][0] = country_string
-                std_loc[index][1] = high_string
+                std_loc[index][1] = division_string
                 std_loc[index][2] = unknown_val
                 continue
-                
-            for key in compare_dict.keys():
-                #make sure the country prefix matches what we already have
-                country_key = re.split("-", key)[0]
-                if country_key.lower() not in country_string.lower():
-                    continue
 
-                #get rid of any country level information
-                key = re.split("-",key)[2:]
-                key = " ".join(key)
 
-                ratio = fuzz.ratio(key.lower(),next_string.lower())
-                if ratio > high_ratio:
-                    high_ratio = ratio
-                    location_string = key
-            
-            for value in compare_dict.values():
-                ratio = fuzz.ratio(value.lower(),next_string.lower())
-                if ratio > high_ratio:
-                    high_ratio = ratio
-                    location_string = list(compare_dict.keys())[list(compare_dict.values()).index(value)]
-            try: 
-                #we found both a division and location
-                std_loc[index][0] = country_string
-                std_loc[index][1] = high_string
-                std_loc[index][2] = location_string
-            except:
-                print(index, print(len(std_loc)), print(len(meta)))
-                sys.exit(0)
+        #we looked for the division, now we look for the location
+        high_ratio = 0
+        location_string = ''
+        
+        #iterate the locations
+        for location in location_list:
+            location_name = location['name']
+            ratio = fuzz.ratio(location_name.lower(),next_string.lower())
+            print(location_name, ratio, next_string)
+            if ratio > high_ratio and ratio > 70:
+                high_ratio = ratio
+                location_string = location_name
+        print(location_string)
+        if location_string != '':
+            #we found both a division and location
+            std_loc[index][0] = country_string
+            std_loc[index][1] = division_string
+            std_loc[index][2] = location_string
+        else:
+            std_loc[index][0] = country_string
+            std_loc[index][1] = division_string
+            std_loc[index][2] = unknown_val
 
     loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
+    print(loc_df)
+    sys.exit(0)
     meta = pd.concat([meta, loc_df], axis=1)
     return(meta)
 
@@ -304,9 +317,7 @@ meta = normalize_date(current_datetime, meta)
 meta = nextstrain_replacement(os.path.join(geojson_prefix, "gisaid_geoLocationRules.tsv"), meta)
 
 #parse apart our expected geolocs
-countries_std = parse_json(os.path.join(geojson_prefix, "gadm_countries.json"))
-print(countries_std)
-sys.exit(0)
+std_locs = parse_jsonl(os.path.join(geojson_prefix, "gadm_transformed.jsonl"))
 
 meta = off_by_one_location(meta, std_locs)
 sys.exit(0)
