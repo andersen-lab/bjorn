@@ -1,4 +1,4 @@
-# `björn`
+# ![LOGO](figs/bjorn_logo_yellow_grey-1.png)
 This is the code repository for `bjorn` - a suite of miscellaneous tools that can be used to:
 
 * generate information for large-scale genomic surveillance of SARS-CoV-2 sequences. This functionality relies on external tools such as `datafunk`, `minimap2`, and `pandas`. 
