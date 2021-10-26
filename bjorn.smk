@@ -62,7 +62,8 @@ if data_source == "gisaid_feed":
 elif data_source == "alab_release":
     rule clone_alab_sequences:
         output:
-            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
+            #temp
+            meta=(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
             data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
         threads: 1
         shell:
@@ -72,14 +73,18 @@ elif data_source == "alab_release":
             mkdir -p {work_dir}/parallel
             mkdir -p {fasta_output_prefix}
             git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
-            gzip -rk HCoV-19-Genomics/consensus_sequences/*.fasta
-                       
-            mv HCoV-19-Genomics/consensus_sequences/*.fasta.gz {fasta_output_prefix} 
+            
+            find HCoV-19-Genomics/consensus_sequences/ -type f -name "*.fasta" |
+            parallel -j10 -l1000 "gzip -rk {{}}"
+            
+            find HCoV-19-Genomics/consensus_sequences/ -type f -name "*.fasta.gz" | 
+            parallel -j10 -l1000 "mv {{}} {fasta_output_prefix}" 
             
             #parallel process from here on out in chunks
             find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
-            parallel --tmpdir {work_dir}/parallel -l1000 -j4 \
-            "python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -o {fasta_output_prefix} -f {{}} -j {{#}}"
+            parallel --tmpdir {work_dir}/parallel -l1000 -j32 \
+            "python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -l HCoV-19-Genomics/lineage_report.csv \
+                -o {fasta_output_prefix} -f {{}} -j {{#}}"
             
             for file in {fasta_output_prefix}/*.fasta.gz;do
                 cat {reference_fp} | gzip -c >> "$file"
@@ -93,7 +98,8 @@ rule align_to_reference:
     input:
         f"{fasta_output_prefix}/{{sample}}.fasta.gz"
     output:
-        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
+        #temp
+        (f"{fasta_output_prefix}/{{sample}}.mutations.csv")
     threads: max_task_cpus
     shell:
         """
@@ -108,7 +114,8 @@ rule merge_mutations_metadata:
         meta=f"{fasta_output_prefix}/{{sample}}.tsv.gz",
         data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
     output:
-        temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
+        #temp
+        (f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
     threads: 1
     shell:
         """
@@ -120,7 +127,8 @@ rule merge_json:
     input:
         dynamic(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
     output:
-        temp(f"{work_dir}/_api_data_{current_datetime}.json.gz")
+        #temp
+        (f"{work_dir}/_api_data_{current_datetime}.json.gz")
     threads: 1
     shell:
         """
@@ -131,7 +139,8 @@ rule build_meta:
     input:
         rules.merge_json.output
     output:
-        temp(f"{work_dir}/_api_metadata_{current_datetime}.json")
+        #temp
+        (f"{work_dir}/_api_metadata_{current_datetime}.json")
     threads: 1
     shell:
         """

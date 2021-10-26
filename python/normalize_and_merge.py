@@ -63,6 +63,22 @@ except Exception as e:
     pd.DataFrame().to_json(out_fp, orient='records', lines=True)
     sys.exit(0)
 
+#parse the nextstrain conversion file
+nextstrain = pd.read_csv(os.path.join(geojson_prefix, "gisaid_geoLocationRules.tsv"), sep="\t", names=["original","replace"])
+nextstrain['original'] = [item.replace("/*","") for item in nextstrain['original']]
+nextstrain['replace'] = [item.replace("/*","") for item in nextstrain['replace']]
+nextstrain['original'] = [item[:-1] if item[-1] == '/' else item for item in nextstrain['original']]
+next_replace = dict(zip(list(nextstrain['original']), list(nextstrain['replace'])))
+
+#replace all matching strings
+locstrings = meta['locstring'].tolist()
+for i,loc in enumerate(locstrings):
+    for key, value in next_replace.items():
+        if str(key) in str(loc):
+            new_str = str(loc).replace(str(key), str(value))
+            locstrings[i] = new_str
+meta['locstring'] = locstrings
+
 #parse apart our expected geolocs
 countries_std_file = open(os.path.join(geojson_prefix, "gadm_countries.json"),'r')
 divisions_std_file = open(os.path.join(geojson_prefix, "gadm_divisions.json"),'r')
@@ -248,4 +264,5 @@ muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() i
 muts = muts.rename(columns={'idx': 'strain'})
 muts['strain'] = muts['strain'].str.strip()
 meta['strain'] = meta['strain'].str.strip()
+
 pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)

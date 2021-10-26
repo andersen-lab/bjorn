@@ -14,6 +14,12 @@ parser.add_argument("-i", "--inputmetadata",
                         type=str,
                         required=True,
                         help="Input filepath metadata csv")
+
+parser.add_argument("-l", "--lineagereport",
+                        type=str, 
+                        required=True,
+                        help="Input filepath lineage report csv")
+
 parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
@@ -34,8 +40,17 @@ print("Opening metadata")
 args = parser.parse_args()
 metadata_filepath = args.inputmetadata
 output_filepath = args.outfp
+lineage_filepath = args.lineagereport
+
 #read in the overall metadata file
 meta_df = pd.read_csv(metadata_filepath)
+lineage_df = pd.read_csv(lineage_filepath)
+print(len(meta_df))
+print(len(lineage_df))
+#merge in lineage information
+meta_df = meta_df.merge(lineage_df, how='left', left_on='ID', right_on='taxon')
+print(meta_df['lineage'])
+print(meta_df.columns)
 all_filenames = args.filenames
 
 #get all .fasta files names
@@ -68,23 +83,19 @@ for fasta in missing_fasta:
         if float(score) > high_score and float(score) > 97:
             high_score = float(score)
             high_index = index
-            print(score, high_score, row['ID'], high_index, str(fasta))
+            #print(score, high_score, row['ID'], high_index, str(fasta))
     
     #we didn't find a good match
     if float(high_score) < 97:
         continue
     keep_indices.append(high_index)
     scores.append(high_score)
+
 drop_indices = [value for value in list(range(0,len(meta_df))) if value not in keep_indices]
 temp_df = meta_df[meta_df['fasta_hdr'].isin(strains)]
 temp_df_2 = meta_df.drop(meta_df.index[drop_indices])
 meta_df = pd.concat([temp_df, temp_df_2], axis=0)
-if len(meta_df) != 1000:
-    print("temp_df", len(temp_df))
-    print("keep_indices", len(keep_indices), keep_indices)
-    print("temp_df_2", len(temp_df_2))
-    print("missing fasta", missing_fasta)
-sys.exit(0)
+
 c = []
 d = []
 l = []

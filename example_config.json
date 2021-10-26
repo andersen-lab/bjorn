@@ -1,9 +1,9 @@
 {
     "nonconcerning_genes": ["5UTR", "3UTR"],
     "nonconcerning_mutations": ["ORF8:Q27*"],
-    "work_dir": "/dev/shm/bjorn",
-    "output_data_fp": "bjornout/new_api_data.json",
-    "output_meta_fp": "bjornout/new_genomics_metadata.json",
+    "work_dir": "/home/chrissy/bjorn/test",
+    "output_data_fp": "/home/chrissy/bjorn/test/new_api_data.json",
+    "output_meta_fp": "/home/chrissy/bjorn/test/new_genomics_metadata.json",
     "max_task_cpus": "4",
     "data_source": "alab_release",
     "is_manual_in": "false",
