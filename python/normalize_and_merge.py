@@ -101,10 +101,10 @@ data['date_modified'] = date_modified
 
 # TODO: handle locstring off-by-one errors
 
-data['locstring'] = data['locstring'].str.split("/")
-data['country'] = data['locstring'].apply(lambda x: x[1] if len(x) >= 2 else '').str.strip().str.lower().str.replace('\.', '')
-data['division'] = data['locstring'].apply(lambda x: x[2] if len(x) >= 3 else '').str.strip().str.lower().str.replace('\.', '')
-data['location'] = data['locstring'].apply(lambda x: x[3] if len(x) >= 4 else '').str.strip().str.lower().str.replace('\.', '')
+data['locstring'] = data['locstring'].str.lower().str.replace('\.', '').str.replace('unknown', '').str.split("/")
+data['country'] = data['locstring'].apply(lambda x: x[1] if len(x) >= 2 else '').str.strip()
+data['division'] = data['locstring'].apply(lambda x: x[2] if len(x) >= 3 else '').str.strip()
+data['location'] = data['locstring'].apply(lambda x: x[3] if len(x) >= 4 else '').str.strip()
 data['country'].fillna('', inplace=True)
 data.loc[:, 'country'] = data['country'].str.strip()
 data.loc[data['country'].str.len() <= 1, 'country'] = ''
