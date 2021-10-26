@@ -65,36 +65,10 @@ meta_df['fasta'] = new_row
 #remove what we don't want from metadata
 meta_df.drop(meta_df.index[remove_indices], inplace=True)
 
-c = []
-d = []
-l = []
-#manipulate metadata for geo locations accordingly
-for index, row in meta_df.iterrows():
-    country = ""
-    division = ""
-    location = ""
-    location_list = str(row['location']).split('/')[1:]
-    if len(location_list) > 2:
-        country = location_list[0]
-        division = location_list[1]
-        location = location_list[2]
-    elif len(location_list) == 2:
-        country = location_list[0]
-        location = location_list[1]
-    c.append(country)
-    d.append(division)
-    l.append(location)
-
 #drop and add columns
 meta_df.drop(['location', 'zipcode', 'authors', 'originating_lab', 'ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth', 'fasta_hdr'], axis=1, inplace=True)
-meta_df['country'] = c
-meta_df['division'] = d
-meta_df['location'] = l
-#putting in filler columns to make sure it doesn't crash
-meta_df['country_normed'] = c
-meta_df['division_normed'] = d
-meta_df['location_normed'] = l
+
 meta_df['date_submitted'] = ['']*len(meta_df)
 meta_df['pangolin_lineage'] = ['']*len(meta_df)
 meta_df['pangolin_version'] = ['']*len(meta_df)

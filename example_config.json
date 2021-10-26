@@ -1,6 +1,4 @@
 {
-    "nonconcerning_genes": ["5UTR", "3UTR"],
-    "nonconcerning_mutations": ["ORF8:Q27*"],
     "work_dir": "/dev/shm/bjorn",
     "output_data_fp": "bjornout/new_api_data.json",
     "output_meta_fp": "bjornout/new_genomics_metadata.json",

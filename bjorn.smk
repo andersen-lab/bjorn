@@ -48,12 +48,9 @@ if data_source == "gisaid_feed":
                                 id: .covv_accession_id, \
                                 seq: .sequence|split(\\"\\n\\")|join(\\"\\") }} | \
                             select( .loc|length <= 6 ) | \
-                            {{  c: (.loc[1] // \\"{unknown_value}\\") | ascii_downcase, \
-                                d: (.loc[2] // \\"{unknown_value}\\") | ascii_downcase, \
-                                l: (.loc[3] // \\"{unknown_value}\\") | ascii_downcase }} + (.) | \
-                            \\">\(.strain)\n\(.seq)\t\([.strain, .id, .date, .odate, .lin, .c, .d, .l, (.loc|join(\\"/\\"))]|join(\\"\\t\\"))\\"" | \
+                            \\">\(.strain)\n\(.seq)\t\([.strain, .id, .date, .odate, .lin, (.loc|join(\\"/\\"))]|join(\\"\\t\\"))\\"" | \
                             tee >(cut -f1 | gzip -c > {fasta_output_prefix}/{{#}}.fasta.gz) | \
-                            cut -sf2- | sed "1s/^/strain\\taccession_id\\tdate_collected\\tdate_submitted\\tpangolin_lineage\\tcountry\\tdivision\\tlocation\\tlocstring\\n/" > {fasta_output_prefix}/{{#}}.tsv' || true
+                            cut -sf2- | sed "1s/^/strain\\taccession_id\\tdate_collected\\tdate_submitted\\tpangolin_lineage\\tlocstring\\n/" > {fasta_output_prefix}/{{#}}.tsv' || true
             for file in {fasta_output_prefix}/*.fasta.gz; do
                 cat {reference_fp} | gzip -c >> "$file"
             done || true
