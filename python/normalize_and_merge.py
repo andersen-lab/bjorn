@@ -79,7 +79,7 @@ def nextstrain_replacement(nextstrain_filepath: str, meta: pd.DataFrame):
     meta['locstring'] = locstrings
     return(meta)
 
-def normalize_date(current_datetime: str, meta: pd.DataFrame):
+def normalize_date(current_datetime: str, meta: pd.DataFrame, min_date: str):
     """
     Takes in the current date and normalizes it.
     
@@ -88,6 +88,8 @@ def normalize_date(current_datetime: str, meta: pd.DataFrame):
     current_datetime : str    
 
     meta : pd.DataFrame
+    
+    min_date : str
 
     Returns
     -------
@@ -130,8 +132,8 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
     unknown_val = 'unkn'
 
     #make an empy list for the data to be held in
-    std_loc = [[0]*3]*len(meta) 
-
+    std_loc = []
+    
     #country location variable
     country_index_location = 0
 
@@ -139,12 +141,10 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
     for index, row in meta.iterrows():
         locstring = str(row['locstring']) 
         loc_list = locstring.split("/")
-        print(loc_list)
+        loc_list = [loc.strip() for loc in loc_list]
         #in the event that we have no normal splits
         if len(loc_list) == 0:
-            std_loc[index][0] = unknown_val
-            std_loc[index][1] = unknown_val
-            std_loc[index][2] = unknown_val
+            std_loc.append((unknown_val, unknown_val, unknown_val))
             continue
         
         #we find the country first
@@ -171,191 +171,187 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
                     country_index_location = i   
      
         high_ratio = 0 
-        high_string = ''
+        division_string = ''
 
         #next we figure out if we have a division or location in the next slot
         try:
             next_string = loc_list[country_index_location+1]
         except:
-            std_loc[index][0] = country_string
-            std_loc[index][1] = unknown_val
-            std_loc[index][2] = unknown_val
+            std_loc.append((country_string, unknown_val, unknown_val))
             continue
         
         #we go back and get the sub divisions for the country
         for country in std_locs:
             if country['name'] == country_string:
                 division_list = country['sub']
-
+        
         #we go through all the sub divisions to see if we can match one highly enough
         for i, division in enumerate(division_list): 
             division_name = division['name']
             division_id = division['id']
             ratio = fuzz.ratio(division_name.lower(),next_string.lower())
+            
             if ratio > high_ratio and ratio > 90:
                 high_ratio = ratio
-                high_string = division_name
+                division_string = division_name
             ratio = fuzz.ratio(division_id.lower(), next_string.lower())
             if ratio > high_ratio and ratio > 90:
                 high_ratio = ratio
-                high_string = division_name
+                division_string = division_name
         
         location_list = []
+       
         #we didn't find a division, maybe the next string is a location
-        if high_string == '':
+        if division_string == '':
             division_string = unknown_val
             for country in std_locs:
                 if country['name'] == country_string:
                     division_list = country['sub']
                     for div in division_list:
                         location_list.extend(div['sub'])
-        
         #we found a division
         else:
-            division_string = high_string
+           
             for country in std_locs:
                 if country['name'] == country_string:
                     division_list = country['sub']
                     for div in division_list:
                         if div['name'] == division_string:
                             location_list = div['sub']
-         
-
+            
             try:
                 next_string = loc_list[country_index_location+2]
             #their is no next string
             except:
-                std_loc[index][0] = country_string
-                std_loc[index][1] = division_string
-                std_loc[index][2] = unknown_val
+                std_loc.append((country_string, division_string, unknown_val))
                 continue
-
 
         #we looked for the division, now we look for the location
         high_ratio = 0
         location_string = ''
-        
+       
         #iterate the locations
         for location in location_list:
             location_name = location['name']
             ratio = fuzz.ratio(location_name.lower(),next_string.lower())
-            print(location_name, ratio, next_string)
+            
             if ratio > high_ratio and ratio > 70:
                 high_ratio = ratio
                 location_string = location_name
-        print(location_string)
+
+         
         if location_string != '':
             #we found both a division and location
-            std_loc[index][0] = country_string
-            std_loc[index][1] = division_string
-            std_loc[index][2] = location_string
+            std_loc.append((country_string, division_string, location_string))
         else:
-            std_loc[index][0] = country_string
-            std_loc[index][1] = division_string
-            std_loc[index][2] = unknown_val
-
+            std_loc.append((country_string, division_string, unknown_val))
+ 
     loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
-    print(loc_df)
-    sys.exit(0)
     meta = pd.concat([meta, loc_df], axis=1)
     return(meta)
 
-#COLLECTING USER PARAMETERS
-parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--inputmutations",
-                        type=str,
-                        required=True,
-                        help="Input mutations csv")
-parser.add_argument("-m", "--inputmeta",
-                        type=str,
-                        required=True,
-                        help="Input metadata")
-parser.add_argument("-o", "--outfp",
-                        type=str,
-                        required=True,
-                        help="Output filepath")
-parser.add_argument("-u", "--unknownvalue",
-                        type=str,
-                        required=True,
-                        help="Unknown value")
-parser.add_argument("-n", "--mindate",
-                        type=str,
-                        required=True,
-                        help="Minimum date")
-parser.add_argument("-g", "--geojson",
-                        type=str,
-                        required=True,
-                        help="GeoJSON prefix")
-parser.add_argument("-t", "--currentdate",
-                        type=str,
-                        required=True,
-                        help="Current date")
+def main():
+    """
+    Main function for use.
+    """
+    #COLLECTING USER PARAMETERS
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--inputmutations",
+                            type=str,
+                            required=True,
+                            help="Input mutations csv")
+    parser.add_argument("-m", "--inputmeta",
+                            type=str,
+                            required=True,
+                            help="Input metadata")
+    parser.add_argument("-o", "--outfp",
+                            type=str,
+                            required=True,
+                            help="Output filepath")
+    parser.add_argument("-u", "--unknownvalue",
+                            type=str,
+                            required=True,
+                            help="Unknown value")
+    parser.add_argument("-n", "--mindate",
+                            type=str,
+                            required=True,
+                            help="Minimum date")
+    parser.add_argument("-g", "--geojson",
+                            type=str,
+                            required=True,
+                            help="GeoJSON prefix")
+    parser.add_argument("-t", "--currentdate",
+                            type=str,
+                            required=True,
+                            help="Current date")
 
 
-args = parser.parse_args()
-input_mut = args.inputmutations
-input_metadata = args.inputmeta
-out_fp = args.outfp
-unknown_val = args.unknownvalue
-min_date = args.mindate
-geojson_prefix = args.geojson
-current_datetime = args.currentdate
+    args = parser.parse_args()
+    input_mut = args.inputmutations
+    input_metadata = args.inputmeta
+    out_fp = args.outfp
+    unknown_val = args.unknownvalue
+    min_date = args.mindate
+    geojson_prefix = args.geojson
+    current_datetime = args.currentdate
 
-#handle the case of an empty dataframe
-try:
-    meta = pd.read_csv(input_metadata, sep='\t')
-    if len(meta.index) == 0:
-        raise "empty dataframe"
-except Exception as e:
-    pd.DataFrame().to_json(out_fp, orient='records', lines=True)
-    sys.exit(0)
+    #handle the case of an empty dataframe
+    try:
+        meta = pd.read_csv(input_metadata, sep='\t')
+        if len(meta.index) == 0:
+            raise "empty dataframe"
+    except Exception as e:
+        pd.DataFrame().to_json(out_fp, orient='records', lines=True)
+        sys.exit(0)
 
-#normalize the date
-meta = normalize_date(current_datetime, meta)
+    #normalize the date
+    meta = normalize_date(current_datetime, meta, min_date)
 
-#use nextstrain standard conversions to replace locstrings
-meta = nextstrain_replacement(os.path.join(geojson_prefix, "gisaid_geoLocationRules.tsv"), meta)
+    #use nextstrain standard conversions to replace locstrings
+    meta = nextstrain_replacement(os.path.join(geojson_prefix, "gisaid_geoLocationRules.tsv"), meta)
 
-#parse apart our expected geolocs
-std_locs = parse_jsonl(os.path.join(geojson_prefix, "gadm_transformed.jsonl"))
+    #parse apart our expected geolocs
+    std_locs = parse_jsonl(os.path.join(geojson_prefix, "gadm_transformed.jsonl"))
 
-meta = off_by_one_location(meta, std_locs)
-sys.exit(0)
+    meta = off_by_one_location(meta, std_locs)
 
-#keep the county corrections mapping
-for key, val in COUNTY_CORRECTIONS.items():
-    meta.loc[:, 'location'] = meta['location'].str.replace(key, val)
+    #keep the county corrections mapping
+    for key, val in COUNTY_CORRECTIONS.items():
+        meta.loc[:, 'location'] = meta['location'].str.replace(key, val)
 
-meta['country_id'] = meta['country']
-meta['division_id'] = meta['division']
-meta['location_id'] = meta['location']
-meta.replace({"country_id": std_locs[0]}, inplace=True)
-meta.replace({"division_id": std_locs[1]}, inplace=True)
-meta.replace({"location_id": std_locs[2]}, inplace=True)
-meta['country_lower'] = meta['country'].str.lower()
-meta['division_lower'] = meta['division'].str.lower()
-meta['location_lower'] = meta['location'].str.lower()
-meta.fillna(unknown_val, inplace=True)
+    meta['country_id'] = meta['country']
+    meta['division_id'] = meta['division']
+    meta['location_id'] = meta['location']
+    meta.replace({"country_id": std_locs[0]}, inplace=True)
+    meta.replace({"division_id": std_locs[1]}, inplace=True)
+    meta.replace({"location_id": std_locs[2]}, inplace=True)
+    meta['country_lower'] = meta['country'].str.lower()
+    meta['division_lower'] = meta['division'].str.lower()
+    meta['location_lower'] = meta['location'].str.lower()
+    meta.fillna(unknown_val, inplace=True)
 
-muts = pd.read_csv(input_mut, dtype=str)
-muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
+    muts = pd.read_csv(input_mut, dtype=str)
+    muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
 
-#ignore mutations found in non-coding regions
-muts = muts.loc[~(muts['gene']=='Non-coding region')]
-#fuse with metadata
-print(f"Fusing muts with metadata...")
-# concat with pd
+    #ignore mutations found in non-coding regions
+    muts = muts.loc[~(muts['gene']=='Non-coding region')]
+    #fuse with metadata
+    print(f"Fusing muts with metadata...")
+    # concat with pd
 
-# If deletions not in chunk add columns
-muts_columns = muts.columns.tolist()
-for i in del_columns:
-    if i not in muts_columns:
-        muts[i] = np.nan
-muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
-muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
+    # If deletions not in chunk add columns
+    muts_columns = muts.columns.tolist()
+    for i in del_columns:
+        if i not in muts_columns:
+            muts[i] = np.nan
+    muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
+    muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
 
-muts = muts.rename(columns={'idx': 'strain'})
-muts['strain'] = muts['strain'].str.strip()
-meta['strain'] = meta['strain'].str.strip()
+    muts = muts.rename(columns={'idx': 'strain'})
+    muts['strain'] = muts['strain'].str.strip()
+    meta['strain'] = meta['strain'].str.strip()
 
-pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+    pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+
+if __name__ == "__main__":
+    main()
