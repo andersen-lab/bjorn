@@ -133,6 +133,7 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
 
     #make an empy list for the data to be held in
     std_loc = []
+    std_ids = []
     
     #country location variable
     country_index_location = 0
@@ -151,7 +152,8 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
         compare_dict = std_locs[0]
         high_ratio = 0
         country_string = ''
-        
+        country_id_string = ''
+
         for i,loc in enumerate(loc_list): 
             #we look for the country in 'name' category
             for country in std_locs:
@@ -161,6 +163,7 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
                     high_ratio = ratio
                     country_string = country_name
                     country_index_location = i
+                    country_id_string = country['id']
             #we look for the country in 'id' category
             for country in std_locs:
                 country_id = country['id']
@@ -169,15 +172,17 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
                     high_ratio = ratio
                     country_string = country['name']
                     country_index_location = i   
-     
+                    country_id_string = country['id']
         high_ratio = 0 
         division_string = ''
+        division_id_string = ''
 
         #next we figure out if we have a division or location in the next slot
         try:
             next_string = loc_list[country_index_location+1]
         except:
             std_loc.append((country_string, unknown_val, unknown_val))
+            std_ids.append((country_id_string, unknonw_val, unknown_val))
             continue
         
         #we go back and get the sub divisions for the country
@@ -194,11 +199,13 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
             if ratio > high_ratio and ratio > 90:
                 high_ratio = ratio
                 division_string = division_name
+                division_id_string = division_id
+
             ratio = fuzz.ratio(division_id.lower(), next_string.lower())
             if ratio > high_ratio and ratio > 90:
                 high_ratio = ratio
                 division_string = division_name
-        
+                division_id_string = division_id        
         location_list = []
        
         #we didn't find a division, maybe the next string is a location
@@ -224,13 +231,14 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
             #their is no next string
             except:
                 std_loc.append((country_string, division_string, unknown_val))
+                std_ids.append((country_id_string, division_id_string, unknown_val))
                 continue
 
         #we looked for the division, now we look for the location
         high_ratio = 0
         location_string = ''
-       
-        #iterate the locations
+        location_id_string = ''
+        #iterate the loications
         for location in location_list:
             location_name = location['name']
             ratio = fuzz.ratio(location_name.lower(),next_string.lower())
@@ -238,16 +246,19 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
             if ratio > high_ratio and ratio > 70:
                 high_ratio = ratio
                 location_string = location_name
-
+                location_id_string = location['id']
          
         if location_string != '':
             #we found both a division and location
-            std_loc.append((country_string, division_string, location_string))
+            std_loc.append((country_string, division_string, location_string))  
+            std_ids.append((country_id_string, division_id_string, location_id_string))
         else:
             std_loc.append((country_string, division_string, unknown_val))
+            std_ids.append((country_id_string, division_id_string, unknown_val))
  
     loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
-    meta = pd.concat([meta, loc_df], axis=1)
+    ids_df = pd.DataFrame(std_ids, columns=['country_id', 'division_id', 'location_id'])
+    meta = pd.concat([meta, loc_df, ids_df], axis=1)
     return(meta)
 
 def main():
