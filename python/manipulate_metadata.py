@@ -17,7 +17,7 @@ parser.add_argument("-i", "--inputmetadata",
 
 parser.add_argument("-l", "--lineagereport",
                         type=str, 
-                        required=True,
+                        required=False,
                         help="Input filepath lineage report csv")
 
 parser.add_argument("-o", "--outfp",
@@ -28,7 +28,6 @@ parser.add_argument("-f", "--filenames",
                         required=True,
                         nargs='+',
                         help="Filenames of interest")
-
 
 parser.add_argument("-j", "--jobid",
                         required=True,
@@ -43,14 +42,8 @@ output_filepath = args.outfp
 lineage_filepath = args.lineagereport
 
 #read in the overall metadata file
-meta_df = pd.read_csv(metadata_filepath)
-lineage_df = pd.read_csv(lineage_filepath)
-print(len(meta_df))
-print(len(lineage_df))
-#merge in lineage information
-meta_df = meta_df.merge(lineage_df, how='left', left_on='ID', right_on='taxon')
-print(meta_df['lineage'])
-print(meta_df.columns)
+meta_df = pd.read_csv(metadata_filepath)  
+
 all_filenames = args.filenames
 
 #get all .fasta files names
@@ -96,6 +89,21 @@ temp_df = meta_df[meta_df['fasta_hdr'].isin(strains)]
 temp_df_2 = meta_df.drop(meta_df.index[drop_indices])
 meta_df = pd.concat([temp_df, temp_df_2], axis=0)
 
+if lineage_filepath:
+    lineage_df = pd.read_csv(lineage_filepath)
+    taxon=lineage_df['taxon'].tolist()
+    taxon_added= []
+    for index, row in meta_df.iterrows():
+        taxon_string=""
+        high_score = 0
+        for t in taxon:
+            ratio = fuzz.token_set_ratio(str(row['fasta_hdr']),str(t))
+            if ratio > high_score:
+                high_score = ratio
+                taxon_string = t 
+        taxon_added.append(taxon_string)
+    meta_df['taxon'] = taxon_added
+    meta_df = meta_df.merge(lineage_df, how='left', on='taxon')
 c = []
 d = []
 l = []
@@ -104,11 +112,9 @@ l = []
 meta_df.drop(['zipcode', 'authors', 'originating_lab', 'ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth'], axis=1, inplace=True)
 meta_df['date_submitted'] = ['']*len(meta_df)
-meta_df['pangolin_lineage'] = ['']*len(meta_df)
-meta_df['pangolin_version'] = ['']*len(meta_df)
-meta_df['clade'] = ['']*len(meta_df)
 meta_df.rename(columns={'collection_date':'date_collected', \
-    'gisaid_accession':'accession_id', 'fasta_hdr':'strain', 'location':'locstring'}, inplace=True)
+    'gisaid_accession':'accession_id', 'fasta_hdr':'strain', 'location':'locstring',\
+    "lineage":"pangolin_lineage"}, inplace=True)
 
 meta_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %job_num), "\t")
 #concatenate all these things together

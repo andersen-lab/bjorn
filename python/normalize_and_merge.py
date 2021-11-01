@@ -182,7 +182,7 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
             next_string = loc_list[country_index_location+1]
         except:
             std_loc.append((country_string, unknown_val, unknown_val))
-            std_ids.append((country_id_string, unknonw_val, unknown_val))
+            std_ids.append((country_id_string, unknown_val, unknown_val))
             continue
         
         #we go back and get the sub divisions for the country
@@ -330,12 +330,6 @@ def main():
     for key, val in COUNTY_CORRECTIONS.items():
         meta.loc[:, 'location'] = meta['location'].str.replace(key, val)
 
-    meta['country_id'] = meta['country']
-    meta['division_id'] = meta['division']
-    meta['location_id'] = meta['location']
-    meta.replace({"country_id": std_locs[0]}, inplace=True)
-    meta.replace({"division_id": std_locs[1]}, inplace=True)
-    meta.replace({"location_id": std_locs[2]}, inplace=True)
     meta['country_lower'] = meta['country'].str.lower()
     meta['division_lower'] = meta['division'].str.lower()
     meta['location_lower'] = meta['location'].str.lower()
@@ -361,7 +355,7 @@ def main():
     muts = muts.rename(columns={'idx': 'strain'})
     muts['strain'] = muts['strain'].str.strip()
     meta['strain'] = meta['strain'].str.strip()
-
+    
     pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
 
 if __name__ == "__main__":
