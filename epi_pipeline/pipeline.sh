@@ -23,7 +23,8 @@ jq -r '.features[]|"\(.properties.location_id)\t\(.properties.state_id)\t\(.geom
 wget -Nq "https://raw.githubusercontent.com/outbreak-info/biothings_covid19/master/geo/US_counties.json"
 jq -r '.features[]|"\(.properties.location_id)\t\(.properties.state_id)\t\(.geometry)"' "US_counties.json" > "counties_geo.tsv"
 >&2 echo "starting pipeline"
-../epi_metamatcher.py | parallel --pipe --lb -N32 -j10 ../epi_exploder.py > "../epi_data.jsonl"
+exploder="$(readlink -f ../exploder.py)"
+../metamatcher.py | parallel --pipe --lb -N32 -j10 $exploder > "../epi_data.jsonl"
 >&2 echo "processing complete"
 
 cd "../"
@@ -42,5 +43,5 @@ parallel --pipepart -j10 --quote jq -cr "select( .admin_level==0 ) | $getter | @
 Rscript ../breaks_and_gifs.R
 cd "../"
 >&2 echo "integrating breaks into jsonl"
-jq -c --slurpfile breaks <(jq 'map(del(.id, .location))' gifdata/breaks.json) '. + $breaks[][.admin_level]' "epi_data.jsonl" > "epi_data_breaks.jsonl"
->&2 echo "output data written to ${pwd}epi_data_breaks.jsonl"
+jq -c --slurpfile breaks <(jq 'map(del(.id, .location))' gifdata/breaks.json) '. + $breaks[][.admin_level]' "epi_data.jsonl" | gzip > $1
+>&2 echo "output data written to $1"

@@ -133,7 +133,7 @@ rule merge_json:
     threads: 1
     shell:
         """
-        gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr 'select((.mutations | length > 0) or .pangolin_lineage == "B") | if .mutations == "" then .mutations == [] else . end' | gzip > {output}
+        gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr 'select((.mutations | length > 0) or .pangolin_lineage == "B") | if ((has("mutations")|not) or .mutations == "") then .mutations = [] end' | gzip > {output}
         """
 
 rule build_meta:
