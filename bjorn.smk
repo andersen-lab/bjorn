@@ -1,4 +1,6 @@
 from datetime import datetime
+import pangolin.pangolin.pangolearn.pangolearn as pangolearn
+
 configfile:"example_config.json"
 username = config['gisaid_username']
 password = config['gisaid_password']
@@ -99,25 +101,77 @@ else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
     sys.exit()
 
+# TODO: check memory usage below
+# TODO: smooth out batched data case
+
 rule align_to_reference:
     input:
         f"{fasta_output_prefix}/{{sample}}.fasta.gz"
     output:
-        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
+        temp(f"{fasta_output_prefix}/{{sample}}.a.fasta")
     threads: max_task_cpus
     shell:
         """
         minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
-            gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
-            python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
+            gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad > {output}
+        """
+
+rule run_bjorn:
+    input:
+        f"{fasta_output_prefix}/{{sample}}.a.fasta",
+    output:
+        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
+    threads: 1,
+    shell:
+        """
+        python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i {input} -o {output}
+        """
+
+# TODO: get pango-relevant configs properly instead of bodging them in for testing
+
+rule pangolearn:
+    input:
+        fasta = f"{fasta_output_prefix}/{{sample}}.a.fasta",
+        model = config["trained_model"],
+        header = config["header_file"],
+        reference = config["reference_fasta"]
+    output:
+        report=os.path.join(config["tempdir"],"lineage_report.pass_qc.csv")
+    run:
+        pangolearn.assign_lineage(input.header,input.model,input.reference,input.fasta,output[0])
+
+rule scorpio:
+    input:
+        fasta = f"{fasta_output_prefix}/{{sample}}.a.fasta",
+    params:
+        constellation_files = " ".join(config["constellation_files"])
+    output:
+        report = os.path.join(config["tempdir"],"VOC_report.scorpio.csv")
+    threads:
+        max_task_cpus
+    env: "pangolin/envirnment.yml"
+    shell:
+        """
+        scorpio classify \
+        -i {input.fasta:q} \
+        -o {output.report:q} \
+        -t {max_task_cpus} \
+        --output-counts \
+        --constellations {params.constellation_files} \
+        --pangolin \
+        --list-incompatible \
+        --long
         """
 
 rule merge_mutations_metadata:
     input:
         meta=f"{fasta_output_prefix}/{{sample}}.tsv",
-        data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
+        data=f"{fasta_output_prefix}/{{sample}}.mutations.csv",
+        pangolearn=rules.pangolearn.output.report,
+        scorpio=rules.scorpio.output.report,
     output:
         temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
+        # TODO: dead-letter queue to try to rescue sequences with USHER
     threads: 1
     shell:
         """
