@@ -1,0 +1,27 @@
+name: epi_pipeline
+channels:
+  - defaults
+  - anaconda
+  - bioconda
+  - conda-forge
+dependencies:
+  - pandas
+  - numpy
+  - parallel
+  - pigz
+  - buffer
+  - pigz=2.5
+  - node
+  - R
+  - r-readr
+  - r-dplyt
+  - r-dplyr
+  - r-dtplyr
+  - r-tidyr
+  - r-jsonlite
+  - r-stringr
+  - r-classInt
+  - r-sf
+  - r-ggplot2
+  - r-gganimate
+  - r-magick
