@@ -100,7 +100,8 @@ if lineage_filepath:
             ratio = fuzz.token_set_ratio(str(row['fasta_hdr']),str(t))
             if ratio > high_score:
                 high_score = ratio
-                taxon_string = t 
+                taxon_string = t
+         
         taxon_added.append(taxon_string)
     meta_df['taxon'] = taxon_added
     meta_df = meta_df.merge(lineage_df, how='left', on='taxon')
@@ -112,11 +113,16 @@ l = []
 meta_df.drop(['authors', 'originating_lab', 'ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth'], axis=1, inplace=True)
 meta_df['date_submitted'] = ['']*len(meta_df)
+
+
 meta_df.rename(columns={'collection_date':'date_collected', \
     'gisaid_accession':'accession_id', 'fasta_hdr':'strain', 'location':'locstring',\
     "lineage":"pangolin_lineage"}, inplace=True)
 
+
 meta_df.to_csv(os.path.join(output_filepath, "%s.tsv.gz" %job_num), "\t")
+
+
 #concatenate all these things together
 all_fasta_files = [os.path.join(output_filepath, fasta+'.fasta.gz') for fasta in all_fasta]
 with gzip.open(os.path.join(output_filepath,str(job_num) + '.fasta.gz'), 'w') as outfile:

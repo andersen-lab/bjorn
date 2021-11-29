@@ -25,7 +25,7 @@ fasta_output_prefix = work_dir + "/chunks_fasta_" + current_datetime
 if data_source == "gisaid_feed":
     rule pull_gisaid_sequences:
         output:
-            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv")),
+            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
             data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
         threads: max_cpus - 1
         shell:
@@ -35,7 +35,7 @@ if data_source == "gisaid_feed":
             mkdir -p {fasta_output_prefix};
             ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T4) ) ||
               (cat {gisaid_data} ) ) |
-                    parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j4 \
+                    parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j200 \
                         'jq -cr " \
                             select( ( .covv_host|ascii_downcase == \\"human\\" ) \
                                 and ( .sequence|length > {min_length} ) \
@@ -53,7 +53,7 @@ if data_source == "gisaid_feed":
                                 l: (.loc[3] // \\"{unknown_value}\\") | ascii_downcase }} + (.) | \
                             \\">\(.strain)\n\(.seq)\t\([.strain, .id, .date, .odate, .lin, .c, .d, .l, (.loc|join(\\"/\\"))]|join(\\"\\t\\"))\\"" | \
                             tee >(cut -f1 | gzip -c > {fasta_output_prefix}/{{#}}.fasta.gz) | \
-                            cut -sf2- | sed "1s/^/strain\\taccession_id\\tdate_collected\\tdate_submitted\\tpangolin_lineage\\tcountry\\tdivision\\tlocation\\tlocstring\\n/" > {fasta_output_prefix}/{{#}}.tsv' || true
+                            cut -sf2- | sed "1s/^/strain\\taccession_id\\tdate_collected\\tdate_submitted\\tpangolin_lineage\\tcountry\\tdivision\\tlocation\\tlocstring\\n/" | gzip -c > {fasta_output_prefix}/{{#}}.tsv.gz' || true
             for file in {fasta_output_prefix}/*.fasta.gz; do
                 cat {reference_fp} | gzip -c >> "$file"
             done || true

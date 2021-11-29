@@ -358,7 +358,10 @@ def main():
     muts = muts.rename(columns={'idx': 'strain'})
     muts['strain'] = muts['strain'].str.strip()
     meta['strain'] = meta['strain'].str.strip()
-    
+   
+    #lets drop anything without an accession id
+    meta = meta[meta.accession_id != 'None']]
+ 
     if "zipcode" in meta.columns:
         pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
     else:
