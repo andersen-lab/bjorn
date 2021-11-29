@@ -109,7 +109,7 @@ d = []
 l = []
 
 #drop and add columns
-meta_df.drop(['zipcode', 'authors', 'originating_lab', 'ID','gb_accession', \
+meta_df.drop(['authors', 'originating_lab', 'ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth'], axis=1, inplace=True)
 meta_df['date_submitted'] = ['']*len(meta_df)
 meta_df.rename(columns={'collection_date':'date_collected', \

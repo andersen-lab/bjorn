@@ -16,7 +16,7 @@ from rapidfuzz import fuzz
 #define global static variables
 meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'date_submitted', \
     'date_modified', 'country_id', 'division_id', 'location_id', 'country', 'division', \
-    'location', 'country_lower', 'division_lower', 'location_lower']
+    'location', 'country_lower', 'division_lower', 'location_lower', 'zipcode']
 del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
 muts_info = ['type', 'mutation', 'gene', 'ref_codon', 'pos', 'alt_codon', 'is_synonymous', \
     'ref_aa', 'codon_num', 'alt_aa', 'absolute_coords', 'change_length_nt', 'is_frameshift','deletion_codon_coords']
@@ -255,9 +255,12 @@ def off_by_one_location(meta: pd.DataFrame, std_locs: list):
         else:
             std_loc.append((country_string, division_string, unknown_val))
             std_ids.append((country_id_string, division_id_string, unknown_val))
- 
+     
     loc_df = pd.DataFrame(std_loc, columns=['country','division','location'])
     ids_df = pd.DataFrame(std_ids, columns=['country_id', 'division_id', 'location_id'])
+    if "location" in meta and "country" in meta and "division" in meta:
+        meta.drop(["location", "country", "division"], inplace=True, axis=1)
+    
     meta = pd.concat([meta, loc_df, ids_df], axis=1)
     return(meta)
 
@@ -325,10 +328,10 @@ def main():
     std_locs = parse_jsonl(os.path.join(geojson_prefix, "gadm_transformed.jsonl"))
 
     meta = off_by_one_location(meta, std_locs)
-
     #keep the county corrections mapping
-    for key, val in COUNTY_CORRECTIONS.items():
-        meta.loc[:, 'location'] = meta['location'].str.replace(key, val)
+    #print(meta['location'])
+    meta['location'] = [str(item) for item in meta['location'].tolist()]
+    meta = meta.replace({"location":COUNTY_CORRECTIONS})
 
     meta['country_lower'] = meta['country'].str.lower()
     meta['division_lower'] = meta['division'].str.lower()
@@ -356,7 +359,12 @@ def main():
     muts['strain'] = muts['strain'].str.strip()
     meta['strain'] = meta['strain'].str.strip()
     
-    pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+    if "zipcode" in meta.columns:
+        pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+    else:
+        meta_info.remove("zipcode")
+        pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+
 
 if __name__ == "__main__":
     main()
