@@ -107,7 +107,7 @@ rule align_to_reference:
     threads: max_task_cpus
     shell:
         """
-        minimap2 -a -x asm5 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
+        minimap2 -a -x asm20 --score-N=0 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
             gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
             python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
         """
