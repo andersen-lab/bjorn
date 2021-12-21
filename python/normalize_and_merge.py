@@ -12,7 +12,7 @@ import bjorn_support as bs
 from mappings import COUNTY_CORRECTIONS
 import numpy as np
 from rapidfuzz import fuzz
-
+import uuid
 #define global static variables
 meta_info = ['strain', 'accession_id', 'pangolin_lineage', 'date_collected', 'date_submitted', \
     'date_modified', 'country_id', 'division_id', 'location_id', 'country', 'division', \
@@ -359,11 +359,23 @@ def main():
     muts['strain'] = muts['strain'].str.strip()
     meta['strain'] = meta['strain'].str.strip()
    
-    #lets drop anything without an accession id
-    meta = meta[meta.accession_id != 'None']]
- 
+    templ = len(meta)
+    #lets assign anything without an accession id to have a random string as accesion
+    meta['accession_id'] = meta.apply(lambda row: row['accession_id'] if (str(row['accession_id']) != 'None') else (uuid.uuid4().hex[:6].upper()), axis=1)
+    
+    meta = meta[meta['accession_id'] != 'None']
+    if templ != len(meta):
+        print(meta.columns)
+        print(meta['accession_id'], meta['strain'])
+        print("LOST ON ACCESION")
+    
     if "zipcode" in meta.columns:
+        td = pd.merge(meta[meta_info], muts, on='strain', how='left')
+        if len(td) != len(meta):
+            print(td)
+            print(meta)
         pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
+    
     else:
         meta_info.remove("zipcode")
         pd.merge(meta[meta_info], muts, on='strain', how='left').to_json(out_fp, orient='records', lines=True)
