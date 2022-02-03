@@ -15,6 +15,8 @@ patient_zero = "outgroup_A"
 data_source = config['data_source']
 geojson_prefix = config["geojson_prefix"]
 min_date = config["min_date"]
+#url for github repo to process data from
+git_repo = config["git_repo"]
 gisaid_data = config["gisaid_data"]
 is_manual_in = config["is_manual_in"]
 gisaid_uri = config["gisaid_uri"]
@@ -22,7 +24,7 @@ unknown_value = config["unknown_value"]
 
 fasta_output_prefix = work_dir + "/chunks_fasta_" + current_datetime
 
-if data_source == "gisaid_feed":
+if data_source == "gisaid":
     rule pull_gisaid_sequences:
         output:
             meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
@@ -58,9 +60,9 @@ if data_source == "gisaid_feed":
                 cat {reference_fp} | gzip -c >> "$file"
             done || true
             """
-
-elif data_source == "alab_release":
-    rule clone_alab_sequences:
+#this processes from a github repo ONLY
+elif data_source == "git":
+    rule clone_sequences:
         output:
             #temp
             meta=(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
@@ -68,22 +70,83 @@ elif data_source == "alab_release":
         threads: 1
         shell:
             """
-            echo {fasta_output_prefix}
+            #determine the repo name
+            repo_name="$(basename -- {git_repo})"
+            echo "Repo Name $repo_name"
+            
             mkdir -p {work_dir}
             mkdir -p {work_dir}/parallel
             mkdir -p {fasta_output_prefix}
-            git clone https://github.com/andersen-lab/HCoV-19-Genomics.git
-            
-            find HCoV-19-Genomics/consensus_sequences/ -type f -name "*.fasta" |
+            git clone {git_repo}
+                      
+            find $repo_name/consensus_sequences/ -type f -name "*.fasta" |
             parallel -j10 -l1000 "gzip -rk {{}}"
             
-            find HCoV-19-Genomics/consensus_sequences/ -type f -name "*.fasta.gz" | 
+            find $repo_name/consensus_sequences/ -type f -name "*.fasta.gz" | 
             parallel -j10 -l1000 "mv {{}} {fasta_output_prefix}" 
             
             #parallel process from here on out in chunks
             find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
             parallel --tmpdir {work_dir}/parallel -l1000 -j32 \
-            "python/manipulate_metadata.py -i HCoV-19-Genomics/metadata.csv -l HCoV-19-Genomics/lineage_report.csv \
+            "python/manipulate_metadata.py -i $repo_name/metadata.csv -l $repo_name/lineage_report.csv \
+                -o {fasta_output_prefix} -f {{}} -j {{#}}"
+            
+            for file in {fasta_output_prefix}/*.fasta.gz;do
+                cat {reference_fp} | gzip -c >> "$file"
+            done  
+            """
+elif data_source == "gisaid_and_git":
+    rule fetch_gisaid_and_git:
+        output:
+            meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
+            data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
+        threads: max_cpus - 1
+        shell:
+            """
+            mkdir -p {work_dir};
+            mkdir -p {work_dir}/parallel;
+            mkdir -p {fasta_output_prefix};
+            ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T4) ) ||
+              (cat {gisaid_data} ) ) |
+                    parallel --pipe --tmpdir {work_dir}/parallel --block {chunk_size} -j200 \
+                        'jq -cr " \
+                            select( ( .covv_host|ascii_downcase == \\"human\\" ) \
+                                and ( .sequence|length > {min_length} ) \
+                                and ( ( .sequence|length * {max_unknown_pct} ) > (.sequence|split(\\"N\\")|length ) ) ) | \
+                            {{  strain: .covv_virus_name|gsub(\\" \\";\\"\\"), \
+                                loc: .covv_location|split(\\"/\\"), \
+                                date: .covv_collection_date, \
+                                odate: .covv_subm_date,
+                                lin: .covv_lineage, \
+                                id: .covv_accession_id, \
+                                seq: .sequence|split(\\"\\n\\")|join(\\"\\") }} | \
+                            select( .loc|length <= 6 ) | \
+                            {{  c: (.loc[1] // \\"{unknown_value}\\") | ascii_downcase, \
+                                d: (.loc[2] // \\"{unknown_value}\\") | ascii_downcase, \
+                                l: (.loc[3] // \\"{unknown_value}\\") | ascii_downcase }} + (.) | \
+                            \\">\(.strain)\n\(.seq)\t\([.strain, .id, .date, .odate, .lin, .c, .d, .l, (.loc|join(\\"/\\"))]|join(\\"\\t\\"))\\"" | \
+                            tee >(cut -f1 | gzip -c > {fasta_output_prefix}/{{#}}.fasta.gz) | \
+                            cut -sf2- | sed "1s/^/strain\\taccession_id\\tdate_collected\\tdate_submitted\\tpangolin_lineage\\tcountry\\tdivision\\tlocation\\tlocstring\\n/" | gzip -c > {fasta_output_prefix}/{{#}}.tsv.gz' || true
+            for file in {fasta_output_prefix}/*.fasta.gz; do
+                cat {reference_fp} | gzip -c >> "$file"
+            done || true
+            
+            #determine the repo name
+            repo_name="$(basename -- {git_repo})"
+            echo "Repo Name $repo_name"
+            
+            git clone {git_repo}
+                      
+            find $repo_name/consensus_sequences/ -type f -name "*.fasta" |
+            parallel -j10 -l1000 "gzip -rk {{}}"
+            
+            find $repo_name/consensus_sequences/ -type f -name "*.fasta.gz" | 
+            parallel -j10 -l1000 "mv {{}} {fasta_output_prefix}" 
+            
+            #parallel process from here on out in chunks
+            find {fasta_output_prefix} -type f -name "*.fasta.gz" | \
+            parallel --tmpdir {work_dir}/parallel -l1000 -j32 \
+            "python/manipulate_metadata.py -i $repo_name/metadata.csv -l $repo_name/lineage_report.csv \
                 -o {fasta_output_prefix} -f {{}} -j {{#}}"
             
             for file in {fasta_output_prefix}/*.fasta.gz;do
@@ -91,7 +154,7 @@ elif data_source == "alab_release":
             done  
             """
 else:
-    print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
+    print(f'Error: data_source should be "gisaid" or "git" or "gisaid_and_git" -- got {data_source}')
     sys.exit()
 
 rule align_to_reference:
