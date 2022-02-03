@@ -360,15 +360,13 @@ def main():
     meta['strain'] = meta['strain'].str.strip()
    
     templ = len(meta)
+    
     #lets assign anything without an accession id to have a random string as accesion
-    meta['accession_id'] = meta.apply(lambda row: row['accession_id'] if (str(row['accession_id']) != 'None') else (uuid.uuid4().hex[:6].upper()), axis=1)
-    
+    meta['accession_id'] = meta.apply(lambda row: row['accession_id'] if (str(row['accession_id']) != 'None') else (uuid.uuid4().hex[:15].upper()), axis=1)
+   
+    meta.drop_duplicates(subset='accession_id', keep="last", inplace=True) 
     meta = meta[meta['accession_id'] != 'None']
-    if templ != len(meta):
-        print(meta.columns)
-        print(meta['accession_id'], meta['strain'])
-        print("LOST ON ACCESION")
-    
+   
     if "zipcode" in meta.columns:
         td = pd.merge(meta[meta_info], muts, on='strain', how='left')
         if len(td) != len(meta):
