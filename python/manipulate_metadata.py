@@ -35,7 +35,7 @@ parser.add_argument("-j", "--jobid",
 
 
 
-print("Opening metadata")
+#print("Opening metadata")
 args = parser.parse_args()
 metadata_filepath = args.inputmetadata
 output_filepath = args.outfp
@@ -110,7 +110,7 @@ d = []
 l = []
 
 #drop and add columns
-meta_df.drop(['authors', 'originating_lab', 'ID','gb_accession', \
+meta_df.drop(['ID','gb_accession', \
 'percent_coverage_cds', 'avg_depth'], axis=1, inplace=True)
 meta_df['date_submitted'] = ['']*len(meta_df)
 
