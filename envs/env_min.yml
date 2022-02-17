@@ -17,5 +17,5 @@ dependencies:
   - more-itertools
   - biopython=1.74
   - gdbm
-  - fuzzywuzzy
+  - rapidfuzz
 prefix: /home/chrissy/miniconda3/envs/bjorndev

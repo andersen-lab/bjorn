@@ -1,5 +1,4 @@
 from datetime import datetime
-configfile:"example_config.json"
 username = config['gisaid_username']
 password = config['gisaid_password']
 work_dir = config['work_dir']
@@ -28,10 +27,13 @@ if data_source == "gisaid_feed":
             meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv")),
             data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
         threads: max_cpus - 1
+        conda: "envs/env_min.yml"
         shell:
             """
             mkdir -p {work_dir};
             mkdir -p {work_dir}/parallel;
+            mkdir -p {work_dir}/pangolin;
+            pip install rapidfuzz
             mkdir -p {fasta_output_prefix};
             ( ( ! ({is_manual_in}) && (curl -u {username}:{password} {gisaid_uri} | xz -d -T8) ) ||
               (cat {gisaid_data} ) ) |
@@ -62,6 +64,7 @@ elif data_source == "alab_release":
             meta=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.tsv.gz")),
             data=temp(dynamic(f"{fasta_output_prefix}/{{sample}}.fasta.gz"))
         threads: 1
+        conda: "envs/env_min.yml"
         shell:
             """
             echo {fasta_output_prefix}
@@ -99,29 +102,71 @@ else:
     print(f'Error: data_source should be "gisaid_feed" or "alab_release" -- got {data_source}')
     sys.exit()
 
-rule align_to_reference:
-    input:
-        f"{fasta_output_prefix}/{{sample}}.fasta.gz"
-    output:
-        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
-    threads: max_task_cpus
+rule update_pangolin:
+    output: "pangover"
+    conda: "pangolin/environment.yml"
     shell:
         """
-        minimap2 -a -x asm20 --score-N=0 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
-            gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
-            python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
+        cd pangolin
+        pip install path
+        pip install snakemake
+        pip install git+https://github.com/cov-lineages/pangoLEARN.git
+        pip install git+https://github.com/cov-lineages/scorpio.git
+        pip install git+https://github.com/cov-lineages/constellations.git
+        pip install git+https://github.com/cov-lineages/pango-designation.git
+        pip install .
+        pangolin --update
+        pangolin --decompress-model
+        cd ../
+        pangolin --version > pangover
         """
+
+rule run_pangolin:
+    input:
+        "pangover",
+        fasta=f"{fasta_output_prefix}/{{sample}}.fasta.gz"
+    output:
+        analysis=temp(f"{fasta_output_prefix}/{{sample}}.analysis.csv"),
+        fasta=temp(f"{fasta_output_prefix}/{{sample}}.afasta.gz")
+    threads: max_task_cpus
+    conda: "pangolin/environment.yml"
+    shell:
+        """
+        tmp=`mktemp -d -p {work_dir}/pangolin`
+        pangolin -t{max_task_cpus} --skip-designation-hash --tempdir $tmp --alignment --outdir $tmp {input.fasta}
+        cp $tmp/lineage_report.csv {output.analysis}
+        gzip -c $tmp/sequences.aln.fasta > {output.fasta}
+        rm {input.fasta}
+        rm -rf $tmp
+        """
+
+#rule align_to_reference:
+#    input:
+#        f"{fasta_output_prefix}/{{sample}}.fasta.gz"
+#    output:
+#        temp(f"{fasta_output_prefix}/{{sample}}.mutations.csv")
+#    threads: max_task_cpus
+#    conda: "envs/env_min.yml"
+#    shell:
+#        """
+#        minimap2 -a -x asm20 --score-N=0 --sam-hit-only --secondary=no -t{max_task_cpus} {reference_fp} {input} |
+#            gofasta sam toMultiAlign -t{max_task_cpus} --reference {reference_fp} --trimstart 265 --trimend 29674 --trim --pad |
+#            python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o {output}
+#        """
 
 rule merge_mutations_metadata:
     input:
         meta=f"{fasta_output_prefix}/{{sample}}.tsv",
-        data=f"{fasta_output_prefix}/{{sample}}.mutations.csv"
+        pango=f"{fasta_output_prefix}/{{sample}}.analysis.csv",
+        fasta=f"{fasta_output_prefix}/{{sample}}.afasta.gz"
     output:
         temp(f"{fasta_output_prefix}/{{sample}}.jsonl.gz")
     threads: 1
+    conda: "envs/env_min.yml"
     shell:
         """
-        python/normalize_and_merge.py -i {input.data} -m {input.meta} -o {output} -u None -n {min_date}  -g {geojson_prefix} -t {current_datetime}
+        gunzip -c {input.fasta} | python/msa_2_mutations.py -r '{patient_zero}' -d '{data_source}' -i /dev/stdin -o /dev/stdout |
+            python/normalize_and_merge.py -i /dev/stdin -m {input.meta} -p {input.pango} -o {output} -u None -n {min_date}  -g {geojson_prefix} -t {current_datetime}
         echo "" | gzip - >> {output} # Add new line as delimiter between chunks
         """
 
@@ -131,6 +176,7 @@ rule merge_json:
     output:
         temp(f"{work_dir}/_api_data_{current_datetime}.json.gz")
     threads: 1
+    conda: "envs/env_min.yml"
     shell:
         """
         gunzip -c {input} | parallel --pipe --tmpdir {work_dir}/parallel -j {max_task_cpus} --quote jq -cr 'select((.mutations | length > 0) or .pangolin_lineage == "B") | if ((has("mutations")|not) or .mutations == "") then .mutations = [] else . end' | gzip > {output}
@@ -142,6 +188,7 @@ rule build_meta:
     output:
         temp(f"{work_dir}/_api_metadata_{current_datetime}.json")
     threads: 1
+    conda: "envs/env_min.yml"
     shell:
         """
         echo '["{current_datetime}",'"$(gzip -dc {input} | wc -l)]" |
@@ -149,16 +196,8 @@ rule build_meta:
         cat {output}
         """
 
-rule clear:
-    shell:
-        """
-        rm -rf {fasta_output_prefix}
-        rm -f {rules.build_meta.output}
-        rm -f {rules.merge_json.output} 
-        rm -f rules.all.output.meta
-        rm -f rules.all.output.data
-        """
 rule all:
+    conda: "envs/env_min.yml"
     input:
         meta=rules.build_meta.output,
         data=rules.merge_json.output
@@ -167,7 +206,19 @@ rule all:
         data=config["output_data_fp"]
     shell:
         """
-        cp {input.meta} {output.meta}
-        cp {input.data} {output.data}
+        if jq -cr '.records' {input.meta} > jq -cr '.records' {output.meta}:
+            cp {input.meta} {output.meta}
+            cp {input.data} {output.data}
+        elif
         """
 
+rule clear:
+    conda: "envs/env_min.yml"
+    shell:
+        """
+        rm -rf {fasta_output_prefix}
+        rm -f {rules.build_meta.output}
+        rm -f {rules.merge_json.output}
+        rm -f {rules.all.output.meta}
+        rm -f pangover
+        """

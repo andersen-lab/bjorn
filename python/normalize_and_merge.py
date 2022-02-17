@@ -22,6 +22,10 @@ parser.add_argument("-m", "--inputmeta",
                         type=str,
                         required=True,
                         help="Input metadata")
+parser.add_argument("-p", "--inputpango",
+                        type=str,
+                        required=True,
+                        help="Input pango assignments")
 parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
@@ -46,6 +50,7 @@ parser.add_argument("-t", "--currentdate",
 args = parser.parse_args()
 input_mut = args.inputmutations
 input_metadata = args.inputmeta
+input_pango = args.inputpango
 out_fp = args.outfp
 unknown_val = args.unknownvalue
 min_date = args.mindate
@@ -56,6 +61,7 @@ max_date = '-'.join(current_datetime.split('-')[:3])
 
 try:
     meta = pd.read_csv(input_metadata, sep='\t')
+    pango = pd.read_csv(input_pango)
     muts = pd.read_csv(input_mut, dtype=str)
     if len(meta.index) == 0 or len(muts.index) == 0:
         raise "empty dataframe"
@@ -63,6 +69,9 @@ except Exception as e:
     pd.DataFrame().to_json(out_fp, orient='records', lines=True)
     sys.exit(0)
 
+pango = pango[["taxon", "lineage"]].rename(columns={"taxon": "strain", "lineage": "pangolin_lineage"})
+meta = meta.drop(columns=["pangolin_lineage"])
+meta = pd.merge(meta, pango, on="strain", how="left")
 muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
 # ignore mutations found in non-coding regions
 muts = muts.loc[~(muts['gene']=='Non-coding region')]
