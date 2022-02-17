@@ -12,19 +12,19 @@ library(magick)
 
 # originally by @gkarthik; relocated from outbreak-info/biothings_covid19
 
-INPUT_DIR = "./"
-OUTPUT_DIR = "./"
+args = commandArgs(trailingOnly=TRUE)
+OUTPUT_DIR = args[1]
 
 # define variables to loop over
 EPI_VARS = c("confirmed_per_100k", "confirmed_rolling", "confirmed_rolling_per_100k", "confirmed_rolling_14days_ago_diff", "confirmed_rolling_14days_ago_diff_per_100k", "dead_per_100k", "dead_rolling", "dead_rolling_per_100k", "dead_rolling_14days_ago_diff", "dead_rolling_14days_ago_diff_per_100k")
 
 # define geographic regions to loop over
 GEO_CONSTANTS = tribble(
-  ~id, ~epi_file, ~map_file, ~proj4,
-  # Note: Equal earth projection requires Proj6 in GDAL (https://github.com/OSGeo/gdal/issues/870)
-  "countries", "test_countries.csv", "https://raw.githubusercontent.com/outbreak-info/biothings_covid19/master/geo/countries.json", "+proj=robin",
-  "US_states", "test_states.csv", "https://raw.githubusercontent.com/outbreak-info/biothings_covid19/master/geo/US_states.json", "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs",
-  "US_counties", "test_counties.csv", "https://raw.githubusercontent.com/outbreak-info/biothings_covid19/master/geo/US_counties.json", "+proj=laea +lat_0=45 +lon_0=-100 +x_0=0 +y_0=0 +a=6370997 +b=6370997 +units=m +no_defs"
+  ~id, ~epi_file,
+  "countries", "countries_data.csv",
+  "US_metros", "metros_data.csv",
+  "US_states", "states_data.csv",
+  "US_counties", "counties_data.csv"
 )
 
 
@@ -33,7 +33,7 @@ generateGifs = function(numColors = 9, exportGif = TRUE, returnJson = FALSE) {
   # loop over locations
   locations = GEO_CONSTANTS %>%
     rowwise() %>%
-    mutate(breaks = list(processLocation(epi_file, map_file, proj4, id, numColors, exportGif)))
+    mutate(breaks = list(processLocation(epi_file, id, numColors, exportGif)))
   location_df = locations %>% select(id, breaks) %>% unnest(cols = c(breaks))
 
   if(returnJson) {
@@ -55,9 +55,9 @@ generateGifs = function(numColors = 9, exportGif = TRUE, returnJson = FALSE) {
 #     • calculates a histogram based on those breaks
 #     • merges data with the geographic shape file
 #     • generates and saves a .gif for each
-processLocation = function(epi_file, map_file, proj4, location, numColors, exportGif = TRUE) {
+processLocation = function(epi_file, location, numColors, exportGif = TRUE) {
   # loop over variables
-  breaks = lapply(EPI_VARS, function(variable) processVariable(epi_file, map_file, proj4, location, variable, numColors, exportGif = exportGif, returnJson = FALSE))
+  breaks = lapply(EPI_VARS, function(variable) processVariable(epi_file, location, variable, numColors, exportGif = exportGif, returnJson = FALSE))
   breaks_df = breaks %>% bind_cols() %>% mutate(location = location)
   return(breaks_df)
 }
@@ -65,10 +65,10 @@ processLocation = function(epi_file, map_file, proj4, location, numColors, expor
 readData = function(epi_file) {
   out = tryCatch(
     {
-      read_csv(str_c(INPUT_DIR, epi_file), col_types = cols(date = col_date(format = "%Y-%m-%d")))
+      read_csv(str_c(OUTPUT_DIR, epi_file), col_types = cols(date = col_date(format = "%Y-%m-%d")))
     },
     error=function(cond) {
-      message(paste("File does not exist:", INPUT_DIR, epi_file))
+      message(paste("File does not exist:", OUTPUT_DIR, epi_file))
       message("Skipping this file \n")
       return(NA)
     },
@@ -86,10 +86,10 @@ readData = function(epi_file) {
 
 # processVariable ---------------------------------------------------------
 # Main workhorse to calculate the breaks, histograms, and generate the gifs
-processVariable = function(epi_file, map_file, proj4, location, variable, numColors, maxN = 25000, exportGif = TRUE, returnJson = TRUE, returnAll = FALSE) {
+processVariable = function(epi_file, location, variable, numColors, maxN = 25000, exportGif = TRUE, returnJson = TRUE, returnAll = FALSE) {
   print(str_c("processing variable ", variable, " for location ", location))
 
-  map = cleanMap(map_file, proj4, location)
+ # map = cleanMap(map_file, proj4, location)
 
   df = readData(epi_file)
 
@@ -103,8 +103,9 @@ processVariable = function(epi_file, map_file, proj4, location, variable, numCol
   }
 
   # Classify the breaks
+  #print(dt)
   domain = calcBreaks(dt, variable, numColors, maxN)
-
+  print('!')
   if(all(!is.na(domain))) {
     break_limits = tibble(midpt = (domain + domain %>% lag())/2, lower = domain %>% lag(), upper =  domain, width = upper - lower) %>%
       filter(!is.na(midpt))
@@ -121,16 +122,16 @@ processVariable = function(epi_file, map_file, proj4, location, variable, numCol
       left_join(break_limits, by = "midpt")
 
     # geo join data. data.table faster than dplyr...
-    maps = dt %>% inner_join(map, by="location_id")  %>% as_tibble()
+    #maps = dt %>% inner_join(map, by="location_id")  %>% as_tibble()
     # %>%
     #   filter(!is.na(date))
     # maps = maps[!is.na(date),] # remove the counties w/ no data
-    sf::st_geometry(maps) = "geometry"
+    #sf::st_geometry(maps) = "geometry"
 
     # Create the gifs
-    if(exportGif) {
-      createGif(maps, map, domain, counts, variable, location)
-    }
+    #if(exportGif) {
+    #  createGif(maps, map, domain, counts, variable, location)
+    #}
 
     if(returnAll) {
       return(list(maps = maps, blank_map = map, breaks = domain, hist = counts))
@@ -171,6 +172,7 @@ calcBreaks = function(df, variable, numColors, maxN, style="fisher") {
         values = c(values, maxVal)
       }
     }
+    print(df)
 
     breaks = classIntervals(values, numColors, style=style, warnLargeN = FALSE)
 
