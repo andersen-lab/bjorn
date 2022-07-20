@@ -13,7 +13,7 @@ with open('/dev/stdout', 'wb') as outf, Base64IO(outf) as base64:
     comp = cctx.stream_writer(base64)
     for line in sys.stdin:
         line = line.split('\t')
-        outf.write(bytearray('\t'.join(line[:-1])+'\t', 'utf8'))
+        if len(line) > 1: outf.write(bytearray('\t'.join(line[:-1])+'\t', 'utf8'))
         comp.write(bytearray(line[-1], 'utf8'))
         comp.flush(zstandard.FLUSH_FRAME)
         base64.close()
