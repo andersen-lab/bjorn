@@ -1,3 +1,4 @@
+# generate_dict.sh /workdir/ /gisaid.xz skip_sample total_sample compression /dictionary > prefix
 set -- `realpath $1` `realpath $2` $3 $4 $5 `realpath $6`
 cd `dirname $0`
 mkdir -p $1
