@@ -25,8 +25,9 @@ parser.add_argument("-g", "--geojson",
                         help="GeoJSON prefix")
 
 args = parser.parse_args()
-data = pd.read_csv(args.inputdata, sep='\t', names=['accession_id', 'date_collected', 'date_submitted', 'locstring', 'sequence', 'pangolin_lineage', 'mutations'])
-data = data.drop(['sequence'], axis=1)
+data = pd.read_csv(args.inputdata, sep='\t', names=['accession_id', 'date_collected', 'date_submitted', 'locstring', 'sequence', 'pangolin_lineage', 'scorpio_constellation', 'full_lineage', 'mutations'])
+data = data.drop(['sequence', 'scorpio_constellation', 'full_lineage'], axis=1)
+data['accession_id'] = data['accession_id'].astype(str)
 
 # normalize date information
 data['tmp'] = data['date_collected'].str.split('-')
@@ -39,20 +40,48 @@ data = data.drop(['tmp'], axis=1)
 # expand gofasta variants mutation string into rich json
 # split to minimal mutation descriptions
 data['mutations'].fillna('', inplace=True)
-data['mutations'] = data['mutations'].str.replace(')','').str.replace('aa:', '').str.split('|')
+data['mutations'] = data['mutations'].str.replace(')','').str.split('|')
 def parsemutation(mut):
-    mut = list(reversed([subpart.split(':') for part in mut.split('(') for subpart in part.split(';')]))
-    for part in mut: part[-1] = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', part[-1])
-    out = {'is_synonymous': len(mut) <= 1}
-    if mut[0][0] == 'nuc':
-        out.update({
-            'type': 'substitution',
-            'pos': mut[0][1][1],
-            'ref_base': mut[0][1][0],
-            'alt_base': mut[0][1][2]
-        })
-    return out
-data['mutations'] = data['mutations'].map(lambda muts: [parsemutation(mut) for mut in muts] if isinstance(muts, list) else [])
+    mut, *nucs = mut.split('(')
+    mut = mut.split(':')
+    kind = {'aa':'substitution', 'nuc':'synonymous', 'ins': 'insertion', 'del': 'deletion'}[mut.pop(0)]
+    if kind == 'substitution':
+        gene = mut.pop(0)
+        ref_aa, codon_num, alt_aa = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', mut[0])
+    else:
+        gene, alt_aa, codon_num, ref_aa = 'None', 'N', 0, 'N'
+    if kind == 'synonymous':
+        nucs.insert(0, 'nuc:' + mut[0])
+    nucs = [nuc for n in nucs for nuc in n.split(';')]
+    if len(nucs) == 0: nucs = ['nuc:N0N']
+    def parseNuc(nuc):
+        nuc = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', nuc.split(':')[1])
+        return {'ref_base': nuc[0], 'pos': int(nuc[1]), 'alt_base': nuc[2]}
+    return [{ **{
+        'is_synonymous': (kind == 'synonymous'),
+        'type': kind,
+        'mutation': mut[0],
+        'gene': gene,
+        'codon_num': codon_num,
+        'ref_aa': ref_aa,
+        'alt_aa': alt_aa }, **parseNuc(nuc)} for nuc in nucs]
+data['mutations'] = data['mutations'].map(lambda muts: [m for mut in muts for m in parsemutation(mut)] if isinstance(muts, list) else [])
+
+
+# data['mutations'] = data['mutations'].str.replace(')','').str.replace('aa:', '').str.split('|')
+# def parsemutation(mut):
+#     mut = list(reversed([subpart.split(':') for part in mut.split('(') for subpart in part.split(';')]))
+#     for part in mut: part[-1] = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', part[-1])
+#     out = {'is_synonymous': len(mut) <= 1}
+#     if mut[0][0] == 'nuc':
+#         out.update({
+#             'type': 'substitution',
+#             'pos': mut[0][1][1],
+#             'ref_base': mut[0][1][0],
+#             'alt_base': mut[0][1][2]
+#         })
+#     return out
+# data['mutations'] = data['mutations'].map(lambda muts: [parsemutation(mut) for mut in muts] if isinstance(muts, list) else [])
 
 
 

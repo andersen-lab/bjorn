@@ -1,11 +1,12 @@
+#!/usr/bin/env python3
 import sys
 import zstandard
 import argparse
 from base64io import Base64IO
 
 args = argparse.ArgumentParser(description='Zstandard compress a file line-wise')
-args.add_argument('--level', type=int, help='compression level')
-args.add_argument('--dict', type=argparse.FileType('rb'), help='dictionary to use')
+args.add_argument('-l', '--level', type=int, help='compression level')
+args.add_argument('-d', '--dict', type=argparse.FileType('rb'), help='dictionary to use')
 args = vars(args.parse_args())
 
 cctx = zstandard.ZstdCompressor(level=args['level'], dict_data=zstandard.ZstdCompressionDict(args['dict'].read()))
