@@ -3,7 +3,9 @@ import argparse
 import pandas as pd
 import json
 import re
+import sys
 from rapidfuzz import process, fuzz
+import data.mappings as mappings
 
 # COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
@@ -22,7 +24,11 @@ parser.add_argument("-u", "--unknownvalue",
 parser.add_argument("-g", "--geojson",
                         type=str,
                         required=True,
-                        help="GeoJSON prefix")
+                        help="Geodata JSON file")
+#parser.add_argument("-r", "--reference",
+#                        type=str,
+#                        required=True,
+#                        help="GenBank genomic reference file"
 
 args = parser.parse_args()
 data = pd.read_csv(args.inputdata, sep='\t', names=['accession_id', 'date_collected', 'date_submitted', 'locstring', 'sequence', 'pangolin_lineage', 'scorpio_constellation', 'full_lineage', 'mutations'])
@@ -42,29 +48,45 @@ data = data.drop(['tmp'], axis=1)
 data['mutations'].fillna('', inplace=True)
 data['mutations'] = data['mutations'].str.replace(')','').str.split('|')
 def parsemutation(mut):
-    mut, *nucs = mut.split('(')
-    mut = mut.split(':')
-    kind = {'aa':'substitution', 'nuc':'synonymous', 'ins': 'insertion', 'del': 'deletion'}[mut.pop(0)]
-    if kind == 'substitution':
-        gene = mut.pop(0)
-        ref_aa, codon_num, alt_aa = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', mut[0])
-    else:
-        gene, alt_aa, codon_num, ref_aa = 'None', 'N', 0, 'N'
-    if kind == 'synonymous':
-        nucs.insert(0, 'nuc:' + mut[0])
-    nucs = [nuc for n in nucs for nuc in n.split(';')]
-    if len(nucs) == 0: nucs = ['nuc:N0N']
-    def parseNuc(nuc):
-        nuc = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', nuc.split(':')[1])
-        return {'ref_base': nuc[0], 'pos': int(nuc[1]), 'alt_base': nuc[2]}
-    return [{ **{
-        'is_synonymous': (kind == 'synonymous'),
-        'type': kind,
-        'mutation': mut[0],
-        'gene': gene,
-        'codon_num': codon_num,
-        'ref_aa': ref_aa,
-        'alt_aa': alt_aa }, **parseNuc(nuc)} for nuc in nucs]
+    muto = mut
+    try:
+        mut, *nucs = mut.split('(')
+        mut = mut.split(':')
+        kinds = {'aa':'substitution', 'nuc':'synonymous', 'ins': 'insertion', 'del': 'deletion'}
+        kind = mut.pop(0)
+        kind = kinds[kind] if kind in kinds.keys() else 'NA'
+        gene, codon_num = None, None
+        alt_aa, ref_aa = 'N', 'N' # <- TODO
+        if kind == 'substitution':
+            gene = mut.pop(0)
+            ref_aa, codon_num, alt_aa = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', mut[0])
+        elif kind == 'synonymous':
+            nucs.insert(0, 'nuc:' + mut[0])
+        elif kind == 'deletion':
+            nucs.insert(0, 'nuc:N'+mut[0]+'N')
+        nucs = [nuc for n in nucs for nuc in n.split(';')]
+        if len(nucs) == 0: nucs = ['nuc:N0N']
+        def getCodon(pos):
+            gene = [gene for gene,reg in mappings.GENE2POS.items() if reg['start']<=pos and reg['end']>pos]
+            gene = gene[0] if len(gene) > 0 else list(mappings.GENE2POS.keys())[0]
+            codon_num = (pos - mappings.GENE2POS[gene]['start']) // 3
+            return {'gene': gene, 'codon_num': str(codon_num)}
+        def parseNuc(nuc):
+            nuc = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', nuc.split(':')[1])
+            pos = int(nuc[1])
+            return {'ref_base': nuc[0], 'pos': str(pos), 'alt_base': nuc[2], **getCodon(pos)}
+        return [{ **{
+            'is_synonymous': str(kind == 'synonymous'),
+            'type': kind,
+            'mutation': mut[0],
+            'gene': gene if gene is not None else nuc['gene'],
+            'codon_num': str(int(codon_num)) if codon_num is not None else nuc['codon_num'],
+            'pos': str(nuc['pos']),
+            'ref_aa': ref_aa,
+            'alt_aa': alt_aa }} for nuc in [parseNuc(nuc) for nuc in nucs]]
+    except:
+        print(muto, file=sys.stderr)
+        return []
 data['mutations'] = data['mutations'].map(lambda muts: [m for mut in muts for m in parsemutation(mut)] if isinstance(muts, list) else [])
 
 
