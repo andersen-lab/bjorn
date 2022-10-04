@@ -64,6 +64,8 @@ def parsemutation(mut):
             nucs.insert(0, 'nuc:' + mut[0])
         elif kind == 'deletion':
             nucs.insert(0, 'nuc:N'+mut[0]+'N')
+        elif kind == 'insertion':
+            return []
         nucs = [nuc for n in nucs for nuc in n.split(';')]
         if len(nucs) == 0: nucs = ['nuc:N0N']
         def getCodon(pos):
@@ -75,16 +77,26 @@ def parsemutation(mut):
             nuc = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', nuc.split(':')[1])
             pos = int(nuc[1])
             return {'ref_base': nuc[0], 'pos': str(pos), 'alt_base': nuc[2], **getCodon(pos)}
+        if gene == 'ORF1ab':
+            if codon_num:
+                cut = mappings.GENE2POS['ORF1a']
+                cut = (cut['end'] - cut['start']) // 3
+                if int(codon_num) < cut:
+                    gene = 'ORF1a'
+                else:
+                    gene = 'ORF1b'
+            else:
+                gene = None
         return [{ **{
             'is_synonymous': str(kind == 'synonymous'),
-            'type': kind,
-            'mutation': mut[0],
-            'gene': gene if gene is not None else nuc['gene'],
-            'codon_num': str(int(codon_num)) if codon_num is not None else nuc['codon_num'],
+            'type': kind if kind != 'synonymous' else 'substitution',
+            'mutation': (gene if gene != None else nuc['gene']) + (':' + mut[0] if len(mut) > 0 else ''),
+            'gene': gene if gene != None else nuc['gene'],
+            'codon_num': str((int(codon_num) if codon_num is not None else int(nuc['codon_num'])) + int(kind == 'deletion')),
             'pos': str(nuc['pos']),
             'ref_aa': ref_aa,
             'alt_aa': alt_aa }} for nuc in [parseNuc(nuc) for nuc in nucs]]
-    except:
+    except e:
         print(muto, file=sys.stderr)
         return []
 data['mutations'] = data['mutations'].map(lambda muts: [m for mut in muts for m in parsemutation(mut)] if isinstance(muts, list) else [])
@@ -216,3 +228,5 @@ data['location_lower'] = data['location'].str.lower()
 
 # the export
 data.to_json(args.outfp, orient='records', lines=True)
+with open(args.outfp, 'a') as fp:
+    print('', file=fp)

@@ -70,7 +70,6 @@ COUNTY_CORRECTIONS = {
 }
 
 GENE2POS = {
-            '5UTR': {'start': 0, 'end': 265},
             'ORF1a': {'start': 265, 'end': 13483},
             'ORF1b': {'start': 13467, 'end': 21555},
             'S': {'start': 21562, 'end': 25384},
