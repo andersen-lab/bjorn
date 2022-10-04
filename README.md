@@ -1,61 +1,33 @@
 # ![LOGO](figs/bjorn_logo_yellow_grey-1.png)
-This is the code repository for `bjorn` - a suite of miscellaneous tools that can be used to:
-
-* generate information for large-scale genomic surveillance of SARS-CoV-2 sequences. This functionality relies on external tools such as `datafunk`, `minimap2`, and `pandas`. 
-
-* prepare results and data files from SARS-CoV-2 sequencing analysis for release to public databases such as GISAID, Google Cloud, and GitHub
+This is the code repository for `bjorn` - a suite of tools for processing SARS-CoV-2 sequences to support large-scale genomic surveillance. This functionality relies on external tools such as pangolin, and GNU parallel. 
 
 ## Installation
-* Install Anaconda: [instructions can be found here](https://docs.anaconda.com/anaconda/install/)
-* Create the `bjorn` environment
 ```bash
-conda env create -f env/linux.yml -n bjorn
+cd bjorn
+docker build -t'bjorn_container' .
 ```
-* Activate environment
-```bash
-conda activate bjorn
-```
-* Install datafunk (inside the activated environment): [instructions (ensure environment is activated during installation)](https://github.com/cov-ert/datafunk)
 
 ## Usage
-### Information for Surveillance of SARS-CoV-2 Genomic Mutations
-* Activate `bjorn` environment
+Launching the container
 ```bash
-conda activate bjorn
+docker run -it --volume [your_data_dir]:/data bjorn_container
 ```
-* Copy and modify `test_config.json` to specify your parameters such as
-    * gisaid sign-in info 
-    * output directory where results are saved
-    * number of CPU cores available for use by minimap2
-    * current date (false for latest; fix for testing)    
-* Run the `run_pipeline.sh` script to initiate the Snakemake pipeline
+Processing a data provision from GISAID's jsonl format to tsv
 ```bash
-bash run_pipeline.sh [CONFIG_FILE]
+cat /data/gisaid.xz | ./readseqs.sh "xz -dc" ./gisaid.jq ./data /data [work_groups] [workers_per_group] [sequence_count] > /data/gisaid.tsv
 ```
 
-### Post-processing of SARS-CoV-2 Sequencing Results for Release to public databases
-* Activate `bjorn` environment
+Identifing changed records
 ```bash
-conda activate bjorn
+./fastdiff.sh old_records.tsv new_records.tsv [deletes_out] [insertions_out] temp
 ```
-* Open `run_alab_release.sh` to specify your parameters such as
-    * filepath to sample sheet containing sample metadata (input)
-    * filepath to updated metadata of samples that have already been uploaded
-    * output directory where results are saved
-    * number of CPU cores available for use
-    * minimum coverage required for each sample (QC filter)
-    * minimum average depth required for each sample (QC filter)
-    * DEFAULT: test parameters
-* Open `config.json` to specify your parameters such as
-    * list of SARS-CoV-2 genes that are considered non-concerning
-        * i.e. the occurrence of open-read frame (ORF) altering mutations can be accepted
-        * e.g. ['ORF8', 'ORF10']
-    * list of SARS-CoV-2 mutations that are considered non-concerning
-        * i.e. the occurrence of `ORF8:Q27_` can be accepted (B117 exists)
-        * e.g. ['ORF8:Q27_']
-* Run the `run_alab_release.sh` script to initiate the data release pipeline
+
+Analyzing sequences (alignment and mutation- and lineage-calling)
 ```bash
-bash run_alab_release.sh
+./analysis.sh sequences.tsv [workers] [subworkers] ./data [temp] > [analysed_sequences.sh]
 ```
-* `bjorn` assumes the following file structure for the input sequencing data
-![Release Structure](figs/alab_release_filestructure.png)
+
+Exporting to outbreak.info's jsonl format
+```bash
+parallel -j[workers] --block 10M --pipepart "./norm_jsonl_output.py -i /dev/stdin -o /dev/stdout -u 'None' -g data/geo.jsonl" :::: [analysed_sequences.tsv] | gzip -c > [out.jsonl.gz]
+```
