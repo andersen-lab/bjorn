@@ -1,0 +1,53 @@
+digraph {
+    subgraph cluster_gisaid_in {
+        label = "pull_gisaid_sequences";
+		node[color = blue];
+        edge[color = blue]
+        color = blue
+        gisaid [label="GISAID provision", color=black, shape=folder];
+        download [label="Stream and Decompress"];
+        filter1 [label="Filter on Metadata"];
+        filter2 [label="Filter on Sequence Quality"];
+        gisaid -> download -> filter1 -> filter2;
+    }
+    subgraph cluster_repo_download {
+        label = "clone_alab_sequences";
+		node[color = red];
+        edge[color = red];
+        color = red;
+        repo [label="Release Repository", color=black, shape=folder];
+        clone [label="Clone", shape=oval];
+        align [label="Align Metadata by IDs"];
+        repo -> clone -> align;
+    }
+    subgraph cluster_X {
+		node[color = purple];
+        edge[color = purple];
+        color = white;
+        compress [label="Compress each sequence using zstd dict"];
+        save [label="Save as TSV"];
+        oldfile [label="Previous provision TSV"];
+        diff [label="Fast sorted diff"];
+        filter2 -> compress;
+        align -> compress;
+        oldfile -> diff;
+        compress -> save -> diff;
+    }
+    subgraph cluster_align_to_reference {
+        label = "align_to_reference";
+		node[color = green];
+        edge[color = green];
+        color = green;
+        getfasta [label="extract FASTAs"];
+        minimap2 [label="pangolin alignment via minimap2", shape=doublecircle];
+        gofasta [label="gofasta to pair align", shape=invhouse];
+        bjorn [label="Mutation Calling"];
+        pangolin [label="lineage calling (pangolearn or USHER)"];
+        join [label="Join to TSV", color=black, shape=folder];
+        diff -> getfasta -> minimap2 -> gofasta -> bjorn -> join;
+        minimap2 -> pangolin -> join;
+        diff -> join;
+    }
+    out [label="Output compressed JSONL file for outbreak.info", color=black, shape=folder];
+    join -> out;
+}

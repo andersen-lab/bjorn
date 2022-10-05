@@ -5,12 +5,12 @@ import gc
 import argparse
 import time
 import json
+import numpy as np
 import pandas as pd
-from path import Path
 
 import bjorn_support as bs
 import mutations as bm
-from mappings import GENE2POS
+from data.mappings import GENE2POS
 
 if __name__=="__main__":
   # COLLECTING USER PARAMETERS
@@ -40,13 +40,11 @@ if __name__=="__main__":
   # gisaid_meta = args.meta
   patient_zero = args.patient_zero
   data_src = args.data_src
-  out_fp = Path(args.outfp)
+  out_fp = args.outfp
 
-  print(f"Loading alignment file at {alignment_filepath}")
   t0 = time.time()
   msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
   msa_load_time = time.time() - t0
-  print(f"Identifying substitution-based mutations...")
   t0 = time.time()
   subs, _ = bm.identify_replacements_per_sample(msa_data,
                                                 # gisaid_meta,
@@ -57,7 +55,6 @@ if __name__=="__main__":
                                               #   test=is_test
                                                 )
   subs_time = time.time() - t0
-  print(f"Identifying deletion-based mutations...")
   t0 = time.time()
   dels, _ = bm.identify_deletions_per_sample(msa_data,
                                             #  gisaid_meta,
@@ -72,14 +69,33 @@ if __name__=="__main__":
   dels_time = time.time() - t0
   # QC FILTER: remove seqs with >500 nt deletions
   # dels = dels.loc[dels['del_positions'].str.len()<500]
-  print(subs.shape)
-  print(dels.shape)
   muts = pd.concat([subs, dels])
   muts['is_synonymous'] = False
   muts.loc[muts['ref_aa']==muts['alt_aa'], 'is_synonymous'] = True
-  print(muts.shape)
   # muts = muts.astype(str) TAKES FOREVER
   # muts_filename = alignment_filepath.replace('.aligned.fasta', f'_{date}.mutations.csv')
+
+  muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
+  # ignore mutations found in non-coding regions
+  muts = muts.loc[~(muts['gene']=='Non-coding region')]
+  # fuse with metadata
+  muts_info = [
+      'type', 'mutation', 'gene',
+      'ref_codon', 'pos', 'alt_codon',
+      'is_synonymous',
+      'ref_aa', 'codon_num', 'alt_aa',
+      'absolute_coords',
+      'change_length_nt', 'is_frameshift',
+      'deletion_codon_coords'
+  ]
+  # If deletions not in chunk add columns
+  del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
+  muts_columns = muts.columns.tolist()
+  for i in del_columns:
+      if i not in muts_columns:
+          muts[i] = np.nan
+  muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
+  muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
+
   muts.to_csv(out_fp, index=False)
-  print(f"Mutations extracted from {alignment_filepath} and saved in {out_fp}\n")
   sys.exit(0)

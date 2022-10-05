@@ -18,6 +18,7 @@ dependencies:
   - libnsl
   - libuuid
   - libzlib
+  - more-itertools
   - ncurses
   - openssl
   - parallel

@@ -11,7 +11,7 @@ from typing import Tuple
 import more_itertools as mit
 from Bio import Seq, SeqIO, AlignIO, Phylo, Align
 from bjorn_support import map_gene_to_pos
-from mappings import GENE2POS
+from data.mappings import GENE2POS
 
 def identify_replacements_per_sample(cns, 
                                      meta_fp=None,
