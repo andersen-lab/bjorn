@@ -19,14 +19,10 @@ if __name__=="__main__":
                           type=str,
                           required=True,
                           help="FASTA filepath containing aligned sequences")
-  # parser.add_argument("-m", "--meta",
-  #                         type=str,
-  #                         required=True,
-  #                         help="Gzipped TSV filepath containing sequence metadata")
-  parser.add_argument("-r", "--patient-zero",
+  parser.add_argument("-r", "--reference",
                           type=str,
-                          default="NC_045512.2",
-                          help="Sample name of reference sequence")
+                          default="data/reference",
+                          help="File location of reference sequence")
   parser.add_argument("-d", "--data-src",
                         type=str,
                         default="gisaid_feed",
@@ -37,25 +33,18 @@ if __name__=="__main__":
                           help="Output filepath storing mutation information")
   args = parser.parse_args()
   alignment_filepath = args.input
-  # gisaid_meta = args.meta
-  patient_zero = args.patient_zero
+  reference = list(bs.load_fasta(args.reference, is_aligned=True))
+  patient_zero = reference[0].id
   data_src = args.data_src
   out_fp = args.outfp
 
-  t0 = time.time()
-  msa_data = bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False)
-  msa_load_time = time.time() - t0
-  t0 = time.time()
+  msa_data = reference + list(bs.load_fasta(alignment_filepath, is_aligned=True, is_gzip=False))
   subs, _ = bm.identify_replacements_per_sample(msa_data,
-                                                # gisaid_meta,
                                                 gene2pos=GENE2POS,
                                                 data_src=data_src,
                                                 min_seq_len=20000,
                                                 patient_zero=patient_zero
-                                              #   test=is_test
                                                 )
-  subs_time = time.time() - t0
-  t0 = time.time()
   dels, _ = bm.identify_deletions_per_sample(msa_data,
                                             #  gisaid_meta,
                                             gene2pos=GENE2POS,
@@ -66,7 +55,6 @@ if __name__=="__main__":
                                             patient_zero=patient_zero
                                           #    test=is_test
                                             )
-  dels_time = time.time() - t0
   # QC FILTER: remove seqs with >500 nt deletions
   # dels = dels.loc[dels['del_positions'].str.len()<500]
   muts = pd.concat([subs, dels])

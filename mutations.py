@@ -2,6 +2,7 @@ import os
 import gc
 import math
 import re
+import sys
 import gzip
 import numpy as np
 import pandas as pd
@@ -25,7 +26,7 @@ def identify_replacements_per_sample(cns,
     """Returns dataframe of all substitution-based mutations from a pre-loaded multiple sequence alignment, 
     containing the reference sequence (default: NC_045512.2)
     The data is NOT aggregated, meaning that there will be a record for each observed substitution for each sample"""
-    print(f"Initial cleaning...")
+    print(f"Initial cleaning...", file=sys.stderr)
     seqs, ref_seq = process_cns_seqs(cns, patient_zero,
                                      start_pos=0, end_pos=29674)
 #     ref_seq = get_seq_from_fasta(ref_path)
@@ -41,7 +42,7 @@ def identify_replacements_per_sample(cns,
         seqsdf['seq_len'] = seqsdf['sequence'].str.len()
         # filter out seqs that are too short
         seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
-        print(f"Identifying mutations...")
+        print(f"Identifying mutations...", file=sys.stderr)
         # for each sample, identify list of substitutions (position:alt)
         seqsdf['replacements'] = seqsdf['sequence'].apply(find_replacements, 
                                                         args=(ref_seq,))
@@ -63,7 +64,7 @@ def identify_replacements_per_sample(cns,
         seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
         # compute information on each point mutation
         seqsdf = compute_replacement_information(seqsdf, seqs, ref_seq=ref_seq)
-        print(f"Fusing with metadata...")
+        print(f"Fusing with metadata...", file=sys.stderr)
         # load and join metadata
         if meta_fp:
             if data_src=='alab':
@@ -87,7 +88,7 @@ def identify_replacements_per_sample(cns,
             else:
                 raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     except:
-        print(f"No substitutions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+        print(f"No substitutions found in any of the sequences in the alignment. Output will contain an empty dataframe", file=sys.stderr)
         seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
 
@@ -107,14 +108,14 @@ def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
     .apply(lambda x: int(x.split(':')[0])))
     # filter out non-substitutions
     seqsdf = seqsdf.loc[seqsdf['pos']!=-1]
-    print(f"Mapping Genes to mutations...")
+    print(f"Mapping Genes to mutations...", file=sys.stderr)
     # identify gene of each substitution
     seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
     seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
     seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
     # filter our substitutions in non-gene positions
     seqsdf = seqsdf.loc[seqsdf['gene']!='nan']
-    print(f"Computing codon numbers...")
+    print(f"Computing codon numbers...", file=sys.stderr)
     # compute codon number of each substitution
     seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
     if mutation_type=='out-of-frame':
@@ -123,11 +124,11 @@ def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
     else:
         # compute codon number based on nucleotide position numbering used for substitutions 
         seqsdf['codon_num'] = np.ceil((seqsdf['pos'] - seqsdf['gene_start_pos'] + 1) / 3).astype(int)
-    print(f"Fetching reference codon...")
+    print(f"Fetching reference codon...", file=sys.stderr)
     # fetch the reference codon for each substitution
     seqsdf['codon_start'] = seqsdf['gene_start_pos'] + (3*(seqsdf['codon_num'] - 1))
     seqsdf['ref_codon'] = seqsdf['codon_start'].apply(lambda x: ref_seq[x:x+3].upper())
-    print(f"Fetching alternative codon...")
+    print(f"Fetching alternative codon...", file=sys.stderr)
     if mutation_type=='out-of-frame':
         # fetch the alternative codon for each substitution for out-of-frame form
         seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_oof_codon, args=(seqs,), axis=1)
@@ -136,13 +137,13 @@ def compute_replacement_information(seqsdf: pd.DataFrame, seqs,
         seqsdf['alt_codon'] = seqsdf[['idx', 'codon_start']].apply(get_alt_codon, args=(seqs,), axis=1)
     del seqs
     gc.collect();
-    print(f"Mapping amino acids...")
+    print(f"Mapping amino acids...", file=sys.stderr)
     # fetch the reference and alternative amino acids
     seqsdf['ref_aa'] = seqsdf['ref_codon'].apply(get_aa)
     seqsdf['alt_aa'] = seqsdf['alt_codon'].apply(get_aa)
     # filter out substitutions with non-amino acid alternates (bad consensus calls)
     seqsdf = seqsdf.loc[seqsdf['alt_aa']!='nan']
-    print("Naming substitutions")
+    print("Naming substitutions", file=sys.stderr)
     seqsdf['mutation'] = seqsdf['gene'] + ':' + seqsdf['ref_aa'] + seqsdf['codon_num'].astype(str) + seqsdf['alt_aa']
     seqsdf['type'] = 'substitution'
     return seqsdf
@@ -199,7 +200,7 @@ def identify_deletions_per_sample(cns,
     containing the reference sequence (default: NC_045512.2)
     The data is NOT aggregated, meaning that there will be a record for each observed deletion for each sample"""
     seqs, ref_seq = process_cns_seqs(cns, patient_zero, start_pos, end_pos)
-    print(f"Initial cleaning...")
+    print(f"Initial cleaning...", file=sys.stderr)
     # load into dataframe
     seqsdf = (pd.DataFrame(index=seqs.keys(), data=seqs.values(), 
                            columns=['sequence'])
@@ -210,7 +211,7 @@ def identify_deletions_per_sample(cns,
         # compute length of each sequence
         seqsdf['seq_len'] = seqsdf['sequence'].str.len()
         seqsdf = seqsdf[seqsdf['seq_len']>min_seq_len]
-        print(f"Identifying deletions...")
+        print(f"Identifying deletions...", file=sys.stderr)
         # identify deletion positions
         seqsdf['del_positions'] = seqsdf['sequence'].apply(find_deletions)
         # dump sequences to save mem, boost speed
@@ -233,17 +234,17 @@ def identify_deletions_per_sample(cns,
         # adjust coordinates to account for the nts trimmed from beginning e.g. 265nts
         seqsdf['absolute_coords'] = seqsdf['relative_coords'].apply(adjust_coords, args=(start_pos+1,))
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0])+1)
-        print(f"Mapping Genes to mutations...")
+        print(f"Mapping Genes to mutations...", file=sys.stderr)
         # approximate the gene where each deletion was identified
         seqsdf['gene'] = seqsdf['pos'].apply(map_gene_to_pos)
         seqsdf.loc[seqsdf['gene'].isna(), 'gene'] = 'Non-coding region'
         # filter our substitutions in non-gene positions
         seqsdf.loc[seqsdf['gene']=='nan', 'gene'] = 'Non-coding region'
-        print(f"Computing codon numbers...")
+        print(f"Computing codon numbers...", file=sys.stderr)
         # seqsdf['codon_num'] = seqsdf.apply(compute_codon_num, args=(gene2pos,), axis=1)
-        print(f"Fetching reference codon...")
+        print(f"Fetching reference codon...", file=sys.stderr)
         # fetch the reference codon for each substitution
-        print(f"Mapping amino acids...")
+        print(f"Mapping amino acids...", file=sys.stderr)
         # fetch the reference and alternative amino acids
         # record the deletion subsequence
         seqsdf['del_seq'] = seqsdf['absolute_coords'].apply(get_deletion, args=(ref_seq,))
@@ -251,7 +252,7 @@ def identify_deletions_per_sample(cns,
         seqsdf['prev_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[0])-5:int(x.split(':')[0])])
         # record the 5 nts after each deletion (based on reference seq)
         seqsdf['next_5nts'] = seqsdf['absolute_coords'].apply(lambda x: ref_seq[int(x.split(':')[1])+1:int(x.split(':')[1])+6])
-        print("Naming deletions")
+        print("Naming deletions", file=sys.stderr)
         seqsdf['pos'] = seqsdf['absolute_coords'].apply(lambda x: int(x.split(':')[0]))
         seqsdf['ref_codon'] = seqsdf['del_seq'].copy()
         seqsdf['gene_start_pos'] = seqsdf['gene'].apply(lambda x: gene2pos.get(x, {}).get('start', 0))
@@ -276,7 +277,7 @@ def identify_deletions_per_sample(cns,
         seqsdf = pd.concat([seqsdf, oof_mutations])
         del seqs
         gc.collect();
-        print(f"Fuse with metadata...")
+        print(f"Fuse with metadata...", file=sys.stderr)
         # load and join metadata
         if meta_fp:
             if data_src=='alab':
@@ -300,7 +301,7 @@ def identify_deletions_per_sample(cns,
             else:
                 raise ValueError(f"user-specified data source {data_src} not recognized. Aborting.")
     except:
-        print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+        print(f"No deletions found in any of the sequences in the alignment. Output will contain an empty dataframe", file=sys.stderr)
         seqsdf = pd.DataFrame()
     return seqsdf, ref_seq
 
@@ -411,7 +412,7 @@ def identify_insertions_per_sample(cns,
         if insert_positions:
             seqs = get_seqs(cns)
         else:
-            print(f"No insertions found in any of the sequences in the alignment. Output will contain an empty dataframe")
+            print(f"No insertions found in any of the sequences in the alignment. Output will contain an empty dataframe", file=sys.stderr)
             return pd.DataFrame(), ref_seq
         seqsdf = (pd.DataFrame(index=seqs.keys(), 
                                data=seqs.values(), 
@@ -586,7 +587,7 @@ def get_seq(all_seqs: Align.MultipleSeqAlignment, sample_name: str) -> str:
             seq = rec.seq
             break
     if len(str(seq))==0:
-        print('WARNING: reference sequence not acquired. Something is off.')
+        print('WARNING: reference sequence not acquired. Something is off.', file=sys.stderr)
     return str(seq)
 
 
