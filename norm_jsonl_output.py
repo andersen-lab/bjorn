@@ -1,18 +1,23 @@
 #!/usr/bin/env python
-import argparse
-import pandas as pd
-import json
-import re
+import os
 import sys
+import glob
+import argparse
+import time
+import json
+import pandas as pd
+import datetime
+import bjorn_support as bs
+from data.mappings import COUNTY_CORRECTIONS
+import numpy as np
 from rapidfuzz import process, fuzz
-import data.mappings as mappings
 
 # COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
-parser.add_argument("-i", "--inputdata",
+parser.add_argument("-i", "--input",
                         type=str,
                         required=True,
-                        help="Input data")
+                        help="Input mutations csv")
 parser.add_argument("-o", "--outfp",
                         type=str,
                         required=True,
@@ -24,102 +29,61 @@ parser.add_argument("-u", "--unknownvalue",
 parser.add_argument("-g", "--geojson",
                         type=str,
                         required=True,
-                        help="Geodata JSON file")
-#parser.add_argument("-r", "--reference",
-#                        type=str,
-#                        required=True,
-#                        help="GenBank genomic reference file"
+                        help="GeoJSON prefix")
 
 args = parser.parse_args()
-data = pd.read_csv(args.inputdata, sep='\t', names=['accession_id', 'date_collected', 'date_submitted', 'locstring', 'sequence', 'pangolin_lineage', 'scorpio_constellation', 'full_lineage', 'mutations'])
-data = data.drop(['sequence', 'scorpio_constellation', 'full_lineage'], axis=1)
-data['accession_id'] = data['accession_id'].astype(str)
+input = args.input
+out_fp = args.outfp
+unknown_val = args.unknownvalue
+geojson = args.geojson
+min_date = pd.to_datetime("2019-11-01")
+data = pd.read_csv(input, sep='\t', header=None, names=["date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "_", "full_lineage", "mutations"])
+
+#meta = pd.merge(meta, pango, on="strain", how="left")
+#muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
+## ignore mutations found in non-coding regions
+#muts = muts.loc[~(muts['gene']=='Non-coding region')]
+## fuse with metadata
+#print(f"Fusing muts with metadata...")
+#muts_info = [
+#    'type', 'mutation', 'gene',
+#    'ref_codon', 'pos', 'alt_codon',
+#    'is_synonymous',
+#    'ref_aa', 'codon_num', 'alt_aa',
+#    'absolute_coords',
+#    'change_length_nt', 'is_frameshift',
+#    'deletion_codon_coords'
+#]
+## If deletions not in chunk add columns
+#del_columns = ['is_frameshift', 'change_length_nt', 'deletion_codon_coords', 'absolute_coords']
+#muts_columns = muts.columns.tolist()
+#for i in del_columns:
+###    if i not in muts_columns:
+#        muts[i] = np.nan
+#muts = muts.groupby('idx').apply(lambda x: x[muts_info].to_dict('records')).reset_index().rename(columns={0:'mutations'})
+#muts['mutations'] = muts['mutations'].map(lambda x: [{k:v for k,v in y.items() if pd.notnull(v)} for y in x])
+#muts = muts.rename(columns={'idx': 'strain'})
+#muts['strain'] = muts['strain'].str.strip()
+#data = pd.merge(meta, muts, on='strain', how='left')
+
 
 # normalize date information
+
 data['tmp'] = data['date_collected'].str.split('-')
 data = data[data['tmp'].str.len()>=2]
 data.loc[data['tmp'].str.len()==2, 'date_collected'] += '-15'
 data['date_collected'] = pd.to_datetime(data['date_collected'], errors='coerce')
+data['tmp'] = data['date_submitted'].str.split('-')
+data = data[data['tmp'].str.len()>=2]
+data.loc[data['tmp'].str.len()==2, 'date_submitted'] += '-15'
+data['date_submitted'] = pd.to_datetime(data['date_submitted'], errors='coerce')
+data = data[data['date_collected'] > min_date]
+data = data[data['date_submitted'] <= datetime.datetime.now()]
+data = data[data['date_collected'] <= data['date_submitted']]
 data['date_collected'] = data['date_collected'].astype(str)
-data = data.drop(['tmp'], axis=1)
-
-# expand gofasta variants mutation string into rich json
-# split to minimal mutation descriptions
-data['mutations'].fillna('', inplace=True)
-data['mutations'] = data['mutations'].str.replace(')','').str.split('|')
-def parsemutation(mut):
-    muto = mut
-    try:
-        mut, *nucs = mut.split('(')
-        mut = mut.split(':')
-        kinds = {'aa':'substitution', 'nuc':'synonymous', 'ins': 'insertion', 'del': 'deletion'}
-        kind = mut.pop(0)
-        kind = kinds[kind] if kind in kinds.keys() else 'NA'
-        gene, codon_num = None, None
-        alt_aa, ref_aa = 'N', 'N' # <- TODO
-        if kind == 'substitution':
-            gene = mut.pop(0)
-            ref_aa, codon_num, alt_aa = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', mut[0])
-        elif kind == 'synonymous':
-            nucs.insert(0, 'nuc:' + mut[0])
-        elif kind == 'deletion':
-            nucs.insert(0, 'nuc:N'+mut[0]+'N')
-        elif kind == 'insertion':
-            return []
-        nucs = [nuc for n in nucs for nuc in n.split(';')]
-        if len(nucs) == 0: nucs = ['nuc:N0N']
-        def getCodon(pos):
-            gene = [gene for gene,reg in mappings.GENE2POS.items() if reg['start']<=pos and reg['end']>pos]
-            gene = gene[0] if len(gene) > 0 else list(mappings.GENE2POS.keys())[0]
-            codon_num = (pos - mappings.GENE2POS[gene]['start']) // 3
-            return {'gene': gene, 'codon_num': str(codon_num)}
-        def parseNuc(nuc):
-            nuc = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', nuc.split(':')[1])
-            pos = int(nuc[1])
-            return {'ref_base': nuc[0], 'pos': str(pos), 'alt_base': nuc[2], **getCodon(pos)}
-        if gene == 'ORF1ab':
-            if codon_num:
-                cut = mappings.GENE2POS['ORF1a']
-                cut = (cut['end'] - cut['start']) // 3
-                if int(codon_num) < cut:
-                    gene = 'ORF1a'
-                else:
-                    gene = 'ORF1b'
-            else:
-                gene = None
-        return [{ **{
-            'is_synonymous': str(kind == 'synonymous'),
-            'type': kind if kind != 'synonymous' else 'substitution',
-            'mutation': (gene if gene != None else nuc['gene']) + (':' + mut[0] if len(mut) > 0 else ''),
-            'gene': gene if gene != None else nuc['gene'],
-            'codon_num': str((int(codon_num) if codon_num is not None else int(nuc['codon_num'])) + int(kind == 'deletion')),
-            'pos': str(nuc['pos']),
-            'ref_aa': ref_aa,
-            'alt_aa': alt_aa }} for nuc in [parseNuc(nuc) for nuc in nucs]]
-    except e:
-        print(muto, file=sys.stderr)
-        return []
-data['mutations'] = data['mutations'].map(lambda muts: [m for mut in muts for m in parsemutation(mut)] if isinstance(muts, list) else [])
-
-
-# data['mutations'] = data['mutations'].str.replace(')','').str.replace('aa:', '').str.split('|')
-# def parsemutation(mut):
-#     mut = list(reversed([subpart.split(':') for part in mut.split('(') for subpart in part.split(';')]))
-#     for part in mut: part[-1] = re.split('(?<=\d)(?=\D)|(?<=\D)(?=\d)', part[-1])
-#     out = {'is_synonymous': len(mut) <= 1}
-#     if mut[0][0] == 'nuc':
-#         out.update({
-#             'type': 'substitution',
-#             'pos': mut[0][1][1],
-#             'ref_base': mut[0][1][0],
-#             'alt_base': mut[0][1][2]
-#         })
-#     return out
-# data['mutations'] = data['mutations'].map(lambda muts: [parsemutation(mut) for mut in muts] if isinstance(muts, list) else [])
-
-
-
-# below is all geo-handling
+data['date_submitted'] = data['date_submitted'].astype(str)
+data = data.drop(columns=['tmp'])
+data['date_modified'] = datetime.datetime.now()
 
 # TODO: handle locstring off-by-one errors
 
@@ -135,7 +99,6 @@ data['division'] = data['division'].copy()
 data.loc[:, 'division'] = data['division'].str.strip()
 data.loc[data['division'].str.len() <= 1, 'division'] = ''
 data.loc[data['location'].isna(), 'location'] = ''
-data = data.drop(['locstring'], axis=1)
 
 # TODO: apply NextStrain replacements file
 
@@ -202,7 +165,7 @@ data.loc[data['division']==data['country'], 'division'] = ''
 data.fillna('', inplace=True)
 
 # Match to GADM-derived loc/id database
-with open(args.geojson) as f:
+with open(geojson) as f:
     countries = [json.loads(line) for line in f]
 get_geo = lambda b, y: (b[y[2]-1] if 'alias' in b[y[2]] else b[y[2]]) if not y is None else None
 s = lambda f, r: lambda a, b, **params: 100 if a == '' and b == '' else (r if a == '' or b == '' else f(a, b, **params))
@@ -216,9 +179,9 @@ data.loc[:, 'division'] = data['division_match'].apply(lambda x: x['name'])
 data.loc[:, 'division_id'] = data['division_match'].apply(lambda x: x['id'])
 data.loc[:, 'location'] = data['location_match'].apply(lambda x: x['name'])
 data.loc[:, 'location_id'] = data['location_match'].apply(lambda x: x['id'])
-data.loc[data['country_id'] == '', 'country_id'] = args.unknownvalue
-data.loc[data['location_id'] == '', 'location_id'] = args.unknownvalue
-data.loc[data['division_id'] == '', 'division_id'] = args.unknownvalue
+data.loc[data['country_id'] == '', 'country_id'] = unknown_val
+data.loc[data['location_id'] == '', 'location_id'] = unknown_val
+data.loc[data['division_id'] == '', 'division_id'] = unknown_val
 data = data.drop(['country_match', 'division_match', 'location_match'], axis=1)
 
 # TODO: asciify these
@@ -226,7 +189,15 @@ data['country_lower'] = data['country'].str.lower()
 data['division_lower'] = data['division'].str.lower()
 data['location_lower'] = data['location'].str.lower()
 
-# the export
-data.to_json(args.outfp, orient='records', lines=True)
-with open(args.outfp, 'a') as fp:
-    print('', file=fp)
+data = data.drop(['sequence', 'full_lineage', '_'], axis=1)
+
+
+data.reset_index(inplace=True)
+data = data.rename(columns = {'index':'accession_id'})
+data['strain'] = data['accession_id']
+data = data.astype(str)
+
+data['mutations'] = data['mutations'].str.replace('\t', ',').str.replace('False', 'false').str.replace('True', 'true').str.replace("\'", '"').apply(json.loads)
+data['mutations'] = data['mutations'].apply(lambda xs: [{k: str(v) for k,v in x.items()} for x in xs])
+
+data.to_json(out_fp, orient='records', lines=True)
