@@ -4,10 +4,10 @@ TMPDIR=`realpath $5`
 stamp="bj_ana_temp_"`date +"%Y%m%d%H%M"`"_"
 mkdir $TMPDIR
 cd `dirname $0`
-parallel -j$2 --block 10M --delay 10s --pipepart \
+parallel -j$2 --block $5 --delay 1s --pipepart \
  " TMPSUB=$TMPDIR/$stamp{#} && mkdir \$TMPSUB; \
     ./getfasta.sh $4 | pangolin - --threads $3 \
-     --analysis-mode fast --expanded-lineage -o \$TMPSUB \
+     --skip-scorpio --expanded-lineage -o \$TMPSUB \
      --no-temp --tempdir \$TMPSUB > /dev/stderr; \
    gofasta sam toma -r $4/reference.fasta -t$3 <\$TMPSUB/mapped.sam | \
    parallel -j$3 --block 1M --recstart $'>' --pipe --lb --quote ./msa_2_mutations.py -i /dev/stdin -r $4/reference.fasta -o /dev/stdout | tr $'\t' ' ' | sort -k1,1 | \
