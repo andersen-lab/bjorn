@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/331454151.svg)](https://zenodo.org/badge/latestdoi/331454151)
+
 # ![LOGO](figs/bjorn_logo_yellow_grey-1.png)
 This is the code repository for `bjorn` - a suite of tools for processing SARS-CoV-2 sequences to support large-scale genomic surveillance. This functionality relies on external tools such as pangolin, UsHER, and GNU parallel. 
 
