@@ -10,7 +10,7 @@ parallel -j$2 --block $4 --delay 1s --pipepart \
      --skip-scorpio --expanded-lineage -o \$TMPSUB \
      --no-temp --tempdir \$TMPSUB > /dev/stderr; \
    gofasta sam toma -r $5/reference.fasta -t$3 <\$TMPSUB/mapped.sam | \
-   parallel -j$3 --block 1M --recstart $'>' --pipe --lb --quote ./msa_2_mutations.py -i /dev/stdin -r $4/reference.fasta -o /dev/stdout | tr $'\t' ' ' | sort -k1,1 | \
+   parallel -j$3 --block 1M --recstart $'>' --pipe --lb --quote ./msa_2_mutations.py -i /dev/stdin -r $5/reference.fasta -o /dev/stdout | tr $'\t' ' ' | sort -k1,1 | \
    join <(tail -n +2 \$TMPSUB/lineage_report.csv | cut -d',' -f1,2,5,17) - -t',' | \
    tr $'\t,' $',\t' > $TMPDIR/$stamp{#}.tsv && rm -rf \$TMPSUB" :::: $1
 sort --parallel $2 -m -k1,1 $TMPDIR/$stamp*.tsv | join $1 - -t$'\t'

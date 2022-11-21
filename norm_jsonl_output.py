@@ -68,7 +68,6 @@ data = pd.read_csv(input, sep='\t', header=None, names=["date_collected", "date_
 
 
 # normalize date information
-
 data['tmp'] = data['date_collected'].str.split('-')
 data = data[data['tmp'].str.len()>=2]
 data.loc[data['tmp'].str.len()==2, 'date_collected'] += '-15'
@@ -87,7 +86,7 @@ data['date_modified'] = datetime.datetime.now()
 
 # TODO: handle locstring off-by-one errors
 
-data['locstring'] = data['locstring'].str.lower().str.replace('\.', '').str.replace('unknown', '').str.split("/")
+data['locstring'] = data['locstring'].str.lower().str.replace('\.', '', regex=False).str.replace('unknown', '', regex=False).str.split("/")
 data['country'] = data['locstring'].apply(lambda x: x[1] if len(x) >= 2 else '').str.strip()
 data['division'] = data['locstring'].apply(lambda x: x[2] if len(x) >= 3 else '').str.strip()
 data['location'] = data['locstring'].apply(lambda x: x[3] if len(x) >= 4 else '').str.strip()
@@ -158,7 +157,7 @@ data.loc[data['division'].str.contains('gallen'), 'division'] = 'sankt gallen'
 data.loc[data['division'].str.contains('turgovia'), 'division'] = 'thurgau'
 data.loc[data['division'].str.contains('waadt'), 'division'] = 'vaud'
 data.loc[data['division'].str.contains('wallis'), 'division'] = 'valais'
-data.loc[:, 'location'] = data['location'].str.replace('county', '').str.replace('parish', '').str.replace(',', '')
+data.loc[:, 'location'] = data['location'].str.replace('county', '', regex=False).str.replace('parish', '', regex=False).str.replace(',', '', regex=False)
 data.loc[data['location'].str.len() <= 1, 'location'] = ''
 data.loc[data['location']=='unk', 'location'] = ''
 data.loc[data['division']==data['country'], 'division'] = ''
@@ -197,7 +196,7 @@ data = data.rename(columns = {'index':'accession_id'})
 data['strain'] = data['accession_id']
 data = data.astype(str)
 
-data['mutations'] = data['mutations'].str.replace('\t', ',').str.replace('False', 'false').str.replace('True', 'true').str.replace("\'", '"').apply(json.loads)
+data['mutations'] = data['mutations'].str.replace('\t', ',', regex=False).str.replace('False', 'false', regex=False).str.replace('True', 'true', regex=False).str.replace("\'", '"', regex=False).apply(json.loads)
 data['mutations'] = data['mutations'].apply(lambda xs: [{k: str(v) for k,v in x.items()} for x in xs])
 
 data.to_json(out_fp, orient='records', lines=True)
