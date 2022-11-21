@@ -1,0 +1,13 @@
+{
+  "datadir": "/data",
+  "tempdir": "/temp",
+  "delete_mode": false,
+  "provision_decoder": "xz -dc",
+  "provision_parser": "./gisaid.jq",
+  "zinfo_dir": "./data",
+  "reader_workgroups": 16,                                                                                                                                                                               "reader_workersper": 8,
+  "analysis_workgroups": 16,
+  "analysis_workersper": 4,
+  "analysis_blocksize": "8M",
+  "treeinfo_dir": "./data"
+}
