@@ -1,0 +1,1 @@
+parallel --pipepart --regexp --recstart $'\x1f\x8b\x08\\x00' $'gunzip -c | jq -cr \'"\(.accession_id), \(.date_collected), \(.country_id), \(.pangolin_lineage) | ./copy_unalias.py"\'' :::: /data/0710.bjorn.jsonl.gz | pv --line-mode > /data/seqs5.a.tsv

@@ -37,7 +37,10 @@ out_fp = args.outfp
 unknown_val = args.unknownvalue
 geojson = args.geojson
 min_date = pd.to_datetime("2019-11-01")
-data = pd.read_csv(input, sep='\t', header=None, names=["date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "_", "full_lineage", "mutations"])
+data = pd.read_csv(input, sep='\t', header=None, names=["date_updated", "date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "mutations"], dtype=str)
+data['pangolin_lineage'] = data.loc[:, 'pangolin_lineage'] # .str.split('_').apply(lambda x: x[0])
+
+# print(data, file=sys.stderr)
 
 #meta = pd.merge(meta, pango, on="strain", how="left")
 #muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
@@ -83,6 +86,8 @@ data['date_collected'] = data['date_collected'].astype(str)
 data['date_submitted'] = data['date_submitted'].astype(str)
 data = data.drop(columns=['tmp'])
 data['date_modified'] = datetime.datetime.now()
+
+#print(data, file=sys.stderr)
 
 # TODO: handle locstring off-by-one errors
 
@@ -188,7 +193,7 @@ data['country_lower'] = data['country'].str.lower()
 data['division_lower'] = data['division'].str.lower()
 data['location_lower'] = data['location'].str.lower()
 
-data = data.drop(['sequence', 'full_lineage', '_'], axis=1)
+data = data.drop(['sequence', 'date_modified'], axis=1)
 
 
 data.reset_index(inplace=True)
