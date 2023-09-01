@@ -10,11 +10,13 @@ alias_key = {k:v for k,v in alias_key.items() if isinstance(v, str)}
 
 with open('/dev/stdout', 'w') as outf:
     for line in sys.stdin:
+        leaf = True
         data = line.split(',')
         head = data[-1].strip()
         while len(head) > 0:
-            outf.write(', '.join(data[:-1]) + ', ' + head + '\n')
+            outf.write(', '.join(data[:-1]) + ', ' + head + ', ' + str(leaf) + '\n')
             if head in alias_key:
                 head = alias_key[head]
 #            else:
             head = '.'.join(head.split('.')[:-1])
+            leaf = False
