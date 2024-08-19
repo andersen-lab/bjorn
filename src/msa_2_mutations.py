@@ -55,9 +55,15 @@ if __name__=="__main__":
                                             patient_zero=patient_zero
                                           #    test=is_test
                                             )
+  ins, _ = bm.identify_insertions_per_sample(msa_data,
+                                             gene2pos=GENE2POS,
+                                             data_src=data_src,
+                                             min_seq_len=20000,
+                                             patient_zero=patient_zero
+                                             )
   # QC FILTER: remove seqs with >500 nt deletions
   # dels = dels.loc[dels['del_positions'].str.len()<500]
-  muts = pd.concat([subs, dels])
+  muts = pd.concat([subs, dels, ins])
   muts['is_synonymous'] = False
   muts.loc[muts['ref_aa']==muts['alt_aa'], 'is_synonymous'] = True
   # muts = muts.astype(str) TAKES FOREVER

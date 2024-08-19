@@ -9,6 +9,7 @@ import pandas as pd
 import datetime
 import bjorn_support as bs
 from data.mappings import COUNTY_CORRECTIONS
+from dateutil.relativedelta import relativedelta
 import numpy as np
 from rapidfuzz import process, fuzz
 
@@ -37,7 +38,10 @@ out_fp = args.outfp
 unknown_val = args.unknownvalue
 geojson = args.geojson
 min_date = pd.to_datetime("2019-11-01")
-data = pd.read_csv(input, sep='\t', header=None, names=["date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "_", "full_lineage", "mutations"])
+data = pd.read_csv(input, sep='\t', header=None, names=["date_updated", "date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "mutations"], dtype=str)
+#data['pangolin_lineage'] = data.loc[:, 'pangolin_lineage'] # .str.split('_').apply(lambda x: x[0])
+
+# print(data, file=sys.stderr)
 
 #meta = pd.merge(meta, pango, on="strain", how="left")
 #muts = muts[~(muts['gene'].isin(['5UTR', '3UTR']))]
@@ -78,11 +82,20 @@ data.loc[data['tmp'].str.len()==2, 'date_submitted'] += '-15'
 data['date_submitted'] = pd.to_datetime(data['date_submitted'], errors='coerce')
 data = data[data['date_collected'] > min_date]
 data = data[data['date_submitted'] <= datetime.datetime.now()]
-data = data[data['date_collected'] <= data['date_submitted']]
+data = data[data['date_collected'] > data['date_submitted'] - pd.DateOffset(years=1)]
 data['date_collected'] = data['date_collected'].astype(str)
 data['date_submitted'] = data['date_submitted'].astype(str)
 data = data.drop(columns=['tmp'])
 data['date_modified'] = datetime.datetime.now()
+
+#print(data, file=sys.stderr)
+
+data = data.dropna(axis=0, subset=['pangolin_lineage'])
+
+data = data[~(data['pangolin_lineage'].str.contains('_')) & ~(data['pangolin_lineage'].str.contains('prop')) & ~(data['pangolin_lineage'].str.contains('misc'))]
+
+if len(data) == 0:
+    sys.exit(0)
 
 # TODO: handle locstring off-by-one errors
 
@@ -188,8 +201,25 @@ data['country_lower'] = data['country'].str.lower()
 data['division_lower'] = data['division'].str.lower()
 data['location_lower'] = data['location'].str.lower()
 
-data = data.drop(['sequence', 'full_lineage', '_'], axis=1)
+data = data.drop(['sequence', 'date_modified'], axis=1)
 
+with open('alias_key.json', 'r') as alias_key:
+    alias_key = json.load(alias_key)
+alias_key = {k:v for k,v in alias_key.items() if isinstance(v, str)}
+#alias_key = [(n, {v:k for k,v in alias_key.items() if isinstance(v, str) and len(v.split('.'))==n}) for n in range(16)]
+#alias_key = list(reversed([(n,d) for n,d in alias_key if len(d) > 0]))
+
+def crumbs(head):
+    out = ''
+    while len(head) > 0:
+        out = out + head + '|'
+        if head in alias_key:
+            head = alias_key[head]
+        else:
+            head = '.'.join(head.split('.')[:-1])
+    return out
+
+data['pangolin_lineage_crumbs'] = data['pangolin_lineage'].apply(crumbs)
 
 data.reset_index(inplace=True)
 data = data.rename(columns = {'index':'accession_id'})
