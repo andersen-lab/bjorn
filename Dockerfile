@@ -7,9 +7,10 @@ RUN git clone --depth=1 --branch v4.1.3 https://github.com/cov-lineages/pangolin
 RUN grep -ve '- defaults$' /tmp/pangolin/environment.yml > /tmp/pangolin.yml
 RUN micromamba install -y -n base -f /tmp/pangolin.yml
 RUN pip install ./pangolin
-RUN pangolin --add-assignment-cache
-RUN pangolin --update-data
-RUN micromamba install --no-allow-uninstall -y -n base -f /tmp/bjorn/newbjorn.yml
+# RUN pangolin --add-assignment-cache
+# RUN pangolin --update-data
+RUN micromamba install --no-allow-uninstall -y -n base -f /tmp/bjorn/bjorn.yml
 RUN micromamba clean --all -y
 WORKDIR /tmp/bjorn
 RUN echo "will cite" | parallel --citation || true
+ENV PAGER=w3m
