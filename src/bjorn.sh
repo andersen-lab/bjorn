@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source init.sh
+
 date '+%Y-%m-%d' > /data/start.txt
 TMPDIR=$BJORN_TEMPDIR
 ./get_provision.sh "$BJORN_PROVDIR" "$BJORN_DAYSBACK" | ./readseqs.sh "$BJORN_PROVISION_DECODER" "$BJORN_PROVISION_PARSER" "$BJORN_ZINFO_DIR" "$BJORN_TEMPDIR" "$BJORN_READER_WORKGROUPS" "$BJORN_READER_WORKERSPER" > "$BJORN_TEMPDIR/bjorn_temp.tsv" && \

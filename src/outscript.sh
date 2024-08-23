@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source ./init.sh
+
 parallel --pipepart --blocksize $BJORN_OUT_BLOCKSIZE "./norm_jsonl_output.py -i /dev/stdin -o /dev/stdout -g '$BJORN_GEOINFO_DIR/geo.jsonl' -u '$BJORN_UNKNOWN_VAL' | gzip" :::: "$BJORN_DATADIR/new.$BJORN_PERSISTFILE" | pv > "$BJORN_DATADIR/new.$BJORN_OUTFILE"
 parallel --pipepart --regexp --recstart $'\x1f\x8b\x08\\x00' $'gunzip -c | jq -cr \'del(.pangolin_lineage_crumbs)\' | gzip -c' :::: /data/new.bjorn.jsonl.gz | pv > /data/new.bjorn_nc.jsonl.gz
 parallel --pipepart --regexp --recstart $'\x1f\x8b\x08\\x00' $'gunzip -c | jq -cr \'(.mutations|=map(.mutation))|(.accession_id|=tonumber)|del(.strain, .locstring)\' | gzip' :::: /data/new.bjorn.jsonl.gz | pv > /data/new.bjorn.mutless.jsonl.gz
