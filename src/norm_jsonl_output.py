@@ -9,8 +9,10 @@ import pandas as pd
 import datetime
 import bjorn_support as bs
 from data.mappings import COUNTY_CORRECTIONS
+from dateutil.relativedelta import relativedelta
 import numpy as np
 from rapidfuzz import process, fuzz
+import crumbs
 
 # COLLECTING USER PARAMETERS
 parser = argparse.ArgumentParser()
@@ -38,7 +40,7 @@ unknown_val = args.unknownvalue
 geojson = args.geojson
 min_date = pd.to_datetime("2019-11-01")
 data = pd.read_csv(input, sep='\t', header=None, names=["date_updated", "date_collected", "date_submitted", "locstring", "sequence", "pangolin_lineage", "mutations"], dtype=str)
-data['pangolin_lineage'] = data.loc[:, 'pangolin_lineage'] # .str.split('_').apply(lambda x: x[0])
+#data['pangolin_lineage'] = data.loc[:, 'pangolin_lineage'] # .str.split('_').apply(lambda x: x[0])
 
 # print(data, file=sys.stderr)
 
@@ -81,13 +83,20 @@ data.loc[data['tmp'].str.len()==2, 'date_submitted'] += '-15'
 data['date_submitted'] = pd.to_datetime(data['date_submitted'], errors='coerce')
 data = data[data['date_collected'] > min_date]
 data = data[data['date_submitted'] <= datetime.datetime.now()]
-data = data[data['date_collected'] <= data['date_submitted']]
+data = data[data['date_collected'] > data['date_submitted'] - pd.DateOffset(years=1)]
 data['date_collected'] = data['date_collected'].astype(str)
 data['date_submitted'] = data['date_submitted'].astype(str)
 data = data.drop(columns=['tmp'])
 data['date_modified'] = datetime.datetime.now()
 
 #print(data, file=sys.stderr)
+
+data = data.dropna(axis=0, subset=['pangolin_lineage'])
+
+data = data[~(data['pangolin_lineage'].str.contains('_')) & ~(data['pangolin_lineage'].str.contains('prop')) & ~(data['pangolin_lineage'].str.contains('misc'))]
+
+if len(data) == 0:
+    sys.exit(0)
 
 # TODO: handle locstring off-by-one errors
 
@@ -195,6 +204,11 @@ data['location_lower'] = data['location'].str.lower()
 
 data = data.drop(['sequence', 'date_modified'], axis=1)
 
+alias_key = crumbs.get_alias_key('data/lineages.yml')
+
+c = lambda l: '|'.join(crumbs.crumbs(l, alias_key))+'|'
+
+data['pangolin_lineage_crumbs'] = data['pangolin_lineage'].apply(c)
 
 data.reset_index(inplace=True)
 data = data.rename(columns = {'index':'accession_id'})

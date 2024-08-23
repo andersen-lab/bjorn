@@ -4,6 +4,7 @@ channels:
   - bioconda
 dependencies:
   - w3m
+  - nano
   - anaconda::wget
   - _libgcc_mutex
   - _openmp_mutex
