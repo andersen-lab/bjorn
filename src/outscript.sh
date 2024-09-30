@@ -12,4 +12,4 @@ join -t$'\t' -2 2 /data/new.bjorn.muts.jsonl /data/new.bjorn.mut_counts.jsonl | 
 parallel --pipepart $'./hash.py | gzip' :::: /data/new.bjorn.muts_w_counts.jsonl | pv > /data/new.bjorn.muts_w_counts.hashid.jsonl.gz
 parallel --pipepart --regexp --recstart $'\x1f\x8b\x08\\x00' $'gunzip -c | jq -cr \'"\(.accession_id), \(.date_collected), \(.country_id), \(.division_id), \(.pangolin_lineage)"\' | ./copy_unalias.py' :::: /data/new.bjorn.jsonl.gz | pv --line-mode > /data/seqs22.tsv
 parallel --pipepart --regexp --recstart $'\x1f\x8b\x08\\x00' $'gunzip -c' :::: /data/new.bjorn.mutless.jsonl.gz | pv --line-mode | wc -l
-echo "{'date_sequences': '`cat /data/start.txt`', 'date_tree': '`date -r data/tree.prune.latest.pb '+%Y-%m-%d'`', 'date_modified':`date '+%Y-%m-%d'`, 'records':`cat /data/count.txt`}" > /data/metadata.txt
+echo '{"date_sequences": "'`cat /data/start.txt`'", "date_tree": "'`date -r data/tree.prune.latest.pb '+%Y-%m-%d'`'", "date_modified":"'`date '+%Y-%m-%d'`'", "records":"'`cat /data/count.txt`'"}' > /data/metadata.txt
