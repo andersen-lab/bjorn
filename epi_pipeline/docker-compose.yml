@@ -8,13 +8,11 @@ services:
       - "8786:8786"
       - "8787:8787"
     volumes:
-      - /nvme/outbreak/bjorn_data_2:/data
-      - /nvme/outbreak/bjorn_temp:/temp
+      - /nvme/outbreak/bjornout:/nvme/outbreak/bjornout
     command: ["dask-scheduler"]
 
   worker:
     image: ghcr.io/dask/dask:latest
     command: ["dask-worker", "tcp://scheduler:8786"]
     volumes:
-      - /nvme/outbreak/bjorn_data_2:/data
-      - /nvme/outbreak/bjorn_temp:/temp
+      - /nvme/outbreak/bjornout:/nvme/outbreak/bjornout

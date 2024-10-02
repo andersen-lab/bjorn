@@ -1,7 +1,6 @@
 FROM mambaorg/micromamba:git-a628e26-buster
 
 COPY --chown=$MAMBA_USER:$MAMBA_USER ./ /tmp/bjorn
-RUN ln -s /tmp/bjorn/data/ /tmp/bjorn/src
 RUN micromamba install -y -n base -c conda-forge git
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 RUN git clone --depth=1 --branch v4.3.1 https://github.com/cov-lineages/pangolin.git

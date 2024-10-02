@@ -1,12 +1,12 @@
 from dask.distributed import Client
 
-client = Client('scheduler:8786')
+client = Client('tcp://localhost:8786')
 
 import dask
 import dask.dataframe as dd
 from datetime import date, timedelta
 
-sequences = dd.read_csv('gr_data.tsv', sep=',', header=None, dtype=str, names=['id', 'date', 'loc', 'loc2', 'lin', 'leaf']).drop(['id', 'loc2'], axis=1)
+sequences = dd.read_csv('/nvme/outbreak/bjornout/gr_data.tsv', sep=',', header=None, dtype=str, names=['id', 'date', 'loc', 'loc2', 'lin', 'leaf']).drop(['id', 'loc2'], axis=1)
 sequences['loc'] = sequences['loc'].str.strip()
 sequences['lin'] = sequences['lin'].str.strip()
 sequences['date'] = dd.to_datetime(sequences['date'])
@@ -21,6 +21,6 @@ loc_count = sequences[sequences['leaf']].drop(['leaf', 'lin'], axis=1).groupby([
 data = lin_count.join(loc_count, on=['loc', 'date'], how='inner', rsuffix='_total')
 data['key'] = data['loc'] + data['lin'] # + data['leaf'].astype(str)
 data = data.sort_values('date')
-data = data.set_index('key', npartitions=288*4)
+#data = data.set_index('key', npartitions=288*4)
 
-data.to_parquet('epi/joined.22.parquet')
+data.to_parquet('/nvme/outbreak/bjornout/joined.parquet')
