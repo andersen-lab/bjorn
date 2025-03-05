@@ -177,15 +177,22 @@ data.loc[data['location']=='unk', 'location'] = ''
 data.loc[data['division']==data['country'], 'division'] = ''
 data.fillna('', inplace=True)
 
+def get_best_match(query, choices, scorer):
+	matches = process.extract(query, choices, scorer=scorer)
+	best_match = None
+	if len(matches) >= 1:
+		best_match = max(matches, key=lambda x: x[1])
+	return best_match
+
 # Match to GADM-derived loc/id database
 with open(geojson) as f:
     countries = [json.loads(line) for line in f]
 get_geo = lambda b, y: (b[y[2]-1] if 'alias' in b[y[2]] else b[y[2]]) if not y is None else None
-s = lambda f, r: lambda a, b, **params: 100 if a == '' and b == '' else (r if a == '' or b == '' else f(a, b, **params))
-data.loc[:, 'country_match'] = data['country'].apply(lambda x: get_geo(countries, process.extractOne(x, [country['name'] for country in countries], scorer=s(fuzz.ratio, 80))))
+s = lambda f, r: lambda a, b, **params: 100 if a == '' and b == '' else (r if a == '' or b == '' else f(a.lower(), b.lower(), **params))
+data.loc[:, 'country_match'] = data['country'].apply(lambda x: get_geo(countries, get_best_match(x, [country['name'] for country in countries], scorer=s(fuzz.ratio, 80))))
 data = data.dropna(axis=0, subset=['country_match'])
-data.loc[:, 'division_match'] = data.apply(lambda x: get_geo(x.country_match['sub'], process.extractOne(x.division, [division['name'] for division in x.country_match['sub']], scorer=s(fuzz.ratio, 70))), axis=1)
-data.loc[:, 'location_match'] = data.apply(lambda x: get_geo(x.division_match['sub'], process.extractOne(x.location, [location['name'] for location in x.division_match['sub']], scorer=s(fuzz.partial_ratio, 60))), axis=1)
+data.loc[:, 'division_match'] = data.apply(lambda x: get_geo(x.country_match['sub'], get_best_match(x.division, [division['name'] for division in x.country_match['sub']], scorer=s(fuzz.ratio, 70))), axis=1)
+data.loc[:,'location_match'] = data.apply(lambda x: get_geo(x.division_match['sub'], get_best_match(x.location, [location['name'] for location in x.division_match['sub']], scorer=s(fuzz.ratio, 60))), axis=1)
 data.loc[:, 'country'] = data['country_match'].apply(lambda x: x['name'])
 data.loc[:, 'country_id'] = data['country_match'].apply(lambda x: x['id'])
 data.loc[:, 'division'] = data['division_match'].apply(lambda x: x['name'])
